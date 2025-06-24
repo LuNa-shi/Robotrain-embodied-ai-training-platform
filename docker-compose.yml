@@ -1,0 +1,58 @@
+services:
+  # PostgreSQL 数据库服务
+  postgres_db:
+    image: postgres:17 # 使用您本地已有的 PostgreSQL 17 镜像
+    restart: always # 容器停止后自动重启，确保服务可用
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432" # 将宿主机的 5432 端口映射到容器的 5432 端口，供外部程序连接
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # 数据持久化：将容器数据挂载到名为 pg_data 的 Docker 卷
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql # 关键：挂载初始化脚本
+    networks:
+      - app_network # 将服务连接到自定义网络
+
+  # MinIO 对象存储服务
+  minio_s3: # 服务名称，避免与内部命令冲突，建议加后缀
+    image: minio/minio:latest # 使用您本地已有的 MinIO 镜像
+    restart: always
+    ports:
+      - "9000:9000" # MinIO API 端口映射
+      - "9001:9001" # MinIO 控制台端口映射
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY} # 从 .env 文件加载访问密钥
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY} # 从 .env 文件加载秘密密钥
+    volumes:
+      - minio_data:/data # 数据持久化：将 MinIO 数据挂载到名为 minio_data 的 Docker 卷
+    command: server /data --console-address ":9001" # MinIO 启动命令，指定数据目录和控制台端口
+    networks:
+      - app_network
+
+  # RabbitMQ 消息队列服务
+  rabbitmq_mq: # 服务名称，建议加后缀以示区分
+    image: rabbitmq:3-management # 使用您本地已有的 RabbitMQ 3-management 镜像
+    restart: always
+    ports:
+      - "5672:5672" # RabbitMQ AMQP 端口映射（客户端连接）
+      - "15672:15672" # RabbitMQ 管理界面端口映射（Web UI）
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER} # 从 .env 文件加载用户名
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS} # 从 .env 文件加载密码
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # 可选：持久化 RabbitMQ 数据和配置
+    networks:
+      - app_network
+
+# 定义 Docker 卷，用于持久化服务数据。这些卷由 Docker 自动管理。
+volumes:
+  postgres_data:
+  minio_data:
+  rabbitmq_data:
+
+# 定义所有服务共享的网络，允许它们通过服务名称相互通信
+networks:
+  app_network:
+    driver: bridge # 使用桥接网络
