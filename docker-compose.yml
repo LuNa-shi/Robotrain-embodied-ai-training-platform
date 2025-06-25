@@ -1,4 +1,22 @@
 services:
+  backend:
+    build:
+      context: ./backend # 指定 Dockerfile 所在的目录（相对于 docker-compose.yml 的路径）
+    environment:
+      POSTGRES_SERVER: postgres_db # 数据库服务名称，Docker Compose 会自动解析为容器 IP
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "8000:8000" # 将主机端口 8000 映射到容器端口 8000
+    volumes:
+      - ./backend:/app # 挂载本地代码到容器，实现开发时的热重载（仅限开发环境）
+    depends_on:
+      - postgres_db # 依赖于数据库服务，确保数据库先启动
+    networks:
+      - app_network # 将服务连接到自定义网络
+  
   # PostgreSQL 数据库服务
   postgres_db:
     image: postgres:17 # 使用您本地已有的 PostgreSQL 17 镜像
