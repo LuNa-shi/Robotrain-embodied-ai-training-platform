@@ -1,0 +1,73 @@
+{
+  "dataset": {
+    "repo_id": "lerobot/pusht",
+    "episodes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "video_backend": "pyav",
+    "image_transforms": {
+      "enable": true
+    }
+  },
+  "env": {
+    "type": "pusht",
+    "task": "PushT-v0",
+    "fps": 10,
+    "episode_length": 300,
+    "obs_type": "pixels_agent_pos",
+    "render_mode": "rgb_array",
+    "visualization_width": 384,
+    "visualization_height": 384
+  },
+  "policy": {
+    "type": "act",
+    "device": "cuda",
+    "use_amp": true,
+    "n_obs_steps": 1,
+    "chunk_size": 50,
+    "n_action_steps": 50,
+    "vision_backbone": "resnet18",
+    "pretrained_backbone_weights": "ResNet18_Weights.IMAGENET1K_V1",
+    "replace_final_stride_with_dilation": false,
+    "pre_norm": false,
+    "dim_model": 256,
+    "n_heads": 8,
+    "dim_feedforward": 1600,
+    "feedforward_activation": "relu",
+    "n_encoder_layers": 2,
+    "n_decoder_layers": 1,
+    "use_vae": true,
+    "latent_dim": 16,
+    "n_vae_encoder_layers": 2,
+    "temporal_ensemble_coeff": null,
+    "dropout": 0.1,
+    "kl_weight": 10.0,
+    "optimizer_lr": 1e-5,
+    "optimizer_weight_decay": 1e-4,
+    "optimizer_lr_backbone": 1e-5
+  },
+  "output_dir": null,
+  "job_name": null,
+  "resume": false,
+  "seed": 1000,
+  "num_workers": 4,
+  "batch_size": 4,
+  "steps": 100000,
+  "eval_freq": 20000,
+  "log_freq": 200,
+  "save_checkpoint": true,
+  "save_freq": 20000,
+  "use_policy_training_preset": true,
+  "optimizer": null,
+  "scheduler": null,
+  "eval": {
+    "n_episodes": 10,
+    "batch_size": 4
+  },
+  "wandb": {
+    "enable": false,
+    "disable_artifact": false,
+    "project": "lerobot",
+    "entity": null,
+    "notes": null,
+    "run_id": null
+  }
+} 
