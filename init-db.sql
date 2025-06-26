@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     username VARCHAR(50) UNIQUE NOT NULL, -- 用户名，唯一且不能为空
     password_hash VARCHAR(255) NOT NULL,  -- 密码哈希值，存储加密后的密码
     is_admin BOOLEAN NOT NULL DEFAULT FALSE,          -- 是否为管理员，默认为FALSE
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- 注册时间，默认为当前时间
+    created_at TIMESTAMP WITH TIME ZONE, -- 注册时间，默认为当前时间
     last_login TIMESTAMP WITH TIME ZONE   -- 最后登录时间，可为空
 );
 CREATE INDEX IF NOT EXISTS idx_users_username ON app_user (username);
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS dataset (
     description TEXT DEFAULT NULL,       -- 数据集描述，可为空
     dataset_uuid UUID NOT NULL,         -- 数据集UUID(作为minio里的文件名)，不能为空
     owner_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE, -- 所有者ID，外键引用users表
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP -- 创建时间，默认为当前时间
+    uploaded_at TIMESTAMP WITH TIME ZONE-- 创建时间，默认为当前时间
 );
 CREATE INDEX IF NOT EXISTS idx_datasets_owner_id ON dataset (owner_id);
 
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS model (
     model_uuid UUID NOT NULL,           -- 模型UUID，不能为空
     owner_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE, -- 所有者ID，外键引用users表
     dataset_id INTEGER NOT NULL REFERENCES dataset(id) ON DELETE CASCADE, -- 数据集ID，外键引用datasets表
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP -- 创建时间，默认为当前时间
+    created_at TIMESTAMP WITH TIME ZONE -- 创建时间，默认为当前时间
 );
 CREATE INDEX IF NOT EXISTS idx_models_owner_id ON model (owner_id);
 
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS train_task(
     model_type_id INTEGER REFERENCES model_type(id) ON DELETE SET NULL, -- 模型类型ID，外键引用model_types表
     Hyperparameter JSONB NOT NULL, -- 超参数，存储为JSONB格式
     status VARCHAR(20) NOT NULL,        -- 训练状态，如 'pending', 'running', 'completed', 'failed'
-    start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- 开始时间，默认为当前时间
+    start_time TIMESTAMP WITH TIME ZONE, -- 开始时间，默认为当前时间
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, -- 结束时间，可为空
     logs_uuid UUID, -- 训练日志的UUID，可为空
     model_id INTEGER REFERENCES model(id) ON DELETE SET NULL, -- 关联的模型ID，外键引用models表，可为空

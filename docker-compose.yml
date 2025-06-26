@@ -10,9 +10,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "8000:8000" # 将主机端口 8000 映射到容器端口 8000
-    #个人开发就把下面两行注释掉
-    # volumes:
-      # - ./backend:/app # 挂载本地代码到容器，实现开发时的热重载（仅限开发环境）
+    # 个人开发就把下面两行注释掉
+    volumes:
+      - ./backend:/app # 挂载本地代码到容器，实现开发时的热重载（仅限开发环境）
     depends_on:
       - postgres_db # 依赖于数据库服务，确保数据库先启动
     networks:

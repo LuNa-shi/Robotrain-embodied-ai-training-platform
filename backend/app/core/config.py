@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         # 构建 PostgreSQL 连接字符串
         # f-string 语法，方便地将变量嵌入字符串
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
     
     SQL_ECHO: bool = False # 是否打印 SQL 语句
     

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session # 导入同步会话
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.deps import get_db
 from app.schemas.user import UserPublic
@@ -9,11 +9,11 @@ from app.service.user import UserService
 router = APIRouter()
 
 # 依赖注入 UserService
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
+async def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:
     return UserService(db)
 
 @router.get("/users/{username}", response_model=UserPublic, summary="根据用户名获取用户信息")
-def get_user_by_username(
+async def get_user_by_username(
     username: str,
     user_service: UserService = Depends(get_user_service)
 ) -> UserPublic:
@@ -29,7 +29,7 @@ def get_user_by_username(
     - `200 OK`: 成功获取用户信息。
     - `404 Not Found`: 用户不存在。
     """
-    user = user_service.get_user_by_username(username) # 调用 Service 层方法
+    user = await user_service.get_user_by_username(username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

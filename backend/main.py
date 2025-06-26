@@ -7,7 +7,7 @@ from app.api.api import api_router
 async def lifespan(app: FastAPI):
     # 在应用程序启动时执行的代码
     print("Application startup")
-    create_db_and_tables()
+    await create_db_and_tables()
     yield
     # 在应用程序关闭时执行的代码
     print("Application shutdown")
