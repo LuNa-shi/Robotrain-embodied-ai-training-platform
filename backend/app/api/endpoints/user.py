@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
+from typing import Annotated
 
 from app.core.deps import get_db
 from app.schemas.user import UserPublic
@@ -9,13 +10,13 @@ from app.service.user import UserService
 router = APIRouter()
 
 # 依赖注入 UserService
-async def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:
+async def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserService:
     return UserService(db)
 
 @router.get("/users/{username}", response_model=UserPublic, summary="根据用户名获取用户信息")
 async def get_user_by_username(
     username: str,
-    user_service: UserService = Depends(get_user_service)
+    user_service: Annotated[UserService, Depends(get_user_service)]
 ) -> UserPublic:
     """
     **根据用户名获取用户信息**
