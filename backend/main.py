@@ -1,13 +1,17 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.core.deps import create_db_and_tables
+from app.core.minio_utils import connect_minio
 from app.api.api import api_router
+from miniopy_async import Minio
+from typing import Optional
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 在应用程序启动时执行的代码
     print("Application startup")
     await create_db_and_tables()
+    await connect_minio()
     yield
     # 在应用程序关闭时执行的代码
     print("Application shutdown")

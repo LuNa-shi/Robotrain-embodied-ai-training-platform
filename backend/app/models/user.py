@@ -1,25 +1,41 @@
 from datetime import datetime, timezone
 from typing import Optional
-
 from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy import DateTime
 
 class UserBase(SQLModel):
-    """
-    用户模型的基础部分，用于定义公共字段，可被创建和读取 Schema 继承
-    """
     username: str = Field(max_length=50, unique=True, index=True)
     is_admin: bool = Field(default=False)
 
 class AppUser(UserBase, table=True):
-    """
-    SQLModel 模型，对应数据库中的 'app_user' 表
-    """
     __tablename__ = "app_user"
     id: Optional[int] = Field(default=None, primary_key=True)
     password_hash: str = Field(max_length=255)
-    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False, sa_type=DateTime(timezone=True)) # 注册时间，默认使用 UTC 时间
-    last_login: Optional[datetime] = Field(default=None, nullable=True, sa_type=DateTime(timezone=True))
+    created_at: Optional[datetime] = Field(
+        default_factory=lambda: datetime.now(timezone.utc), 
+        nullable=False, 
+        sa_type=DateTime(timezone=True)
+    )
+    last_login: Optional[datetime] = Field(
+        default=None,
+        nullable=True,
+        sa_type=DateTime(timezone=True)
+    )
 
-    # 如果有其他模型与用户有关联，可以在这里定义关系
-    # 例如：items: List["Item"] = Relationship(back_populates="owner")
+    owned_datasets: list["Dataset"] = Relationship(
+        back_populates="owner",
+        # cascade="save-update, merge, refresh-expire, delete-orphan, expunge"
+        sa_relationship_kwargs={
+            "cascade": "save-update, merge, refresh-expire, expunge",
+        }
+    )
+    train_tasks: list["TrainTask"] = Relationship(
+        back_populates="owner",
+        # cascade="save-update, merge, refresh-expire, delete-orphan, expunge"
+        sa_relationship_kwargs={
+            "cascade": "save-update, merge, refresh-expire, expunge",
+        }
+    )
+    
+from app.models.dataset import Dataset
+from app.models.train_task import TrainTask

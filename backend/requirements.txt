@@ -1,5 +1,5 @@
 fastapi[standard]
-minio==7.2.15
+miniopy-async==1.23.1
 aio-pika==9.5.5
 websockets==14.2
 SQLAlchemy==2.0.38

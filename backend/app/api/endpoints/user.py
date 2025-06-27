@@ -6,6 +6,7 @@ from app.core.deps import get_db
 from app.schemas.user import UserPublic
 from app.service.user import UserService
 from app.core.security import get_current_user
+from app.models.user import AppUser
 
 # 创建路由实例
 router = APIRouter()
@@ -14,9 +15,9 @@ router = APIRouter()
 async def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserService:
     return UserService(db)
 
-@router.get("/users/me", response_model=UserPublic, summary="获取当前用户信息")
+@router.get("/me", response_model=UserPublic, summary="获取当前用户信息")
 async def get_me(
-    current_user: Annotated[UserPublic, Depends(get_current_user)]
+    current_user: Annotated[AppUser, Depends(get_current_user)]
 ) -> UserPublic:
     """
     **获取当前用户信息**
@@ -29,7 +30,7 @@ async def get_me(
     """
     return current_user
 
-@router.get("/users/{username}", response_model=UserPublic, summary="根据用户名获取用户信息")
+@router.get("/{username}", response_model=UserPublic, summary="根据用户名获取用户信息")
 async def get_user_by_username(
     username: str,
     user_service: Annotated[UserService, Depends(get_user_service)]

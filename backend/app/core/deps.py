@@ -5,9 +5,6 @@ from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 
 from app.core.config import settings # 从 config.py 导入设置对象
-# 导入所有模型以确保它们被 SQLModel 发现
-from app.models.user import AppUser # 导入用户模型
-                               # 如果你还有其他模型，也需要在这里导入或者在一个 __init__.py 中导入所有模型
 
 # 如果想使用 AsyncEngine for async operations with FastAPI, you'd use create_async_engine
 # For simplicity, stick to sync engine for now if you haven't set up async DB operations
@@ -26,6 +23,7 @@ async def create_db_and_tables():
     # 确保所有 SQLModel 模型都在这里或其导入链中被导入，以便 SQLModel 能够发现它们。
     # 例如，你的 app/models/__init__.py 可以导入所有模型文件。
     print("Creating database tables asynchronously...")
+    from app.models import user, train_task, dataset, model_type  # 确保导入所有模型模块
     async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
     print("Database tables created (if not already existing).")
@@ -37,3 +35,4 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     async with AsyncSession(async_engine) as session:
         yield session
+
