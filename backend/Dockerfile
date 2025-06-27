@@ -7,9 +7,20 @@ WORKDIR /app
 # 这一步是为了利用 Docker 缓存，如果 requirements.txt 没有变化，则不会重新安装依赖
 COPY requirements.txt .
 
+# 替换为阿里云 APT 镜像源
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list && \
+    sed -i 's|security.debian.org|mirrors.aliyun.com/debian-security|g' /etc/apt/sources.list
+
+# 安装系统依赖和编译工具
+RUN apt-get update
+RUN apt-get install -y gcc libc-dev make 
+# RUN apt-get install iputils-ping netcat curl
+RUN rm -rf /var/lib/apt/lists/*
+
 # 安装 Python 依赖
 # 使用 --no-cache-dir 选项可以避免在镜像中保留 pip 缓存，进一步减小镜像大小
 # 注意：这里我们假设 requirements.txt 中包含了 fastapi[standard]
+RUN pip install --upgrade pip -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 
 # 复制整个应用程序代码到工作目录

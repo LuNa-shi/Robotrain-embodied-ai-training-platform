@@ -38,8 +38,9 @@ async def connect_minio()->Optional[Minio]:
             endpoint = settings.MINIO_URL,
             access_key= settings.MINIO_ACCESS_KEY,
             secret_key= settings.MINIO_SECRET_KEY,
-            secure=False # 根据你的 MinIO 配置调整
+            secure=False  # 根据你的 MinIO 配置调整
         )
+        print(f"💡 正在连接到 MinIO 服务器: {settings.MINIO_URL} ...")
         # 测试连接
         await minio_client.list_buckets()  # 列出桶以验证连接是否成功
         if not minio_client:
