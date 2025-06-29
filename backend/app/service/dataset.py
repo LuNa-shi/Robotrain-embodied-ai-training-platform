@@ -72,4 +72,28 @@ class DatasetService:
             user_id=user_id
         )
         return datasets
-        
+    
+    async def get_dataset_by_id(self, dataset_id: int) -> Optional[Dataset]:
+        """
+        根据数据集ID获取数据集详情。
+        """
+        dataset = await crud_dataset.get_dataset_by_id(
+            db_session=self.db_session,
+            dataset_id=dataset_id
+        )
+        return dataset
+    
+    async def delete_dataset_by_id(self, dataset_id: int) -> Optional[Dataset]:
+        """
+        根据数据集ID删除数据集。
+        """
+        deleted_dataset = await crud_dataset.delete_dataset(
+            db_session=self.db_session,
+            dataset_id=dataset_id
+        )
+        if deleted_dataset:
+            # 提交事务
+            await self.db_session.commit()
+            return deleted_dataset
+        else:
+            return None 

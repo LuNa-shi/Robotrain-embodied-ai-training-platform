@@ -23,6 +23,14 @@ async def get_train_task_by_id(db_session: AsyncSession, train_task_id: int) -> 
     result = await db_session.exec(statement)
     return result.one_or_none()
 
+async def get_train_tasks_by_user_id(db_session: AsyncSession, user_id: int) -> list[TrainTask]:
+    """
+    获取指定用户的所有训练任务。
+    """
+    statement = select(TrainTask).where(TrainTask.owner_id == user_id)
+    result = await db_session.exec(statement)
+    return result.all()
+
 async def update_train_task(db_session: AsyncSession, train_task_id: int, train_task_update_db: TrainTaskUpdate) -> Optional[TrainTask]:
     """
     更新指定 ID 的训练任务。

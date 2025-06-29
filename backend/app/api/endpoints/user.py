@@ -33,7 +33,8 @@ async def get_me(
 @router.get("/{username}", response_model=UserPublic, summary="根据用户名获取用户信息")
 async def get_user_by_username(
     username: str,
-    user_service: Annotated[UserService, Depends(get_user_service)]
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    current_user: Annotated[AppUser, Depends(get_current_user)]
 ) -> UserPublic:
     """
     **根据用户名获取用户信息**
@@ -47,6 +48,12 @@ async def get_user_by_username(
     - `200 OK`: 成功获取用户信息。
     - `404 Not Found`: 用户不存在。
     """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="你不是管理员，无法访问此资源。",
+        )
+    
     user = await user_service.get_user_by_username(username)
     if not user:
         raise HTTPException(

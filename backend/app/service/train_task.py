@@ -69,6 +69,34 @@ class TrainTaskService:
         
         return train_task
     
+    async def get_tasks_by_user(self, user_id: int) -> list[TrainTask]:
+        """
+        获取指定用户的所有训练任务。
+        - 调用 CRUD 层获取训练任务列表
+        """
+        # 调用 CRUD 层获取训练任务列表
+        train_tasks = await crud_train_task.get_train_tasks_by_user_id(self.db_session, user_id)
+        
+        if not train_tasks:
+            print(f"用户 ID {user_id} 没有任何训练任务")
+            return []
+        
+        return train_tasks
+
+    async def get_train_task_by_id(self, train_task_id: int) -> Optional[TrainTask]:
+        """
+        获取指定 ID 的训练任务。
+        - 调用 CRUD 层获取训练任务
+        """
+        # 调用 CRUD 层获取训练任务
+        train_task = await crud_train_task.get_train_task_by_id(self.db_session, train_task_id)
+        
+        if not train_task:
+            print(f"训练任务 ID {train_task_id} 不存在")
+            return None
+        
+        return train_task
+    
     async def update_train_task(self, train_task_id: int, train_task_update: TrainTaskUpdate) -> Optional[TrainTask]:
         """
         更新训练任务的业务逻辑。

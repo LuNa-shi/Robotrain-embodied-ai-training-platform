@@ -36,6 +36,7 @@ async def get_my_datasets(
 @router.get("/{dataset_id}", summary="获取数据集详情")
 async def get_dataset(
     dataset_id: int,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
     dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
 ) -> DatasetPublic:
     """
@@ -50,6 +51,12 @@ async def get_dataset(
     - `200 OK`: 成功获取数据集详情。
     - `404 Not Found`: 数据集不存在。
     """
+    # 验证用户是否拥有该数据集
+    if dataset_id not in [dataset.id for dataset in current_user.owned_datasets]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="该数据集不存在或该数据集不属于当前用户。",
+        )
     dataset = await dataset_service.get_dataset_by_id(dataset_id)
     if not dataset:
         raise HTTPException(
@@ -70,7 +77,8 @@ async def upload_dataset(
     **创建新数据集**
 
     上传数据集文件并创建新的数据集记录。
-
+    仅支持上传 zip 格式的文件。
+    
     **表单参数:**
     - `name`: 数据集名称。
     - `description`: 数据集描述。
@@ -103,3 +111,38 @@ async def upload_dataset(
             detail="数据集上传失败，请稍后重试。",
         )
     return dataset
+
+@router.delete("/{dataset_id}", summary="删除数据集")
+async def delete_dataset(
+    dataset_id: int,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
+) -> DatasetPublic:
+    """
+    **删除数据集**
+
+    根据数据集ID删除指定的数据集。
+
+    **路径参数:**
+    - `dataset_id`: 要删除的数据集的ID。
+
+    **响应:**
+    - `204 No Content`: 成功删除数据集。
+    - `404 Not Found`: 数据集不存在。
+    - `401 Unauthorized`: 用户未登录。
+    """
+    # 验证用户是否拥有该数据集
+    if dataset_id not in [dataset.id for dataset in current_user.owned_datasets]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="该数据集不存在或该数据集不属于当前用户。",
+        )
+    
+    deleted_dataset = await dataset_service.delete_dataset_by_id(dataset_id)
+    if not delete_dataset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="数据集未找到。",
+        )
+    
+    return deleted_dataset

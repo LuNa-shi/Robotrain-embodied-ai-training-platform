@@ -23,6 +23,14 @@ async def get_model_type_by_id(db_session: AsyncSession, model_type_id: int) -> 
     result = await db_session.exec(statement)
     return result.one_or_none()
 
+async def get_all_model_types(db_session: AsyncSession) -> list[ModelType]:
+    """
+    获取所有模型类型。
+    """
+    statement = select(ModelType)
+    result = await db_session.exec(statement)
+    return result.all()
+
 async def update_model_type(db_session: AsyncSession, model_type_id: int, model_type_update_db: ModelTypeUpdate) -> Optional[ModelType]:
     """
     更新指定 ID 的模型类型。
