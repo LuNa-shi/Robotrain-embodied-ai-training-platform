@@ -20,14 +20,21 @@ services:
       RABBITMQ_PORT: ${RABBITMQ_PORT}
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBIT_EXCHANGE_NAME: ${RABBIT_EXCHANGE_NAME}
+      RABBIT_REQUEST_QUEUE_NAME: ${RABBIT_REQUEST_QUEUE_NAME}
+      RABBIT_REQUEST_BINDING_KEY: ${RABBIT_REQUEST_BINDING_KEY}
+      RABBIT_STATUS_QUEUE_NAME: ${RABBIT_STATUS_QUEUE_NAME}
+      RABBIT_STATUS_BINDING_KEY: ${RABBIT_REQUEST_BINDING_KEY}
+      RABBIT_TRAIN_LOG_QUEUE_NAME: ${RABBIT_TRAIN_LOG_QUEUE_NAME}
+      RABBIT_TRAIN_LOG_BINDING_KEY: ${RABBIT_TRAIN_LOG_BINDING_KEY}
     ports:
       - "8000:8000" # 将主机端口 8000 映射到容器端口 8000
     volumes: # 部署环境/别的模块测试 就把这两行注释掉
       - ./backend:/app # 挂载本地代码到容器，实现开发时的热重载（仅限开发环境）
     depends_on:
+      - rabbitmq_mq # 依赖于 RabbitMQ 服务，确保消息队列
       - postgres_db # 依赖于数据库服务，确保数据库先启动
       - minio_s3 # 依赖于 MinIO 服务，确保对象存储先启动
-      - rabbitmq_mq # 依赖于 RabbitMQ 服务，确保消息队列
     networks:
       - app_network # 将服务连接到自定义网络
         

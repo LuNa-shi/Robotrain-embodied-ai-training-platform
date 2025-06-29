@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     RABBITMQ_DEFAULT_PASS: str
     RABBITMQ_SERVER: str
     RABBITMQ_PORT: int
+    RABBIT_EXCHANGE_NAME: str
+    RABBIT_REQUEST_QUEUE_NAME: str 
+    RABBIT_REQUEST_BINDING_KEY: str
+    RABBIT_STATUS_QUEUE_NAME: str
+    RABBIT_STATUS_BINDING_KEY: str
+    RABBIT_TRAIN_LOG_QUEUE_NAME: str
+    RABBIT_TRAIN_LOG_BINDING_KEY: str
 
     @property
     def DATABASE_URL(self) -> str:
@@ -32,6 +39,11 @@ class Settings(BaseSettings):
     def MINIO_URL(self) -> str:
         # 构建 MinIO 连接字符串
         return f"{self.MINIO_SERVER}:{self.MINIO_PORT}"
+    
+    @property
+    def RABBITMQ_URL(self) -> str:
+        # 构建 RabbitMQ 连接字符串
+        return f"amqp://{self.RABBITMQ_DEFAULT_USER}:{self.RABBITMQ_DEFAULT_PASS}@{self.RABBITMQ_SERVER}:{self.RABBITMQ_PORT}/"
     
     SQL_ECHO: bool = False # 是否打印 SQL 语句
     

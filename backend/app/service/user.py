@@ -22,6 +22,7 @@ class UserService:
         # 1. 检查用户是否已存在 (业务逻辑)
         existing_user = await crud_user.get_user_by_username(self.db_session, username=user_in.username)
         if existing_user:
+            print(f"用户名 '{user_in.username}' 已存在，无法创建新用户。")
             return None
 
         # 2. 对密码进行哈希 (业务逻辑)

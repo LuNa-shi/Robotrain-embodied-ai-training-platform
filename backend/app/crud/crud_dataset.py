@@ -23,6 +23,13 @@ async def get_dataset_by_id(db_session: AsyncSession, dataset_id: int) -> Option
     result = await db_session.exec(statement)
     return result.one_or_none()
 
+async def get_datasets_by_user_id(db_session: AsyncSession, user_id: int) -> list[Dataset]:
+    """根据用户 ID 获取该用户的所有数据集。
+    """
+    statement = select(Dataset).where(Dataset.owner_id == user_id)
+    result = await db_session.exec(statement)
+    return result.all()
+
 async def update_dataset(db_session: AsyncSession, dataset_id: int, dataset_update_db: DatasetCreateDB) -> Optional[Dataset]:
     """
     更新指定 ID 的数据集。

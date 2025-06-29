@@ -5,9 +5,6 @@ from enum import Enum
 
 from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy import Column, JSON, DateTime
-from app.models.user import AppUser
-from app.models.dataset import Dataset
-from app.models.model_type import ModelType
 
 class TrainTaskStatus(str, Enum):
     PENDING = "pending"
@@ -57,3 +54,7 @@ class TrainTask(TrainTaskBase, table=True):
     model_type: Optional["ModelType"] = Relationship(
         # back_populates="train_tasks",
     )
+
+from app.models.user import AppUser
+from app.models.dataset import Dataset
+from app.models.model_type import ModelType

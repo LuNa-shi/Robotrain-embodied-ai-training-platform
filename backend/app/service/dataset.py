@@ -22,6 +22,7 @@ class DatasetService:
         """
         # 1. 检查用户是否存在 (业务逻辑)
         if not user:
+            print("用户不存在，无法创建数据集")
             return None
         
         new_uuid = uuid.uuid4()
@@ -61,4 +62,14 @@ class DatasetService:
         
         # 4. 返回新创建的数据集
         return dataset
+
+    async def get_datasets_by_user_id(self, user_id: int) -> list[Dataset]:
+        """
+        根据用户ID获取该用户的所有数据集。
+        """
+        datasets = await crud_dataset.get_datasets_by_user_id(
+            db_session=self.db_session,
+            user_id=user_id
+        )
+        return datasets
         

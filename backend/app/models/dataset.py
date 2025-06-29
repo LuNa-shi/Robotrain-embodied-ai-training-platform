@@ -23,5 +23,4 @@ class Dataset(DatasetBase, table=True):
 
     owner: "AppUser" = Relationship(back_populates="owned_datasets")
 
-from app.models.train_task import TrainTask
 from app.models.user import AppUser

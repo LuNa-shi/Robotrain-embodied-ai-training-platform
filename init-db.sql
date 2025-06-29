@@ -48,7 +48,13 @@ CREATE TABLE IF NOT EXISTS train_task(
 );
 CREATE INDEX IF NOT EXISTS idx_train_tasks_owner_id ON train_task (owner_id);
 
-
+CREATE TABLE IF NOT EXIST train_log (
+    id SERIAL PRIMARY KEY,              -- 训练日志ID，自增主键
+    train_task_id INTEGER NOT NULL REFERENCES train_task(id) ON DELETE CASCADE, -- 训练任务ID，外键引用train_tasks表
+    log_message TEXT NOT NULL,          -- 日志消息，不能为空
+    log_time TIMESTAMP WITH TIME ZONE DEFAULT NOW() AT TIME ZONE 'utc' NOT NULL -- 日志时间，默认为当前时间
+);
+CREATE INDEX IF NOT EXISTS idx_train_logs_task_id ON train_log (train_task_id);
 
 
 
