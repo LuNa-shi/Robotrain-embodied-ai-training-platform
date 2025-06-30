@@ -21,6 +21,7 @@
       "type": "diffusion",
       "device": "cuda",
       "use_amp": true,
+      "use_compile": false,
       "n_obs_steps": 2,
       "horizon": 16,
       "n_action_steps": 8,

@@ -16,7 +16,7 @@
 
 import logging
 
-from torch import nn
+from torch import nn, compile
 
 from lerobot.common.datasets.lerobot_dataset import LeRobotDatasetMetadata
 from lerobot.common.datasets.utils import dataset_to_policy_features
@@ -145,6 +145,7 @@ def make_policy(
     policy.to(cfg.device)
     assert isinstance(policy, nn.Module)
 
-    # policy = torch.compile(policy, mode="reduce-overhead")
+    if cfg.use_compile:
+        policy = compile(policy)
 
     return policy
