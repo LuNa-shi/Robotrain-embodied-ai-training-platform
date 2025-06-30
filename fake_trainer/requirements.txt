@@ -1,1 +1,2 @@
 aio-pika==9.5.5
+miniopy-async==1.23.1

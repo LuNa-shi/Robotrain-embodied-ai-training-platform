@@ -19,7 +19,7 @@ class ModelTypeService:
         """
         # 1. 构建 ModelTypeCreateDB 对象传递给 CRUD 层
         model_type_create_db = ModelTypeCreateDB(
-            model_type_name=model_type_create.model_type_name,
+            type_name=model_type_create.type_name,
             description=model_type_create.description,
         )
         

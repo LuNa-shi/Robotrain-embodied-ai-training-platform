@@ -18,7 +18,7 @@ class TrainTaskPublic(SQLModel):
     model_type_id: Optional[int] = None
     hyperparameter: dict
     status: TrainTaskStatus
-    created_time: datetime
+    create_time: datetime
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     logs_uuid: Optional[UUID] = None

@@ -29,7 +29,7 @@ class TrainTask(TrainTaskBase, table=True):
         max_length=20,
         nullable=False
     )
-    created_time: Optional[datetime] = Field(
+    create_time: Optional[datetime] = Field(
         default_factory=lambda: datetime.now(timezone.utc), 
         nullable=False, 
         sa_type=DateTime(timezone=True)

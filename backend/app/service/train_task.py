@@ -25,7 +25,7 @@ class TrainTaskService:
         if not user:
             print("用户不存在，无法创建训练任务")
             return None
-        dataset: Dataset = await crud_dataset.get_dataset_by_id(train_task_create.dataset_id)
+        dataset: Dataset = await crud_dataset.get_dataset_by_id(self.db_session,train_task_create.dataset_id)
         if not dataset:
             print("数据集不存在，无法创建训练任务")
             return None

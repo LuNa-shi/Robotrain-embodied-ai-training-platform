@@ -6,6 +6,7 @@ from aio_pika.exchange import ExchangeType, Exchange
 from typing import Optional
 import json
 from settings import settings
+
 rabbit_connection: Optional[Connection] = None
 rabbit_channel: Optional[Channel] = None
 rabbit_exchange: Optional[Exchange] = None
@@ -13,7 +14,7 @@ request_queue: Optional[aio_pika.Queue] = None
 status_queue: Optional[aio_pika.Queue] = None
 
 
-async def send_task_message(message: str):
+async def send_status_message(message: str):
     global rabbit_channel, rabbit_exchange, request_queue
     if rabbit_channel is None:
         print("RabbitMQ 通道未就绪，请先调用 init_rabbitmq() 方法。")
@@ -32,7 +33,7 @@ async def send_task_message(message: str):
         # 发送消息到指定的交换机和路由键
         await rabbit_exchange.publish(
             rabbit_message,
-            routing_key=settings.RABBIT_REQUEST_BINDING_KEY
+            routing_key=settings.RABBIT_STATUS_BINDING_KEY
         )
         print(f"已发送任务消息: {message}")
     except Exception as e:
@@ -48,54 +49,22 @@ async def get_rabbit_exchange() -> Optional[Exchange]:
     return rabbit_exchange
 
 # --- 新增的状态队列监听回调函数 ---
-async def on_status_message(message: aio_pika.IncomingMessage):
-    
+async def on_task_message(message: aio_pika.IncomingMessage):
+    from train import fake_train
     try:
         # 打印接收到的消息内容
-        print(f"[Status Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})")
-
-        # 在这里添加处理状态消息的逻辑
-        # 例如，解析消息内容并更新训练任务状态
-        # 假设消息内容是 JSON 格式的字符串
-        message_content = message.body.decode()
-        # 这里可以根据实际消息格式进行解析和处理
-        # 例如，如果消息是 JSON 格式，可以使用 json.loads() 解析
-        status_data = json.loads(message_content)
-        # 假设 status_data 包含任务 ID 和状态信息
-        task_id = status_data.get("task_id")
-        status = status_data.get("status")
-        if status == "completed":
-            model_uuid_str = status_data.get("model_uuid")
-            log_uuid_str = status_data.get("log_uuid")
-            # 调用 TrainTaskService 更新任务状态
-            train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
-                status=status,
-                model_uuid=model_uuid_str,
-                log_uuid=log_uuid_str
-            )
-            await TrainTaskService.update_train_task(task_id, train_task_to_update)
-            print(f"[Status Consumer] Task {task_id} status updated to '{status}' with model UUID '{model_uuid_str}' and log UUID '{log_uuid_str}'.")
-        else:
-            # 如果状态不是 "completed"，可以根据需要进行其他处理
-            train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
-                status=status
-            )
-            await TrainTaskService.update_train_task(task_id, train_task_to_update)
-            print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
-
-        # 确认消息已被处理
-        await message.ack()
-        print(f"[Status Consumer] Message '{message.body.decode()}' processed and acknowledged.")
+        fake_train()
+        print(f"[Task Consumer] Received message: {message.body.decode('utf-8')}")
 
     except Exception as e:
-        print(f"[Status Consumer] Error processing message '{message.body.decode()}': {e}")
+        print(f"[Task Consumer] Error processing message: {e}")
         # 如果处理失败，将消息 NACK 并不重新入队，通常会进入死信队列
         await message.nack(requeue=False)
 
-# --- 新增的创建监听 status_queue 的协程函数 ---
-async def start_status_queue_consumer():
+# --- 新增的创建监听 task_queue 的协程函数 ---
+async def start_task_queue_consumer():
     """
-    创建并启动监听 status_queue 的消费者。
+    创建并启动监听 task_queue 的消费者。
     """
     global rabbit_channel, status_queue
 
@@ -108,7 +77,7 @@ async def start_status_queue_consumer():
         # 注册消息处理回调函数
         # no_ack=False 表示手动确认消息，确保消息可靠性
         print(f"[Status Consumer] Starting to consume messages from queue '{status_queue.name}'.")
-        await status_queue.consume(on_status_message, no_ack=False)
+        await status_queue.consume(on_task_message, no_ack=False)
 
         # 消费者协程会持续运行，直到通道关闭或被取消
         # 这里不需要 asyncio.Future()，因为 consume() 会保持协程运行
