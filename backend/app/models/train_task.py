@@ -7,10 +7,10 @@ from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy import Column, JSON, DateTime
 
 class TrainTaskStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    pending = "pending"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
 
 
 class TrainTaskBase(SQLModel):
@@ -25,7 +25,7 @@ class TrainTask(TrainTaskBase, table=True):
 
     owner_id: int = Field(foreign_key="app_user.id", nullable=False, index=True)
     status: TrainTaskStatus = Field(
-        default=TrainTaskStatus.PENDING,
+        default=TrainTaskStatus.pending,
         max_length=20,
         nullable=False
     )
