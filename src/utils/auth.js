@@ -1,100 +1,75 @@
 import api from './api';
-import { mockLoginAPI, mockGetCurrentUserAPI, mockLogoutAPI } from './mockApi';
-import { API_ENDPOINTS, checkNetworkStatus, shouldUseMockAPI } from '@/config/api';
+import { API_ENDPOINTS, checkNetworkStatus } from '@/config/api';
 
 // 检查网络连接
 const checkNetworkBeforeRequest = async () => {
-  if (!shouldUseMockAPI()) {
-    const isConnected = await checkNetworkStatus();
-    if (!isConnected) {
-      throw new Error('无法连接到后端服务器，请检查网络连接');
-    }
+  const isConnected = await checkNetworkStatus();
+  if (!isConnected) {
+    throw new Error('无法连接到后端服务器，请检查网络连接');
   }
 };
 
 // 登录API
 export const loginAPI = async (username, password) => {
-  if (shouldUseMockAPI()) {
-    // 使用模拟API
-    return await mockLoginAPI(username, password);
-  } else {
-    // 使用真实API
-    try {
-      await checkNetworkBeforeRequest();
-      
-      const response = await api.post(API_ENDPOINTS.auth.login, {
-        username,
-        password,
-      });
-      
-      // 验证响应格式
-      if (!response.data.token || !response.data.user) {
-        throw new Error('服务器返回的数据格式不正确');
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('登录请求失败:', error);
-      throw error;
+  try {
+    await checkNetworkBeforeRequest();
+    
+    const response = await api.post(API_ENDPOINTS.auth.login, {
+      username,
+      password,
+    });
+    
+    // 验证响应格式
+    if (!response.data.token || !response.data.user) {
+      throw new Error('服务器返回的数据格式不正确');
     }
+    
+    return response.data;
+  } catch (error) {
+    console.error('登录请求失败:', error);
+    throw error;
   }
 };
 
 // 登出API
 export const logoutAPI = async () => {
-  if (shouldUseMockAPI()) {
-    // 使用模拟API
-    return await mockLogoutAPI();
-  } else {
-    // 使用真实API
-    try {
-      await checkNetworkBeforeRequest();
-      await api.post(API_ENDPOINTS.auth.logout);
-    } catch (error) {
-      console.error('登出请求失败:', error);
-      // 即使API调用失败，也要清除本地存储
-      throw error;
-    }
+  try {
+    await checkNetworkBeforeRequest();
+    await api.post(API_ENDPOINTS.auth.logout);
+  } catch (error) {
+    console.error('登出请求失败:', error);
+    // 即使API调用失败，也要清除本地存储
+    throw error;
   }
 };
 
 // 获取当前用户信息API
 export const getCurrentUserAPI = async () => {
-  if (shouldUseMockAPI()) {
-    // 使用模拟API
+  try {
+    await checkNetworkBeforeRequest();
+    
     const token = getStoredToken();
     if (!token) {
       throw new Error('未找到token');
     }
-    return await mockGetCurrentUserAPI(token);
-  } else {
-    // 使用真实API
-    try {
-      await checkNetworkBeforeRequest();
-      
-      const token = getStoredToken();
-      if (!token) {
-        throw new Error('未找到token');
-      }
-      
-      // 从JWT token中解析用户ID
-      const userId = getUserIdFromToken(token);
-      if (!userId) {
-        throw new Error('无法从token中获取用户ID');
-      }
-      
-      const response = await api.get(API_ENDPOINTS.user.getById(userId));
-      
-      // 验证响应格式
-      if (!response.data.id || !response.data.username) {
-        throw new Error('服务器返回的用户信息格式不正确');
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('获取用户信息失败:', error);
-      throw error;
+    
+    // 从JWT token中解析用户ID
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      throw new Error('无法从token中获取用户ID');
     }
+    
+    const response = await api.get(API_ENDPOINTS.user.getById(userId));
+    
+    // 验证响应格式
+    if (!response.data.id || !response.data.username) {
+      throw new Error('服务器返回的用户信息格式不正确');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('获取用户信息失败:', error);
+    throw error;
   }
 };
 
@@ -169,5 +144,49 @@ export const isTokenExpired = (token) => {
   } catch (error) {
     console.error('检查token过期失败:', error);
     return true;
+  }
+};
+
+// 注册API
+export const signupAPI = async (username, password, isAdmin = false) => {
+  try {
+    await checkNetworkBeforeRequest();
+    
+    const response = await api.post(API_ENDPOINTS.auth.signup, {
+      username,
+      password,
+      is_admin: isAdmin,
+    });
+    
+    // 验证响应格式 - 根据后端返回的用户信息格式
+    if (!response.data.id || !response.data.username) {
+      throw new Error('服务器返回的数据格式不正确');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('注册请求失败:', error);
+    
+    // 只处理注册特有的错误情况
+    if (error.response?.status === 400) {
+      const errorData = error.response.data;
+      // 根据后端返回的错误格式处理
+      if (
+        errorData?.detail?.includes('用户名已存在') ||
+        errorData?.detail?.includes('用户已存在') ||
+        errorData?.detail?.includes('具有此用户名的用户已存在')
+      ) {
+        throw new Error('用户名已存在，请选择其他用户名');
+      } else {
+        throw new Error(errorData?.detail || '注册失败，请检查输入信息');
+      }
+    } else if (error.response?.status === 409) {
+      throw new Error('用户名已存在，请选择其他用户名');
+    } else if (error.response?.status === 422) {
+      throw new Error('输入数据格式不正确，请检查用户名和密码');
+    }
+    
+    // 其他错误直接抛出，由 api.js 响应拦截器处理
+    throw error;
   }
 }; 

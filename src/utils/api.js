@@ -23,11 +23,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // 添加跨域请求头
-    config.headers['Access-Control-Allow-Origin'] = '*';
-    config.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-    config.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
-    
     return config;
   },
   (error) => {
@@ -49,12 +44,6 @@ api.interceptors.response.use(
       console.error('请求超时，请检查网络连接');
       // 可以在这里显示网络错误提示
       return Promise.reject(new Error('网络连接超时，请检查网络设置'));
-    }
-    
-    // CORS错误处理
-    if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
-      console.error('跨域请求失败，请检查后端CORS配置');
-      return Promise.reject(new Error('跨域请求失败，请联系管理员'));
     }
     
     // 服务器错误处理
@@ -82,7 +71,7 @@ api.interceptors.response.use(
     }
     
     // 其他错误
-    const errorMessage = error.response?.data?.message || error.message || '请求失败';
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || '请求失败';
     return Promise.reject(new Error(errorMessage));
   }
 );

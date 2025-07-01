@@ -4,7 +4,7 @@
 const API_CONFIG = {
   // 开发环境API地址
   development: {
-    baseURL: 'http://localhost:8080', // 后端开发环境地址
+    baseURL: 'http://localhost:8000', // 后端开发环境地址
     timeout: 15000, // 增加超时时间，适应网络延迟
     withCredentials: false, // 开发环境通常不需要跨域cookie
   },
@@ -37,7 +37,8 @@ export const API_ENDPOINTS = {
   auth: {
     login: '/api/auth/login',
     logout: '/api/auth/logout',
-    refresh: '/api/auth/refresh', // 可选的token刷新接口
+    signup: '/api/auth/signup', // 添加注册接口
+    refresh: '/api/auth/refresh',
   },
   
   // 用户相关
@@ -74,25 +75,11 @@ export const getApiConfig = () => {
   };
 };
 
-// 检查是否使用模拟API
-export const shouldUseMockAPI = () => {
-  const useMockAPI = import.meta.env.VITE_USE_MOCK_API;
-  const isDevelopment = import.meta.env.MODE === 'development';
-  
-  // 开发环境默认使用模拟API，除非明确设置为false
-  if (isDevelopment) {
-    return useMockAPI !== 'false';
-  }
-  
-  // 生产环境不使用模拟API
-  return false;
-};
-
 // 网络状态检测
 export const checkNetworkStatus = async () => {
   try {
     const config = getApiConfig();
-    const response = await fetch(`${config.baseURL}/api/health`, {
+    const response = await fetch(`${config.baseURL}/`, {
       method: 'GET',
       mode: 'cors',
       timeout: 5000,

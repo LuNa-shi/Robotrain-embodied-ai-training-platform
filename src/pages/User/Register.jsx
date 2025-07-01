@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Checkbox, Typography, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Checkbox, Typography, Switch, App } from 'antd';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
+import { signupAPI } from '@/utils/auth';
 import styles from './Login.module.css';
 
 const { Title, Text } = Typography;
@@ -10,78 +11,85 @@ const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+  const { message } = App.useApp();
 
   // 处理注册逻辑
-  const handleRegister = () => {
-    // 先清空之前可能存在的错误提示
-    form.setFields([
-      { name: 'username', errors: [] },
-      { name: 'email', errors: [] },
-      { name: 'phone', errors: [] },
-      { name: 'password', errors: [] },
-      { name: 'confirmPassword', errors: [] },
-    ]);
-
+  const handleRegister = async () => {
     // 获取当前输入框的值
     const values = form.getFieldsValue();
     
     // 手动进行验证
-    if (!values.username || !values.email || !values.phone || !values.password || !values.confirmPassword) {
-      // 如果有空值，手动设置错误信息
+    if (!values.username || !values.password || !values.confirmPassword) {
+      // 如果有空值，显示错误消息
       if (!values.username) {
-        form.setFields([{ name: 'username', errors: ['请输入您的用户名!'] }]);
-      }
-      if (!values.email) {
-        form.setFields([{ name: 'email', errors: ['请输入您的邮箱!'] }]);
-      }
-      if (!values.phone) {
-        form.setFields([{ name: 'phone', errors: ['请输入您的手机号!'] }]);
+        message.error('请输入您的用户名!', 3);
       }
       if (!values.password) {
-        form.setFields([{ name: 'password', errors: ['请输入您的密码!'] }]);
+        message.error('请输入您的密码!', 3);
       }
       if (!values.confirmPassword) {
-        form.setFields([{ name: 'confirmPassword', errors: ['请确认您的密码!'] }]);
+        message.error('请确认您的密码!', 3);
       }
       return;
     }
 
-    // 验证邮箱格式
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(values.email)) {
-      form.setFields([{ name: 'email', errors: ['请输入有效的邮箱地址!'] }]);
-      return;
-    }
-
-    // 验证手机号格式
-    const phoneRegex = /^1[3-9]\d{9}$/;
-    if (!phoneRegex.test(values.phone)) {
-      form.setFields([{ name: 'phone', errors: ['请输入有效的手机号!'] }]);
+    // 验证用户名长度
+    if (values.username.length > 50) {
+      message.error('用户名不能超过50个字符!', 3);
       return;
     }
 
     // 验证密码长度
     if (values.password.length < 6) {
-      form.setFields([{ name: 'password', errors: ['密码长度至少6位!'] }]);
+      message.error('密码长度至少6位!', 3);
       return;
     }
 
     // 验证确认密码
     if (values.password !== values.confirmPassword) {
-      form.setFields([{ name: 'confirmPassword', errors: ['两次输入的密码不一致!'] }]);
+      message.error('两次输入的密码不一致!', 3);
+      return;
+    }
+
+    // 验证是否同意服务条款和隐私政策
+    if (!values.agree) {
+      message.error('请阅读并同意服务条款和隐私政策后才能注册', 3);
       return;
     }
 
     // --- 所有验证都通过后，才执行以下注册逻辑 ---
     setLoading(true);
-    console.log('Received values of form: ', values);
     
-    // 模拟API调用
-    setTimeout(() => {
-      message.success('注册成功！即将跳转到登录页面...');
+    try {
+      console.log('注册信息:', {
+        username: values.username,
+        password: values.password,
+        isAdmin: values.isAdmin || false
+      });
+      
+      // 调用注册API
+      const userData = await signupAPI(values.username, values.password, values.isAdmin || false);
+      
+      // 显示成功消息
+      const adminText = values.isAdmin ? '（管理员权限）' : '';
+      const successMsg = `恭喜！用户 "${userData.username}"${adminText} 注册成功！即将跳转到登录页面...`;
+      console.log('显示成功消息:', successMsg);
+      message.success(successMsg, 3);
+      
+      // 延迟跳转，让用户看到成功消息
+      setTimeout(() => {
+        console.log('准备跳转到登录页面');
+        navigate('/user/login');
+      }, 1000);
+      
+    } catch (error) {
+      console.error('注册失败:', error);
+      
+      // 直接使用 signupAPI 抛出的错误信息
+      message.error(error.message || '注册失败，请稍后重试', 3);
+    } finally {
       setLoading(false);
-      navigate('/user/login');
-    }, 1000);
+    }
   };
 
   return (
@@ -116,6 +124,7 @@ const Register = () => {
             className={styles.loginForm}
             initialValues={{
               agree: false,
+              isAdmin: false,
             }}
             size="large"
           >
@@ -124,25 +133,9 @@ const Register = () => {
             >
               <Input
                 prefix={<UserOutlined className="site-form-item-icon" />}
-                placeholder="用户名"
-              />
-            </Form.Item>
-            
-            <Form.Item
-              name="email"
-            >
-              <Input
-                prefix={<MailOutlined className="site-form-item-icon" />}
-                placeholder="邮箱地址"
-              />
-            </Form.Item>
-            
-            <Form.Item
-              name="phone"
-            >
-              <Input
-                prefix={<PhoneOutlined className="site-form-item-icon" />}
-                placeholder="手机号码"
+                placeholder="用户名（不超过50个字符）"
+                maxLength={50}
+                disabled={loading}
               />
             </Form.Item>
             
@@ -152,7 +145,8 @@ const Register = () => {
               <Input.Password
                 prefix={<LockOutlined className="site-form-item-icon" />}
                 type="password"
-                placeholder="密码"
+                placeholder="密码（至少6位）"
+                disabled={loading}
               />
             </Form.Item>
             
@@ -164,14 +158,28 @@ const Register = () => {
                 type="password"
                 placeholder="确认密码"
                 onPressEnter={handleRegister}
+                disabled={loading}
               />
             </Form.Item>
             
-            <Form.Item>
+            <Form.Item
+              name="isAdmin"
+              valuePropName="checked"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text>管理员权限</Text>
+                <Switch disabled={loading} />
+              </div>
+            </Form.Item>
+            
+            <Form.Item
+              name="agree"
+              valuePropName="checked"
+            >
               <div className={styles.formExtras}>
-                <Form.Item name="agree" valuePropName="checked" noStyle>
-                  <Checkbox>我已阅读并同意 <a href="#">服务条款</a> 和 <a href="#">隐私政策</a></Checkbox>
-                </Form.Item>
+                <Checkbox disabled={loading}>
+                  我已阅读并同意 <a href="#" target="_blank" rel="noopener noreferrer">服务条款</a> 和 <a href="#" target="_blank" rel="noopener noreferrer">隐私政策</a>
+                </Checkbox>
               </div>
             </Form.Item>
 
@@ -181,10 +189,12 @@ const Register = () => {
                 className={styles.loginFormButton}
                 loading={loading}
                 onClick={handleRegister}
+                disabled={loading}
               >
-                注册
+                {loading ? '注册中...' : '注册'}
               </Button>
             </Form.Item>
+            
             <div className={styles.formFooter}>
               已有账户? <Link to="/user/login">立即登录!</Link>
             </div>
