@@ -56,11 +56,20 @@ const BasicLayout = () => {
   // 添加登出处理函数
   const handleLogout = async () => {
     try {
-      await dispatch(logoutUser()).unwrap();
+      const result = await dispatch(logoutUser()).unwrap();
+      
+      // 显示登出成功消息
       message.success('登出成功！');
+      
       navigate('/user/login');
-    } catch {
-      message.error('登出失败，请重试');
+    } catch (error) {
+      // 处理登出失败的情况
+      if (error === '登出处理失败，但已清除本地数据') {
+        message.warning('登出处理异常，但已清除本地数据');
+        navigate('/user/login');
+      } else {
+        message.error('登出失败，请重试');
+      }
     }
   };
 

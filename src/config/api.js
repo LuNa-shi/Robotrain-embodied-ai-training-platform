@@ -35,8 +35,7 @@ const API_CONFIG = {
 export const API_ENDPOINTS = {
   // 认证相关
   auth: {
-    login: '/api/auth/login',
-    logout: '/api/auth/logout',
+    login: '/api/auth/token', // 更新为后端要求的登录接口
     signup: '/api/auth/signup', // 添加注册接口
     refresh: '/api/auth/refresh',
   },
@@ -55,6 +54,8 @@ export const API_ENDPOINTS = {
   //   delete: (id) => `/api/data/${id}`,
   // },
 };
+
+
 
 // 获取当前环境的API配置
 export const getApiConfig = () => {

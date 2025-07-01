@@ -69,7 +69,7 @@ const Settings = () => {
       const values = await form.validateFields();
       setLoading(true);
       
-      // 模拟API调用
+      // 模拟设置保存（实际项目中应调用后端API）
       setTimeout(() => {
         setSettings({ ...settings, ...values });
         setLoading(false);

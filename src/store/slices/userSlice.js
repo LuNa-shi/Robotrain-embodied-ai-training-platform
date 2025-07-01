@@ -8,10 +8,35 @@ export const loginUser = createAsyncThunk(
     try {
       const response = await loginAPI(username, password);
       // 存储到localStorage
-      storeUserInfo(response.token, response.user);
-      return response;
+      storeUserInfo(response.access_token, response.token_type);
+      
+      // 从JWT token中解析用户信息
+      let userInfo = {
+        username: username,
+        role: 'user',
+        isAdmin: false
+      };
+      
+      try {
+        const payload = JSON.parse(atob(response.access_token.split('.')[1]));
+        userInfo = {
+          id: payload.user_id || payload.sub || payload.id,
+          username: payload.username || username,
+          role: payload.role || 'user',
+          isAdmin: payload.is_admin || payload.admin || false,
+          exp: payload.exp,
+          iat: payload.iat
+        };
+      } catch (parseError) {
+        console.warn('无法从JWT token解析用户信息:', parseError);
+      }
+      
+      return {
+        token: response.access_token,
+        user: userInfo
+      };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '登录失败');
+      return rejectWithValue(error.message || '登录失败');
     }
   }
 );
@@ -19,15 +44,21 @@ export const loginUser = createAsyncThunk(
 // 异步action：登出
 export const logoutUser = createAsyncThunk(
   'user/logout',
-  async () => {
+  async (_, { rejectWithValue }) => {
     try {
-      await logoutAPI();
-      // 清除localStorage
+      // 执行前端登出处理
+      const result = await logoutAPI();
+      
+      // 清除本地存储
       clearUserInfo();
+      
+      // 返回结果信息
+      return result;
     } catch (error) {
-      // 即使API调用失败，也要清除本地存储
+      // 即使处理失败，也要清除本地存储
       clearUserInfo();
       console.error('Logout error:', error);
+      return rejectWithValue('登出处理失败，但已清除本地数据');
     }
   }
 );

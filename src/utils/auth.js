@@ -14,32 +14,83 @@ export const loginAPI = async (username, password) => {
   try {
     await checkNetworkBeforeRequest();
     
-    const response = await api.post(API_ENDPOINTS.auth.login, {
-      username,
-      password,
+    // 根据后端API要求，使用表单数据格式
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('password', password);
+    
+    const response = await api.post(API_ENDPOINTS.auth.login, formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
     });
     
-    // 验证响应格式
-    if (!response.data.token || !response.data.user) {
+    // 验证响应格式 - 根据后端返回的JWT token格式
+    if (!response.data.access_token || !response.data.token_type) {
       throw new Error('服务器返回的数据格式不正确');
     }
     
-    return response.data;
+    // 返回JWT token信息
+    return {
+      access_token: response.data.access_token,
+      token_type: response.data.token_type,
+    };
   } catch (error) {
     console.error('登录请求失败:', error);
+    
+    // 处理后端返回的错误格式
+    if (error.response?.status === 401) {
+      throw new Error('用户名或密码错误');
+    } else if (error.response?.status === 422) {
+      // 处理验证错误
+      const errorData = error.response.data;
+      if (errorData?.detail && Array.isArray(errorData.detail)) {
+        const firstError = errorData.detail[0];
+        if (firstError?.msg) {
+          // 将英文错误信息转换为中文
+          const errorMsg = firstError.msg;
+          if (errorMsg.includes('Incorrect username or password')) {
+            throw new Error('用户名或密码错误');
+          } else if (errorMsg.includes('field required')) {
+            throw new Error('请填写所有必填字段');
+          } else {
+            throw new Error(errorMsg);
+          }
+        }
+      }
+      throw new Error('输入数据格式不正确');
+    } else if (error.response?.status === 400) {
+      throw new Error('请求参数错误');
+    }
+    
+    // 处理其他错误信息
+    if (error.message) {
+      // 将常见的英文错误信息转换为中文
+      if (error.message.includes('Incorrect username or password')) {
+        throw new Error('用户名或密码错误');
+      } else if (error.message.includes('field required')) {
+        throw new Error('请填写所有必填字段');
+      } else if (error.message.includes('Network Error')) {
+        throw new Error('网络连接失败，请检查网络设置');
+      } else if (error.message.includes('timeout')) {
+        throw new Error('请求超时，请稍后重试');
+      }
+    }
+    
     throw error;
   }
 };
 
-// 登出API
+// 前端登出处理（不调用后端API）
 export const logoutAPI = async () => {
   try {
-    await checkNetworkBeforeRequest();
-    await api.post(API_ENDPOINTS.auth.logout);
+    console.log('执行前端登出，清除本地数据');
+    // 直接返回成功，因为前端登出不需要后端交互
+    return { message: '登出成功' };
   } catch (error) {
-    console.error('登出请求失败:', error);
-    // 即使API调用失败，也要清除本地存储
-    throw error;
+    console.error('前端登出处理失败:', error);
+    // 即使出错也返回成功，确保本地清理能执行
+    return { message: '登出成功' };
   }
 };
 
@@ -85,10 +136,34 @@ const getUserIdFromToken = (token) => {
 };
 
 // 存储用户信息到localStorage
-export const storeUserInfo = (token, userInfo) => {
+export const storeUserInfo = (accessToken, tokenType = 'bearer') => {
   try {
-    localStorage.setItem('token', token);
-    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+    // 存储完整的token信息
+    const tokenInfo = {
+      access_token: accessToken,
+      token_type: tokenType,
+      full_token: `${tokenType} ${accessToken}`
+    };
+    
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('tokenInfo', JSON.stringify(tokenInfo));
+    
+    // 从JWT token中解析用户信息（如果可能）
+    try {
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      const userInfo = {
+        id: payload.user_id || payload.sub || payload.id,
+        username: payload.username || payload.name,
+        role: payload.role || 'user',
+        isAdmin: payload.is_admin || payload.admin || false,
+        exp: payload.exp,
+        iat: payload.iat
+      };
+      localStorage.setItem('userInfo', JSON.stringify(userInfo));
+    } catch (parseError) {
+      console.warn('无法从JWT token解析用户信息:', parseError);
+      // 如果无法解析，至少存储token
+    }
   } catch (error) {
     console.error('存储用户信息失败:', error);
     throw new Error('无法保存登录信息，请检查浏览器设置');
@@ -98,8 +173,29 @@ export const storeUserInfo = (token, userInfo) => {
 // 清除用户信息
 export const clearUserInfo = () => {
   try {
+    // 清除所有相关的本地存储
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
+    localStorage.removeItem('tokenInfo');
+    localStorage.removeItem('refreshToken');
+    
+    // 清除会话存储（如果有的话）
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('userInfo');
+    sessionStorage.removeItem('tokenInfo');
+    sessionStorage.removeItem('refreshToken');
+    
+    // 清除其他可能的缓存
+    if (window.caches) {
+      // 清除缓存（可选）
+      caches.keys().then(names => {
+        names.forEach(name => {
+          caches.delete(name);
+        });
+      });
+    }
+    
+    console.log('用户信息清除完成');
   } catch (error) {
     console.error('清除用户信息失败:', error);
   }

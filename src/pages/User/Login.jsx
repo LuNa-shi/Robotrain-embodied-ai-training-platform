@@ -1,55 +1,69 @@
-import React, { useEffect } from 'react';
-import { Form, Input, Button, Checkbox, Typography, message } from 'antd';
+import React, { useState } from 'react';
+import { Form, Input, Button, Checkbox, Typography, Switch, App } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { loginUser, clearError } from '@/store/slices/userSlice';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { loginUser } from '@/store/slices/userSlice';
 import styles from './Login.module.css';
 
 const { Title, Text } = Typography;
 
 const Login = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error } = useSelector((state) => state.user);
-  // 获取表单实例，用于手动控制
+  const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
-
-  // 显示错误信息
-  useEffect(() => {
-    if (error) {
-      message.error(error);
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
+  const { message } = App.useApp();
 
   // 手动处理登录和验证逻辑
-  const handleLogin = () => {
-    // 先清空之前可能存在的错误提示
-    form.setFields([
-      { name: 'username', errors: [] },
-      { name: 'password', errors: [] },
-    ]);
-
+  const handleLogin = async () => {
     // 获取当前输入框的值
     const values = form.getFieldsValue();
     
     // 手动进行验证
     if (!values.username || !values.password) {
-      // 如果有空值，手动设置错误信息
+      // 如果有空值，显示错误消息
       if (!values.username) {
-        form.setFields([{ name: 'username', errors: ['请输入您的用户名!'] }]);
+        message.error('请输入您的用户名!', 3);
       }
       if (!values.password) {
-        form.setFields([{ name: 'password', errors: ['请输入您的密码!'] }]);
+        message.error('请输入您的密码!', 3);
       }
       return; // 阻止后续操作
     }
 
     // --- 所有验证都通过后，才执行以下登录逻辑 ---
-    dispatch(loginUser({
-      username: values.username,
-      password: values.password
-    }));
+    setLoading(true);
+    
+    try {
+      console.log('登录信息:', {
+        username: values.username,
+        password: values.password
+      });
+      
+      // 使用Redux action进行登录
+      const result = await dispatch(loginUser({ username: values.username, password: values.password }));
+      
+      if (loginUser.fulfilled.match(result)) {
+        // 登录成功
+        message.success('登录成功！正在跳转...', 2);
+        
+        // 延迟跳转，让用户看到成功消息
+        setTimeout(() => {
+          console.log('准备跳转到主页');
+          navigate('/home');
+        }, 1000);
+      } else {
+        // 登录失败，错误信息已经在Redux中处理
+        message.error(result.payload || '登录失败，请稍后重试', 3);
+      }
+      
+    } catch (error) {
+      console.error('登录失败:', error);
+      message.error(error.message || '登录失败，请稍后重试', 3);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -93,6 +107,7 @@ const Login = () => {
               <Input
                 prefix={<UserOutlined className="site-form-item-icon" />}
                 placeholder="用户名"
+                disabled={loading}
               />
             </Form.Item>
             <Form.Item
@@ -103,12 +118,13 @@ const Login = () => {
                 type="password"
                 placeholder="密码"
                 onPressEnter={handleLogin} // 按回车键时触发登录
+                disabled={loading}
               />
             </Form.Item>
             <Form.Item>
               <div className={styles.formExtras}>
                 <Form.Item name="remember" valuePropName="checked" noStyle>
-                  <Checkbox>记住我</Checkbox>
+                  <Checkbox disabled={loading}>记住我</Checkbox>
                 </Form.Item>
                 <a className={styles.loginFormForgot} href="">
                   忘记密码
@@ -119,13 +135,12 @@ const Login = () => {
             <Form.Item>
               <Button
                 type="primary"
-                // 移除了 htmlType="submit"，改为普通按钮
                 className={styles.loginFormButton}
                 loading={loading}
-                // 点击按钮时，调用我们自己的验证函数
                 onClick={handleLogin}
+                disabled={loading}
               >
-                登录
+                {loading ? '登录中...' : '登录'}
               </Button>
             </Form.Item>
             <div className={styles.formFooter}>
@@ -133,11 +148,8 @@ const Login = () => {
             </div>
             <div className={styles.loginTips}>
               <Text type="secondary" style={{ fontSize: '12px' }}>
-                测试账号：<br/>
-                管理员 - 用户名：admin，密码：admin<br/>
-                普通用户 - 用户名：user，密码：user<br/>
-                <br/>
-                注意：当前为前端模拟登录，实际使用时需要连接后端API
+                请使用您的真实账号登录系统<br/>
+                如果您还没有账号，请先注册
               </Text>
             </div>
           </Form>
