@@ -16,6 +16,7 @@ import {
   ControlOutlined, // 控制/管理图标
   AppstoreOutlined, // 应用管理图标
   LogoutOutlined, // 登出图标
+  ExperimentOutlined, // 评估测试图标
 } from '@ant-design/icons';
 import styles from './BasicLayout.module.css';
 
@@ -36,6 +37,7 @@ const BasicLayout = () => {
     { key: '/home', icon: <UploadOutlined />, label: '上传数据' },
     { key: '/data-records', icon: <DatabaseOutlined />, label: '数据记录' },
     { key: '/training-records', icon: <PlaySquareOutlined />, label: '训练记录' },
+    { key: '/evaluation', icon: <ExperimentOutlined />, label: '模型评估' },
     ...(userInfo?.isAdmin ? [
       { type: 'divider' },
       { key: '/data-management', icon: <ControlOutlined />, label: '数据管理' },

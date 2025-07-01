@@ -20,8 +20,8 @@ const { Title, Text } = Typography;
 const mockTrainingRecords = [
   {
     id: 'train-20250625-001',
-    name: '图像识别-模型A',
-    dataset: '无人机航拍数据集',
+    name: '机器人视觉识别模型',
+    dataset: '工业机器人视觉数据集',
     startTime: '2025-06-25 10:30',
     duration: '2h 15m',
     status: 'completed',
@@ -29,8 +29,8 @@ const mockTrainingRecords = [
   },
   {
     id: 'train-20250625-002',
-    name: '路径规划-AlphaGo',
-    dataset: '棋谱数据集-v3',
+    name: '机械臂动作控制模型',
+    dataset: '机械臂动作控制数据',
     startTime: '2025-06-25 14:00',
     duration: '进行中...',
     status: 'running',
@@ -38,8 +38,8 @@ const mockTrainingRecords = [
   },
   {
     id: 'train-20250624-005',
-    name: '自然语言生成模型',
-    dataset: '客户服务对话日志',
+    name: '机器人语音交互模型',
+    dataset: '机器人语音指令数据集',
     startTime: '2025-06-24 09:00',
     duration: '45m',
     status: 'failed',
@@ -75,7 +75,7 @@ const TrainingRecordsPage = () => {
       <div className={styles.contentWrapper}>
       <div className={styles.pageHeader}>
         <Title level={1} className={styles.pageTitle}>训练记录</Title>
-          <Text type="secondary">查看和管理您的模型训练历史</Text>
+          <Text type="secondary">查看和管理您的机器人模型训练历史</Text>
       </div>
       
       <div className={styles.recordList}>
@@ -92,7 +92,7 @@ const TrainingRecordsPage = () => {
               <Title level={5} className={styles.recordName}>{record.name}</Title>
               <Row gutter={[48, 16]} className={styles.infoGrid}>
                 <Col span={12}>
-                  <Text type="secondary">数据集:</Text>
+                  <Text type="secondary">机器人数据集:</Text>
                   <Text>{record.dataset}</Text>
                 </Col>
                 <Col span={12}>

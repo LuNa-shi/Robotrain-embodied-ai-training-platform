@@ -20,6 +20,7 @@ import TrainingRecords from '@/pages/TrainingRecords/index.jsx'; // 训练记录
 import TrainingDetailPage from '@/pages/TrainingDetail/index.jsx';
 import DataManagement from '@/pages/DataManagement/index.jsx'; // 数据管理页
 import TrainingManagement from '@/pages/TrainingManagement/index.jsx'; // 训练管理页
+import Evaluation from '@/pages/Evaluation/index.jsx'; // 模型评估测试页
 
 // 认证路由保护组件
 const AuthRoute = ({ children }) => {
@@ -70,6 +71,7 @@ const routes = [
       { path: '/home', element: <HomePage /> },
       { path: '/training-records', element: <TrainingRecords /> },
       { path: '/data-records', element: <DataRecords /> },
+      { path: '/evaluation', element: <Evaluation /> },
       { path: '/training-records/:trainingId', element: <TrainingDetailPage /> },
       { path: '/profile', element: <Profile /> },
       { path: '/settings', element: <Settings /> },

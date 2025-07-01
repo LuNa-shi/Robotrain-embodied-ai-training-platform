@@ -100,4 +100,81 @@ api.interceptors.response.use(
   }
 );
 
+// 数据集相关API函数
+export const datasetsAPI = {
+  /**
+   * 获取当前用户的数据集列表
+   * @returns {Promise<Array>} 数据集列表
+   */
+  getMyDatasets: async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.datasets.getMyDatasets);
+      return response.data;
+    } catch (error) {
+      console.error('获取数据集列表失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 根据ID获取数据集详情
+   * @param {number} id 数据集ID
+   * @returns {Promise<Object>} 数据集详情
+   */
+  getById: async (id) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.datasets.getById(id));
+      return response.data;
+    } catch (error) {
+      console.error('获取数据集详情失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 创建新数据集
+   * @param {Object} datasetData 数据集数据
+   * @returns {Promise<Object>} 创建的数据集
+   */
+  create: async (datasetData) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.datasets.create, datasetData);
+      return response.data;
+    } catch (error) {
+      console.error('创建数据集失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 更新数据集
+   * @param {number} id 数据集ID
+   * @param {Object} datasetData 更新的数据集数据
+   * @returns {Promise<Object>} 更新后的数据集
+   */
+  update: async (id, datasetData) => {
+    try {
+      const response = await api.put(API_ENDPOINTS.datasets.update(id), datasetData);
+      return response.data;
+    } catch (error) {
+      console.error('更新数据集失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 删除数据集
+   * @param {number} id 数据集ID
+   * @returns {Promise<void>}
+   */
+  delete: async (id) => {
+    try {
+      await api.delete(API_ENDPOINTS.datasets.delete(id));
+    } catch (error) {
+      console.error('删除数据集失败:', error);
+      throw error;
+    }
+  },
+};
+
 export default api; 

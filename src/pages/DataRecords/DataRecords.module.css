@@ -16,6 +16,18 @@
 .pageHeader {
   text-align: center;
   margin-bottom: 24px;
+  position: relative;
+}
+
+.pageTitle {
+  margin-bottom: 24px !important;
+}
+
+/* 刷新按钮绝对定位到右上角 */
+.pageHeader .refreshButton {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .pageTitle {
@@ -66,4 +78,27 @@
   padding: 12px 24px;
   background-color: #fafafa;
   border-top: 1px solid #f0f0f0;
+}
+
+/* 训练弹窗样式 */
+:global(.training-modal .ant-modal-header) {
+  border-bottom: 2px solid #1677ff;
+}
+
+:global(.training-modal .ant-form-item-label > label) {
+  font-weight: 500;
+  color: #262626;
+}
+
+:global(.training-modal .ant-select-item-option-content) {
+  padding: 8px 0;
+}
+
+:global(.training-modal .ant-input-number) {
+  width: 100%;
+}
+
+:global(.training-modal .ant-alert-info) {
+  border: 1px solid #91caff;
+  background-color: #f0f8ff;
 }

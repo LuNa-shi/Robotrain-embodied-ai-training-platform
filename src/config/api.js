@@ -46,6 +46,15 @@ export const API_ENDPOINTS = {
     getCurrent: '/api/auth/me', // 可选的获取当前用户接口
   },
   
+  // 数据集相关
+  datasets: {
+    getMyDatasets: '/api/datasets/me', // 获取当前用户的数据集列表
+    getById: (id) => `/api/datasets/${id}`,
+    create: '/api/datasets',
+    update: (id) => `/api/datasets/${id}`,
+    delete: (id) => `/api/datasets/${id}`,
+  },
+  
   // 其他API端点可以在这里添加
   // data: {
   //   list: '/api/data',
@@ -78,6 +87,12 @@ export const getApiConfig = () => {
 
 // 网络状态检测
 export const checkNetworkStatus = async () => {
+  // 如果环境变量设置为跳过网络检查，直接返回true
+  if (import.meta.env.VITE_SKIP_NETWORK_CHECK === 'true') {
+    console.log('跳过网络连接检查');
+    return true;
+  }
+  
   try {
     const config = getApiConfig();
     const response = await fetch(`${config.baseURL}/`, {

@@ -1,11 +1,17 @@
 import api from './api';
 import { API_ENDPOINTS, checkNetworkStatus } from '@/config/api';
 
-// 检查网络连接
+// 检查网络连接（可选，失败时不阻止请求）
 const checkNetworkBeforeRequest = async () => {
-  const isConnected = await checkNetworkStatus();
-  if (!isConnected) {
-    throw new Error('无法连接到后端服务器，请检查网络连接');
+  try {
+    const isConnected = await checkNetworkStatus();
+    if (!isConnected) {
+      console.warn('网络连接检查失败，但继续尝试登录请求');
+      // 不抛出错误，让请求继续尝试
+    }
+  } catch (error) {
+    console.warn('网络检查出错，但继续尝试登录请求:', error);
+    // 不抛出错误，让请求继续尝试
   }
 };
 
@@ -97,6 +103,7 @@ export const logoutAPI = async () => {
 // 获取当前用户信息API
 export const getCurrentUserAPI = async () => {
   try {
+    // 网络检查失败时不阻止请求
     await checkNetworkBeforeRequest();
     
     const token = getStoredToken();
@@ -246,6 +253,7 @@ export const isTokenExpired = (token) => {
 // 注册API
 export const signupAPI = async (username, password, isAdmin = false) => {
   try {
+    // 网络检查失败时不阻止请求
     await checkNetworkBeforeRequest();
     
     const response = await api.post(API_ENDPOINTS.auth.signup, {
