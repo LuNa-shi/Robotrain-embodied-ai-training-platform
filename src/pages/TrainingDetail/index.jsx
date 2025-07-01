@@ -80,6 +80,36 @@ const getTrainingDetail = (trainingId) => {
     },
   };
   
+  // 如果是新创建的项目ID（格式：train-timestamp-random），生成动态项目详情
+  if (trainingId && trainingId.startsWith('train-') && trainingId.includes('-')) {
+    const parts = trainingId.split('-');
+    if (parts.length >= 3) {
+      const timestamp = parseInt(parts[1]);
+      const randomNum = parts[2];
+      const createTime = new Date(timestamp);
+      
+      // 生成动态项目详情
+      const dynamicProject = {
+        id: trainingId,
+        name: `机器人训练项目-${randomNum}`,
+        status: 'running', // 新创建的项目默认为运行中状态
+        startTime: createTime.toLocaleString('zh-CN'),
+        endTime: null,
+        duration: '进行中...',
+        dataset: '工业机器人视觉数据集 (ds-20250625-001)', // 默认数据集
+        baseModel: 'GPT-4 Vision', // 默认模型
+        accuracy: 'N/A',
+        loss: 'N/A',
+        learningRate: 0.001,
+        epochs: 10,
+        batchSize: 32,
+        videoUrl: null,
+      };
+      
+      return dynamicProject;
+    }
+  }
+  
   return trainingDetails[trainingId] || null;
 };
 
@@ -130,13 +160,13 @@ const TrainingDetailPage = () => {
   const trainingDetail = getTrainingDetail(trainingId);
   
   if (!trainingDetail) {
-    message.error('未找到对应的训练记录');
-    navigate('/training-records');
+    message.error('未找到对应的项目记录');
+    navigate('/project-center');
     return null;
   }
 
   const handleBack = () => {
-    navigate('/training-records');
+    navigate('/project-center');
   };
 
   return (

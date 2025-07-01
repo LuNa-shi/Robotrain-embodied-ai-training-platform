@@ -15,12 +15,14 @@ import Profile from '@/pages/Profile/index.jsx';
 import Settings from '@/pages/Settings/index.jsx';
 import Help from '@/pages/Help/index.jsx'; // 引入帮助文档页面
 import NotFound from '@/pages/NotFound/index.jsx';
-import DataRecords from '@/pages/DataRecords/index.jsx'; // 数据记录页
-import TrainingRecords from '@/pages/TrainingRecords/index.jsx'; // 训练记录页
+import DataCenter from '@/pages/DataCenter/index.jsx'; // 数据中心页
+import ProjectCenter from '@/pages/ProjectCenter/index.jsx'; // 项目中心页
 import TrainingDetailPage from '@/pages/TrainingDetail/index.jsx';
 import DataManagement from '@/pages/DataManagement/index.jsx'; // 数据管理页
+import EvaluationCreate from '@/pages/EvaluationCreate/index.jsx'; // 发起评估页
 import TrainingManagement from '@/pages/TrainingManagement/index.jsx'; // 训练管理页
 import Evaluation from '@/pages/Evaluation/index.jsx'; // 模型评估测试页
+import Training from '@/pages/Training/index.jsx'; // 发起训练页
 
 // 认证路由保护组件
 const AuthRoute = ({ children }) => {
@@ -69,10 +71,12 @@ const routes = [
     ),
     children: [
       { path: '/home', element: <HomePage /> },
-      { path: '/training-records', element: <TrainingRecords /> },
-      { path: '/data-records', element: <DataRecords /> },
+      { path: '/training', element: <Training /> },
+      { path: '/evaluation-create', element: <EvaluationCreate /> },
+      { path: '/project-center', element: <ProjectCenter /> },
+      { path: '/data-center', element: <DataCenter /> },
       { path: '/evaluation', element: <Evaluation /> },
-      { path: '/training-records/:trainingId', element: <TrainingDetailPage /> },
+              { path: '/project-center/:trainingId', element: <TrainingDetailPage /> },
       { path: '/profile', element: <Profile /> },
       { path: '/settings', element: <Settings /> },
       { 

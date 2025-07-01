@@ -1,0 +1,243 @@
+.evaluationCreatePage {
+  padding: 24px;
+  background-color: #f0f2f5;
+  min-height: 100vh;
+}
+
+.contentWrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  text-align: center;
+  margin-bottom: 32px;
+  padding: 24px 0;
+}
+
+.pageTitle {
+  margin-bottom: 8px !important;
+  color: #1f1f1f;
+  font-weight: 600;
+}
+
+.mainCard {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.steps {
+  padding: 32px 24px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin: -24px -24px 32px -24px;
+}
+
+.steps :global(.ant-steps-item-title) {
+  color: white !important;
+  font-weight: 500;
+}
+
+.steps :global(.ant-steps-item-icon) {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.steps :global(.ant-steps-item-process .ant-steps-item-icon) {
+  background: #1890ff !important;
+  border-color: #1890ff !important;
+}
+
+.steps :global(.ant-steps-item-finish .ant-steps-item-icon) {
+  background: #52c41a !important;
+  border-color: #52c41a !important;
+}
+
+.stepContainer {
+  padding: 0 24px 32px;
+}
+
+.stepContent, .formContainer {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  min-height: 400px;
+  padding-bottom: 100px;
+  position: relative;
+}
+
+.stepContent h4, .stepContent .ant-typography {
+  text-align: center;
+}
+
+.stepContent h4 {
+  margin-bottom: 8px;
+  color: #1f1f1f;
+  font-weight: 600;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px 40px;
+  margin-top: 32px;
+}
+
+.datasetCard,
+.projectCard {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.datasetCard:hover,
+.projectCard:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.datasetInfo,
+.projectInfo {
+  padding: 8px 0;
+}
+
+.datasetInfo h5,
+.projectInfo h5 {
+  margin-bottom: 8px;
+  color: #1f1f1f;
+  font-weight: 600;
+}
+
+.datasetMeta {
+  margin: 12px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.datasetMeta :global(.ant-tag) {
+  margin: 0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.cardContent {
+  padding: 32px 32px 28px 32px;
+}
+
+.cardTitle {
+  margin-bottom: 16px !important;
+  font-size: 18px;
+}
+
+.cardDescription {
+  margin-bottom: 18px;
+  line-height: 1.7;
+}
+
+.cardMeta {
+  gap: 16px;
+  margin-top: 18px;
+  margin-bottom: 12px;
+}
+
+.formContainer {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.actionButtonsFixed {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 32px;
+  width: 100%;
+  padding: 24px 32px;
+  background: linear-gradient(0deg, #fff 90%, rgba(255,255,255,0.7) 100%);
+  box-sizing: border-box;
+  z-index: 2;
+}
+
+.actionButtons {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .evaluationCreatePage {
+    padding: 16px;
+  }
+  
+  .contentWrapper {
+    max-width: 100%;
+  }
+  
+  .pageHeader {
+    margin-bottom: 24px;
+    padding: 16px 0;
+  }
+  
+  .mainCard {
+    border-radius: 8px;
+  }
+  
+  .steps {
+    padding: 24px 16px 16px;
+    margin: -16px -16px 24px -16px;
+  }
+  
+  .stepContainer {
+    padding: 0 16px 24px;
+  }
+  
+  .cardGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  
+  .stepContent {
+    min-height: 300px;
+  }
+  
+  .actionButtonsFixed {
+    position: static;
+    padding: 16px 0 0 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .actionButtons {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .evaluationCreatePage {
+    padding: 12px;
+  }
+  
+  .steps {
+    padding: 20px 12px 12px;
+    margin: -12px -12px 20px -12px;
+  }
+  
+  .stepContainer {
+    padding: 0 12px 20px;
+  }
+  
+  .cardGrid {
+    gap: 8px;
+    margin-top: 12px;
+  }
+} 

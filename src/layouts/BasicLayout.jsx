@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // 移除 useEffect
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Button, Avatar, Typography, Menu, Tooltip, message } from 'antd';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,6 +17,8 @@ import {
   AppstoreOutlined, // 应用管理图标
   LogoutOutlined, // 登出图标
   ExperimentOutlined, // 评估测试图标
+  RocketOutlined, // 发起训练图标
+  BarChartOutlined, // 图表图标
 } from '@ant-design/icons';
 import styles from './BasicLayout.module.css';
 
@@ -31,13 +33,33 @@ const BasicLayout = () => {
   
   // 1. 添加状态来控制侧边栏的收缩
   const [collapsed, setCollapsed] = useState(false);
+  
+  // 2. 添加响应式逻辑，根据屏幕宽度自动控制侧边栏状态
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 992) {
+        setCollapsed(true);
+      }
+    };
+    
+    // 初始化时检查屏幕宽度
+    handleResize();
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', handleResize);
+    
+    // 清理事件监听器
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // 根据用户角色动态生成菜单项
   const menuItems = [
     { key: '/home', icon: <UploadOutlined />, label: '上传数据' },
-    { key: '/data-records', icon: <DatabaseOutlined />, label: '数据记录' },
-    { key: '/training-records', icon: <PlaySquareOutlined />, label: '训练记录' },
-    { key: '/evaluation', icon: <ExperimentOutlined />, label: '模型评估' },
+    { key: '/data-center', icon: <DatabaseOutlined />, label: '数据中心' },
+    { key: '/training', icon: <RocketOutlined />, label: '发起训练' },
+    { key: '/project-center', icon: <PlaySquareOutlined />, label: '项目中心' },
+    { key: '/evaluation-create', icon: <ExperimentOutlined />, label: '发起评估' },
+    { key: '/evaluation', icon: <BarChartOutlined />, label: '模型评估' },
     ...(userInfo?.isAdmin ? [
       { type: 'divider' },
       { key: '/data-management', icon: <ControlOutlined />, label: '数据管理' },
@@ -108,9 +130,10 @@ const BasicLayout = () => {
         <Sider 
           theme="light" 
           width={220} 
+          collapsedWidth={80}
           className={styles.sider}
           collapsible // 允许收缩
-          collapsed={collapsed} // 2. 将Sider的收缩状态与我们的state同步
+          collapsed={collapsed} // 3. 将Sider的收缩状态与我们的state同步
           trigger={null} // 隐藏Antd自带的trigger，因为我们要自定义
         >
           <Menu
@@ -124,7 +147,7 @@ const BasicLayout = () => {
           {/* 4. 添加自定义的收缩/展开按钮 */}
           <div className={styles.siderCollapseButton} onClick={() => setCollapsed(!collapsed)}>
             {collapsed ? <RightOutlined /> : <LeftOutlined />}
-            {!collapsed && <span style={{ marginLeft: '8px' }}>收起侧边栏</span>}
+            {!collapsed && window.innerWidth > 992 && <span style={{ marginLeft: '8px' }}>收起侧边栏</span>}
           </div>
         </Sider>
         <Content className={styles.pageContent}>

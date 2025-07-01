@@ -139,9 +139,9 @@ robotrain/
 │   │   ├── Profile/       # 个人资料
 │   │   ├── Settings/      # 系统设置
 │   │   ├── DataManagement/    # 数据管理
-│   │   ├── DataRecords/       # 数据记录
+│   │   ├── DataCenter/       # 数据中心
 │   │   ├── TrainingManagement/    # 训练管理
-│   │   ├── TrainingRecords/       # 训练记录
+│   │   ├── ProjectCenter/       # 项目中心
 │   │   ├── TrainingDetail/        # 训练详情
 │   │   ├── Help/          # 帮助文档
 │   │   └── NotFound/      # 404 页面
@@ -150,7 +150,7 @@ robotrain/
 │   ├── utils/             # 工具函数
 │   │   ├── api.js         # API 配置
 │   │   ├── auth.js        # 认证工具
-│   │   └── mockApi.js     # 模拟 API
+
 │   ├── App.jsx            # 根组件
 │   └── main.jsx           # 应用入口
 ├── .env.example           # 环境配置示例
@@ -179,8 +179,8 @@ VITE_API_TIMEOUT=15000
 # 是否启用跨域认证
 VITE_API_WITH_CREDENTIALS=false
 
-# 开发环境是否使用模拟API
-VITE_USE_MOCK_API=true
+# 此配置已废弃，项目直接使用后端API
+# VITE_USE_MOCK_API=true  # 已废弃
 ```
 
 ### API 配置
@@ -198,9 +198,9 @@ VITE_USE_MOCK_API=true
 - `/user/login` - 用户登录
 - `/user/register` - 用户注册
 - `/home` - 首页（数据上传）
-- `/data-records` - 数据记录
-- `/training-records` - 训练记录
-- `/training-records/:id` - 训练详情
+- `/data-center` - 数据中心
+- `/project-center` - 项目中心
+- `/project-center/:id` - 项目详情
 - `/data-management` - 数据管理（管理员）
 - `/training-management` - 训练管理（管理员）
 - `/profile` - 个人资料

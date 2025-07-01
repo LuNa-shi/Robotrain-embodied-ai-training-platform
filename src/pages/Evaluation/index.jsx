@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Typography, 
   Card, 
@@ -7,14 +8,8 @@ import {
   Table, 
   Tag, 
   Modal, 
-  Form, 
-  Select, 
-  InputNumber, 
-  Input, 
   Row, 
   Col, 
-  Progress, 
-  Alert, 
   message, 
   Tooltip,
   Dropdown,
@@ -23,27 +18,19 @@ import {
   Descriptions
 } from 'antd';
 import {
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  StopOutlined,
-  ReloadOutlined,
-  SettingOutlined,
   DownloadOutlined,
   DeleteOutlined,
   MoreOutlined,
-  ExperimentOutlined,
-  RobotOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
   BarChartOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  ExperimentOutlined
 } from '@ant-design/icons';
 import styles from './Evaluation.module.css';
 
 const { Title, Text, Paragraph } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
 
 // 模拟测试记录数据
 const mockEvaluationRecords = [
@@ -97,28 +84,7 @@ const mockEvaluationRecords = [
   }
 ];
 
-// 可用的测试模型
-const availableModels = [
-  { value: 'gpt-4-vision', label: 'GPT-4 Vision', description: '机器人视觉识别模型' },
-  { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet', description: '机器人语音交互模型' },
-  { value: 'whisper-large', label: 'Whisper Large', description: '机器人语音识别模型' },
-  { value: 'llama-2-13b', label: 'Llama 2 13B', description: '机器人决策推理模型' },
-  { value: 'robot-arm-controller', label: 'Robot Arm Controller', description: '机械臂控制模型' },
-  { value: 'navigation-model', label: 'Navigation Model', description: '机器人导航模型' },
-  { value: 'custom-model', label: '自定义模型', description: '使用您自己的机器人模型配置' },
-];
 
-// 测试类型
-const testTypes = [
-  { value: 'accuracy', label: '准确率测试', description: '测试机器人模型的整体准确率' },
-  { value: 'precision', label: '精确率测试', description: '测试机器人动作的精确度' },
-  { value: 'recall', label: '召回率测试', description: '测试机器人指令识别率' },
-  { value: 'f1-score', label: 'F1分数测试', description: '测试机器人综合性能指标' },
-  { value: 'comprehensive', label: '综合测试', description: '执行机器人所有性能指标测试' },
-  { value: 'stress', label: '压力测试', description: '测试机器人在高负载下的表现' },
-  { value: 'safety', label: '安全测试', description: '测试机器人安全性能' },
-  { value: 'custom', label: '自定义测试', description: '使用自定义机器人测试脚本' },
-];
 
 // 根据状态返回不同的Tag和Icon
 const StatusDisplay = ({ status }) => {
@@ -133,82 +99,11 @@ const StatusDisplay = ({ status }) => {
 };
 
 const EvaluationPage = () => {
-  const [evaluationModalVisible, setEvaluationModalVisible] = useState(false);
+  const navigate = useNavigate();
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [evaluationForm] = Form.useForm();
-  const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [records, setRecords] = useState(mockEvaluationRecords);
 
-  // 处理开始测试
-  const handleStartEvaluation = () => {
-    setEvaluationModalVisible(true);
-    evaluationForm.setFieldsValue({
-      model: 'gpt-4-vision',
-      testType: 'comprehensive',
-      testCases: 1000,
-      timeout: 300,
-      description: '模型性能评估测试'
-    });
-  };
 
-  // 处理测试弹窗确认
-  const handleEvaluationSubmit = async (values) => {
-    try {
-      setEvaluationLoading(true);
-      
-      // 构建测试配置
-      const evaluationConfig = {
-        model: values.model,
-        testType: values.testType,
-        testCases: values.testCases,
-        timeout: values.timeout,
-        description: values.description,
-        customScript: values.testType === 'custom' ? values.customScript : null,
-      };
-      
-      console.log('测试配置:', evaluationConfig);
-      
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // 创建新的测试记录
-      const newRecord = {
-        id: `eval-${Date.now()}`,
-        name: values.description,
-        model: availableModels.find(m => m.value === values.model)?.label || values.model,
-        dataset: '机器人测试数据集',
-        startTime: new Date().toLocaleString('zh-CN'),
-        duration: '进行中...',
-        status: 'running',
-        accuracy: 'N/A',
-        precision: 'N/A',
-        recall: 'N/A',
-        f1Score: 'N/A',
-        testCases: values.testCases,
-        passedCases: 0,
-        failedCases: 0
-      };
-      
-      setRecords([newRecord, ...records]);
-      
-      message.success('测试任务已成功创建！');
-      setEvaluationModalVisible(false);
-      evaluationForm.resetFields();
-      
-    } catch (error) {
-      console.error('创建测试任务失败:', error);
-      message.error('创建测试任务失败: ' + error.message);
-    } finally {
-      setEvaluationLoading(false);
-    }
-  };
-
-  // 处理测试弹窗取消
-  const handleEvaluationCancel = () => {
-    setEvaluationModalVisible(false);
-    setSelectedRecord(null);
-    evaluationForm.resetFields();
-  };
 
   // 处理菜单项点击
   const handleMenuClick = ({ key }, record) => {
@@ -333,17 +228,19 @@ const EvaluationPage = () => {
     <div className={styles.evaluationPage}>
       <div className={styles.contentWrapper}>
         <div className={styles.pageHeader}>
-          <Title level={1} className={styles.pageTitle}>机器人模型评估测试</Title>
-          <Text type="secondary">对训练好的机器人模型进行性能评估和仿真测试</Text>
-          <Button 
-            className={styles.startButton}
-            type="primary"
-            icon={<ExperimentOutlined />} 
-            onClick={handleStartEvaluation}
-            size="large"
-          >
-            开始新测试
-          </Button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <Title level={1} className={styles.pageTitle}>机器人模型评估测试</Title>
+              <Text type="secondary">查看机器人模型的性能评估和仿真测试结果</Text>
+            </div>
+            <Button 
+              type="primary" 
+              icon={<ExperimentOutlined />}
+              onClick={() => navigate('/evaluation-create')}
+            >
+              发起评估
+            </Button>
+          </div>
         </div>
 
         {/* 统计信息 */}
@@ -353,7 +250,7 @@ const EvaluationPage = () => {
               <Statistic
                 title="总测试数"
                 value={records.length}
-                prefix={<ExperimentOutlined />}
+                prefix={<BarChartOutlined />}
               />
             </Card>
           </Col>
@@ -486,149 +383,7 @@ const EvaluationPage = () => {
           )}
         </Modal>
 
-        {/* 开始测试弹窗 */}
-        <Modal
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ExperimentOutlined style={{ color: '#1677ff' }} />
-              <span>开始机器人模型测试</span>
-            </div>
-          }
-          open={evaluationModalVisible}
-          onCancel={handleEvaluationCancel}
-          footer={null}
-          width={800}
-          destroyOnClose
-        >
-          <Form
-            form={evaluationForm}
-            layout="vertical"
-            onFinish={handleEvaluationSubmit}
-            initialValues={{
-              model: 'gpt-4-vision',
-              testType: 'comprehensive',
-              testCases: 1000,
-              timeout: 300,
-            }}
-          >
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="选择机器人模型"
-                  name="model"
-                  rules={[{ required: true, message: '请选择机器人测试模型' }]}
-                >
-                  <Select placeholder="选择机器人测试模型">
-                    {availableModels.map(model => (
-                      <Option key={model.value} value={model.value}>
-                        <div>
-                          <div style={{ fontWeight: 'bold' }}>{model.label}</div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>{model.description}</div>
-                        </div>
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="机器人测试类型"
-                  name="testType"
-                  rules={[{ required: true, message: '请选择机器人测试类型' }]}
-                >
-                  <Select placeholder="选择机器人测试类型">
-                    {testTypes.map(type => (
-                      <Option key={type.value} value={type.value}>
-                        <div>
-                          <div style={{ fontWeight: 'bold' }}>{type.label}</div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>{type.description}</div>
-                        </div>
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
 
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="测试用例数量"
-                  name="testCases"
-                  rules={[{ required: true, message: '请输入测试用例数量' }]}
-                >
-                  <InputNumber
-                    min={1}
-                    max={10000}
-                    style={{ width: '100%' }}
-                    placeholder="测试用例数量"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="超时时间（秒）"
-                  name="timeout"
-                  rules={[{ required: true, message: '请输入超时时间' }]}
-                >
-                  <InputNumber
-                    min={60}
-                    max={3600}
-                    style={{ width: '100%' }}
-                    placeholder="超时时间"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Form.Item
-              label="机器人测试描述"
-              name="description"
-              rules={[{ required: true, message: '请输入机器人测试描述' }]}
-            >
-              <Input placeholder="机器人测试任务描述" />
-            </Form.Item>
-
-            <Form.Item
-              noStyle
-              shouldUpdate={(prevValues, currentValues) => prevValues.testType !== currentValues.testType}
-            >
-              {({ getFieldValue }) => {
-                const selectedTestType = getFieldValue('testType');
-                return selectedTestType === 'custom' ? (
-                  <Form.Item
-                    label="自定义机器人测试脚本"
-                    name="customScript"
-                    rules={[{ required: true, message: '请输入自定义机器人测试脚本' }]}
-                  >
-                    <TextArea
-                      rows={6}
-                      placeholder="请输入自定义机器人测试脚本（Python代码）"
-                    />
-                  </Form.Item>
-                ) : null;
-              }}
-            </Form.Item>
-
-            <Divider />
-
-            <div style={{ textAlign: 'right' }}>
-              <Space>
-                <Button onClick={handleEvaluationCancel}>
-                  取消
-                </Button>
-                <Button 
-                  type="primary" 
-                  htmlType="submit"
-                  loading={evaluationLoading}
-                  icon={<ExperimentOutlined />}
-                >
-                  开始机器人测试
-                </Button>
-              </Space>
-            </div>
-          </Form>
-        </Modal>
       </div>
     </div>
   );

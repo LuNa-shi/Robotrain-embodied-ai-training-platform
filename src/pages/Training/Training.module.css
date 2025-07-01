@@ -1,0 +1,317 @@
+.trainingPage {
+  padding: 24px;
+  background-color: #f0f2f5;
+}
+
+/* 内容区域包装器 */
+.contentWrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 页面头部 */
+.pageHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  margin-bottom: 16px !important;
+}
+
+/* 主卡片 */
+.mainCard {
+  min-height: 600px;
+}
+
+/* 步骤样式 */
+.steps {
+  margin-bottom: 32px;
+  padding: 0 24px;
+}
+
+/* 步骤内容容器 */
+.stepContainer {
+  padding: 24px;
+  min-height: 400px;
+}
+
+/* 步骤内容 */
+.stepContent {
+  max-width: 800px;
+  margin: 0 auto;
+  min-height: 400px;
+  padding-bottom: 100px;
+}
+
+.stepContent .ant-typography {
+  margin-bottom: 16px;
+}
+
+/* 数据集网格 */
+.datasetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+/* 数据集卡片 */
+.datasetCard {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.datasetCard:hover {
+  border-color: #1677ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.datasetInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.datasetInfo .ant-typography {
+  margin-bottom: 0;
+}
+
+.datasetMeta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+/* 模型网格 */
+.modelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+/* 模型卡片 */
+.modelCard {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  text-align: center;
+  padding: 20px;
+}
+
+.modelCard:hover {
+  border-color: #1677ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.modelInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modelInfo .ant-typography {
+  margin-bottom: 0;
+}
+
+/* 表单样式 */
+.stepContent .ant-form {
+  margin-top: 24px;
+}
+
+.stepContent .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.stepContent .ant-input-number {
+  width: 100%;
+}
+
+/* 完成页面样式 */
+.stepContent .ant-result {
+  padding: 40px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .trainingPage {
+    padding: 16px;
+  }
+  
+  .contentWrapper {
+    max-width: 100%;
+  }
+  
+  .steps {
+    padding: 0 16px;
+  }
+  
+  .stepContainer {
+    padding: 16px;
+  }
+  
+  .datasetGrid,
+  .modelGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .datasetCard,
+  .modelCard {
+    margin-bottom: 16px;
+  }
+}
+
+/* 步骤指示器样式 */
+:global(.ant-steps-item-process .ant-steps-item-icon) {
+  background-color: #1677ff;
+  border-color: #1677ff;
+}
+
+:global(.ant-steps-item-finish .ant-steps-item-icon) {
+  background-color: #52c41a;
+  border-color: #52c41a;
+}
+
+:global(.ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon) {
+  color: #fff;
+}
+
+/* 卡片悬停效果 */
+:global(.ant-card-hoverable:hover) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 按钮样式 */
+:global(.ant-btn-primary) {
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);
+}
+
+:global(.ant-btn-primary:hover) {
+  box-shadow: 0 4px 8px rgba(24, 144, 255, 0.3);
+}
+
+/* 标签样式 */
+:global(.ant-tag) {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* 警告框样式 */
+:global(.ant-alert-info) {
+  border: 1px solid #91d5ff;
+  background-color: #f6ffed;
+}
+
+/* 加载状态 */
+:global(.ant-spin-dot) {
+  font-size: 20px;
+}
+
+/* 动画效果 */
+.datasetCard,
+.modelCard {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 步骤切换动画 */
+.stepContainer {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px 40px;
+  margin-top: 32px;
+}
+
+.cardContent {
+  padding: 32px 32px 28px 32px;
+}
+
+.cardTitle {
+  margin-bottom: 16px !important;
+  font-size: 18px;
+}
+
+.cardDescription {
+  margin-bottom: 18px;
+  line-height: 1.7;
+}
+
+.cardMeta {
+  gap: 16px;
+  margin-top: 18px;
+  margin-bottom: 12px;
+}
+
+.actionButtonsFixed {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 32px;
+  width: 100%;
+  padding: 24px 32px;
+  background: linear-gradient(0deg, #fff 90%, rgba(255,255,255,0.7) 100%);
+  box-sizing: border-box;
+  z-index: 2;
+}
+
+.actionButtons {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.stepContent h4, .stepContent .ant-typography {
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .actionButtonsFixed {
+    position: static;
+    padding: 16px 0 0 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .actionButtons {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+} 

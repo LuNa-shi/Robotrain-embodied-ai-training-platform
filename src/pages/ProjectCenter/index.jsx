@@ -12,7 +12,7 @@ import {
   ClockCircleOutlined,
   PlusOutlined
 } from '@ant-design/icons';
-import styles from './TrainingRecords.module.css';
+import styles from './ProjectCenter.module.css';
 
 const { Title, Text } = Typography;
 
@@ -58,11 +58,11 @@ const StatusDisplay = ({ status }) => {
   return <Tag icon={icon} color={color}>{text}</Tag>;
 };
 
-const TrainingRecordsPage = () => {
+const ProjectCenterPage = () => {
   const navigate = useNavigate();
 
   const handleViewDetail = (trainingId) => {
-    navigate(`/training-records/${trainingId}`);
+            navigate(`/project-center/${trainingId}`);
   };
 
   const getMenuItems = (record) => [
@@ -71,10 +71,10 @@ const TrainingRecordsPage = () => {
   ];
   
   return (
-    <div className={styles.trainingRecordsPage}>
+    <div className={styles.projectCenterPage}>
       <div className={styles.contentWrapper}>
       <div className={styles.pageHeader}>
-        <Title level={1} className={styles.pageTitle}>训练记录</Title>
+        <Title level={1} className={styles.pageTitle}>项目中心</Title>
           <Text type="secondary">查看和管理您的机器人模型训练历史</Text>
       </div>
       
@@ -139,4 +139,4 @@ const TrainingRecordsPage = () => {
   );
 };
 
-export default TrainingRecordsPage;
+export default ProjectCenterPage;

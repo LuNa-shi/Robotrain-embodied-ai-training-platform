@@ -61,7 +61,8 @@
   border-right: 1px solid #f0f0f0;
   height: calc(100vh - 64px);
   transition: all 0.2s;
-  position: relative; 
+  position: relative;
+  min-width: 80px !important; /* 确保最小宽度 */
 }
 
 .siderMenu {
@@ -75,8 +76,7 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  
-  padding: 16px;
+  padding: 12px 8px;
   border-top: 1px solid #f0f0f0;
   cursor: pointer;
   color: rgba(0, 0, 0, 0.65);
@@ -84,7 +84,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fff; 
+  background-color: #fff;
+  font-size: 14px;
+  min-height: 48px;
 }
 
 .siderCollapseButton:hover {
@@ -128,12 +130,20 @@
   justify-content: center !important;
   align-items: center !important;
   padding-inline: 0 !important;
+  margin: 4px 8px !important;
+  border-radius: 6px !important;
 }
 
 .siderMenu :global(.ant-menu-inline-collapsed > .ant-menu-item .ant-menu-item-icon) {
   margin: 0 !important;
-  font-size: 20px !important;
+  font-size: 18px !important;
   display: block !important;
+}
+
+/* 折叠状态下的分隔线样式 */
+.siderMenu :global(.ant-menu-inline-collapsed .ant-menu-item-divider) {
+  margin: 8px 16px;
+  border-top: 1px solid #f0f0f0;
 }
 
 /* 分隔线样式 */
@@ -269,7 +279,13 @@
 /* 响应式设计 */
 @media (max-width: 992px) {
   .sider {
-    display: none;
+    /* 移除 display: none，让侧边栏保持可见但自动折叠 */
+    width: 80px !important; /* 设置折叠后的宽度 */
+  }
+  
+  /* 在小屏幕上默认折叠侧边栏 */
+  .sider :global(.ant-layout-sider-children) {
+    width: 80px !important;
   }
   
   .header {
@@ -310,6 +326,17 @@
   .logo :global(.ant-typography) {
     height: 24px;
     font-size: 1rem !important;
+  }
+  
+  /* 在超小屏幕上进一步优化侧边栏 */
+  .sider {
+    width: 60px !important;
+  }
+  
+  .siderCollapseButton {
+    padding: 8px 4px;
+    font-size: 12px;
+    min-height: 40px;
   }
 }
 
