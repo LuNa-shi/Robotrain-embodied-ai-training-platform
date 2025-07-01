@@ -1,0 +1,15 @@
+rabbitmq:
+  host: "localhost"
+  task_queue: "task_queue"
+  status_queue: "status_updates"
+  log_queue: "log_updates"
+
+minio:
+  endpoint: "localhost:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  bucket_name: "lerobot-checkpoints"
+
+scheduler:
+  steps_per_timeslice: 1000
+  num_gpus_per_trainer: 1

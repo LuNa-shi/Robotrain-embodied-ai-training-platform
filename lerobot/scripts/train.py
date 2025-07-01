@@ -51,7 +51,8 @@ from lerobot.common.utils.wandb_utils import WandBLogger
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.scripts.eval import eval_policy
-
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="torchvision.io")
 
 def update_policy(
     train_metrics: MetricsTracker,
@@ -128,7 +129,7 @@ def train(cfg: TrainPipelineConfig):
     dataset = make_dataset(cfg)
 
     # Create environment used for evaluating checkpoints during training on simulation data.
-    # On real-world data, no need to create an environment as evaluations are done outside train.py,
+    # On real-world data, no need to create an   as evaluations are done outside train.py,
     # using the eval.py instead, with gym_dora environment and dora-rs.
     eval_env = None
     if cfg.eval_freq > 0 and cfg.env is not None:

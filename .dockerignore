@@ -158,3 +158,20 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Python cache and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+# Unnecessary project folders for runtime
+outputs/
+media/
+tests/
+benchmarks/
+examples/
+docker/
+platform_test/

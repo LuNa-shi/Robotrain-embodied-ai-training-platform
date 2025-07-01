@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # 1. RabbitMQ 服务
+  rabbitmq:
+    image: rabbitmq:3.12-management # 使用较新的、带管理界面的版本
+    hostname: rabbitmq
+    container_name: rabbitmq-service
+    ports:
+      - "5672:5672"   # AMQP 协议端口
+      - "15672:15672" # 管理界面端口
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    environment:
+      # 这些环境变量会被 settings.py 读取
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  # 2. MinIO 服务
+  minio:
+    image: quay.io/minio/minio:RELEASE.2023-09-07T02-05-02Z # 固定版本以保证稳定性
+    hostname: minio
+    container_name: minio-service
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # API 端口
+      - "9001:9001"   # 控制台/UI 端口
+    volumes:
+      - minio_data:/data
+    environment:
+      # 这些环境变量会被 settings.py 读取
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app-network
+
+  # 3. 我们的训练平台服务
+  training-platform:
+    # `build: .` 表示使用当前目录下的 Dockerfile 来构建镜像
+    build: .
+    container_name: training-platform-service
+    # `depends_on` 确保 RabbitMQ 和 MinIO 先启动
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    # 将容器内的服务连接到同一个网络，以便它们可以用服务名（rabbitmq, minio）互相访问
+    shm_size: '2gb'
+    networks:
+      - app-network
+    # 从 settings.py 中读取所有需要的环境变量
+    # 这样可以轻松地将服务指向容器内的 RabbitMQ 和 MinIO
+    environment:
+      # 覆盖 settings.py 中的默认 'localhost'
+      - MINIO_SERVER=minio
+      - RABBITMQ_SERVER=rabbitmq
+      # 其他在 settings.py 中定义的 os.getenv() 变量也可以在这里覆盖
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      # 如果需要，可以调整 scheduler 参数
+      - SCHEDULER_STEPS_PER_TIMESLICE=5
+    # 如果你的平台需要访问宿主机的 GPU，需要添加以下配置
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+# 定义持久化存储卷
+volumes:
+  rabbitmq_data:
+  minio_data:
+
+# 定义网络
+networks:
+  app-network:
+    driver: bridge

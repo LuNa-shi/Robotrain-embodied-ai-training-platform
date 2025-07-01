@@ -1,0 +1,51 @@
+# docker-compose.dev.yml
+
+services:
+  # 1. RabbitMQ 服务
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    hostname: rabbitmq
+    container_name: dev-rabbitmq  # 建议给开发环境的容器加上 dev- 前缀
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      # 这里引用了命名卷 rabbitmq_data
+      - rabbitmq_data:/var/lib/rabbitmq/
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # 2. MinIO 服务
+  minio:
+    image: quay.io/minio/minio:RELEASE.2023-09-07T02-05-02Z
+    hostname: minio
+    container_name: dev-minio # 建议给开发环境的容器加上 dev- 前缀
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      # 这里引用了命名卷 minio_data
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+# --- 关键修复：在这里添加顶层的 volumes 定义 ---
+volumes:
+  rabbitmq_data:
+    # driver: local (这是默认值，可以不写)
+  minio_data:
+    # driver: local
