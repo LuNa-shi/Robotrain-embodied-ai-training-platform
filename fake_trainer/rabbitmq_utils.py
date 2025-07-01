@@ -57,7 +57,7 @@ async def send_log_message(epoch: int, loss: float, accuracy: float, log_message
     :param task_id: 任务 ID
     :param status: 任务状态
     """
-    global rabbit_channel, rabbit_exchange, request_queue
+    global rabbit_channel, rabbit_exchange, request_queue, log_queue
     if rabbit_channel is None:
         print("RabbitMQ 通道未就绪，请先调用 init_rabbitmq() 方法。")
         return
@@ -157,7 +157,7 @@ async def start_task_queue_consumer():
         print(f"[Status Consumer] Error starting consumer: {e}")
 
 async def init_rabbitmq():
-    global rabbit_connection, rabbit_channel, rabbit_exchange, request_queue, status_queue
+    global rabbit_connection, rabbit_channel, rabbit_exchange, request_queue, status_queue, log_queue
     if rabbit_connection is not None:
         print("RabbitMQ 连接已存在")
     else:

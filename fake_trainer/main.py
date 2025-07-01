@@ -1,16 +1,23 @@
 from rabbitmq_utils import init_rabbitmq, start_task_queue_consumer
 import asyncio
-
+import signal
 async def main():
-    # 初始化 RabbitMQ 连接和通道
+    shutdown_event = asyncio.Future()
     await init_rabbitmq()
     
-    # 启动任务队列消费者
     await start_task_queue_consumer()
+    print("消费者已启动。", flush=True)
 
-    # 保持事件循环运行
-    while True:
-        await asyncio.sleep(1)
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGINT, lambda: shutdown_event.set_result(True))
+    loop.add_signal_handler(signal.SIGTERM, lambda: shutdown_event.set_result(True))
+
+    try:
+        await shutdown_event
+    except asyncio.CancelledError:
+        print("任务被取消，正在清理资源...")
+    except Exception as e:
+        print(f"发生错误: {e}")
 
 if __name__ == "__main__":
     try:
