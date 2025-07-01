@@ -41,7 +41,7 @@ class DatasetService:
             raise ValueError("MinIO 客户端未初始化，请检查配置。")
         try:
             # 上传数据集到 MinIO
-            await upload_dataset_to_minio(minio_client, upload_file, new_uuid)
+            await upload_dataset_to_minio(minio_client, upload_file, {str(new_uuid)} + ".zip")
         except Exception as e:
             # 处理上传错误
             print(f"上传数据集到 MinIO 失败: {e}")

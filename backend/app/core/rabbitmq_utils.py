@@ -12,6 +12,7 @@ rabbit_channel: Optional[Channel] = None
 rabbit_exchange: Optional[Exchange] = None
 request_queue: Optional[aio_pika.Queue] = None
 status_queue: Optional[aio_pika.Queue] = None
+log_queue: Optional[aio_pika.Queue] = None
 
 
 async def send_task_message(message: str):
@@ -268,6 +269,33 @@ async def init_rabbitmq():
         print("绑定成功")
     except Exception as e:
         print(f"绑定状态队列到交换机失败: {e}")
+        return
+    
+    # 声明log队列
+    if log_queue is not None:
+        print("RabbitMQ log队列已存在")
+    else:
+        print("RabbitMQ 正在声明log队列。")
+        try:
+            status_queue = await rabbit_channel.declare_queue(
+                settings.RABBIT_TRAIN_LOG_QUEUE_NAME,
+                durable=True,
+                auto_delete=False,
+                exclusive=False
+            )
+            print("声明成功")
+        except Exception as e:
+            print(f"声明log队列失败: {e}")
+            return
+    try:
+        print("正在绑定log队列到交换机。")
+        await status_queue.bind(
+            rabbit_exchange,
+            routing_key=settings.RABBIT_TRAIN_LOG_BINDING_KEY
+        )
+        print("绑定成功")
+    except Exception as e:
+        print(f"绑定log队列到交换机失败: {e}")
         return
     
 async def close_rabbitmq():

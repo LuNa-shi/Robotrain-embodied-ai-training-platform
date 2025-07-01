@@ -51,7 +51,7 @@ async def connect_minio()->Optional[Minio]:
     except Exception as e:
         print(f"发生错误: {e}")
     
-async def upload_dataset_to_minio(
+async def upload_model_to_minio(
     client: Minio,
     dataset_file_local_path: str,
     filename: str,
@@ -72,7 +72,7 @@ async def upload_dataset_to_minio(
         upload_file_local_path=dataset_file_local_path,
         filename=filename,
         bucket_name=settings.DATASET_BUCKET, # 使用配置文件中的桶名
-        object_prefix="datasets/" # 可以根据需要调整前缀
+        object_prefix="models/" # 可以根据需要调整前缀
     )
     
 async def download_file_from_minio(
@@ -120,67 +120,39 @@ async def upload_file_to_minio(
     object_prefix: str = "", # 对象在桶内的前缀路径，例如 "images/" 或 "documents/"
 ) -> Tuple[bool, str]:
     """
-    将 FastAPI UploadFile 对象的文件内容直接异步上传到 MinIO 的指定桶中。
+    将本地文件异步上传到 MinIO 的指定桶中。
 
     Args:
         client (Minio): 已连接的异步 Minio 客户端实例。
-        upload_file (UploadFile): FastAPI 从前端接收到的 UploadFile 对象。
-        filename (str): 上传文件在 MinIO 中保存的名称 (通常是原始文件名)。
-                        建议在实际应用中确保其唯一性，例如加上UUID或时间戳。
-        bucket_name (str): 目标 MinIO 桶的名称。如果不存在，函数会尝试创建。
-        object_prefix (str): 文件在桶内的路径前缀。例如，如果设为 "docs/"，文件将存储为 "docs/your_file.txt"。
-                              默认为空字符串（存储在桶的根目录）。
-        content_type (Optional[str]): 文件的 MIME 类型。如果为 None，函数会尝试根据 filename 猜测，
-                                      或使用 upload_file.content_type。
+        upload_file_local_path (str): 本地文件系统中要上传的文件路径。
+        filename (str): 上传到 MinIO 时使用的文件名。
+        bucket_name (str): MinIO 桶的名称。
+        object_prefix (str): 对象在桶内的前缀路径，例如 "images/" 或 "documents/"。
 
     Returns:
         Tuple[bool, str]: 上传成功则返回 (True, MinIO 中的对象完整路径)，失败则返回 (False, 错误信息)。
     """
-    # 确保 MinIO 客户端已初始化
-    if not isinstance(client, Minio): # 检查传入的client是否是Minio实例
+    if not isinstance(client, Minio):
         return False, "传入的 MinIO 客户端无效或未初始化。"
 
-    # 构造 MinIO 中的对象完整路径
-    # object_prefix 需要清理前后的斜杠，确保路径格式正确
-    minio_object_name = f"{object_prefix.strip('/')}/{filename}" if object_prefix else filename
-
-    # 确定文件内容类型：优先使用 UploadFile 提供的，否则就猜测
-    final_content_type = upload_file.content_type
-    if not final_content_type:
-        guessed_type, _ = mimetypes.guess_type(filename)
-        final_content_type = guessed_type if guessed_type else "application/octet-stream"
-        print(f"💡 猜测文件 '{filename}' 的 MIME 类型为: {final_content_type}")
-    else:
-        print(f"💡 使用 UploadFile 提供的 MIME 类型: {final_content_type}")
-
-
     try:
-        # 1. 检查桶是否存在，如果不存在则创建
+        # 检查桶是否存在
         found = await client.bucket_exists(bucket_name)
         if not found:
-            try:
-                # 尝试创建桶
-                await client.make_bucket(bucket_name)
-                print(f"💡 桶 '{bucket_name}' 不存在，已创建。")
-            except S3Error as e:
-                error_msg = f"创建桶 '{bucket_name}' 失败: {e}"
-                print(f"❌ {error_msg}")
-                return False, error_msg
-        else:
-            print(f"✅ 桶 '{bucket_name}' 已存在。")
+            return False, f"桶 '{bucket_name}' 不存在。"
 
-        # 2. 直接从 UploadFile 的文件对象中读取并上传到 MinIO
-        # upload_file.file 是一个异步文件对象 (io.BytesIO 或类似的)
-        # upload_file.size 是文件的大小
-        await client.put_object(
-            bucket_name,
-            minio_object_name,
-            upload_file.file,  # 直接传递 UploadFile 的文件流
-            upload_file.size,  # MinIO 需要知道文件大小
-            content_type=final_content_type
-        )
-        print(f"⬆️ 文件 '{filename}' (大小: {upload_file.size} bytes) 已成功异步上传到 '{bucket_name}/{minio_object_name}'。")
-        return True, minio_object_name
+        # 确定对象名称
+        object_name = f"{object_prefix}{filename}"
+
+        # 获取文件的 MIME 类型
+        content_type, _ = mimetypes.guess_type(upload_file_local_path)
+        content_type = content_type or 'application/octet-stream'  # 默认类型
+
+        # 异步上传文件
+        await client.fput_object(bucket_name, object_name, upload_file_local_path, content_type=content_type)
+        
+        print(f"✅ 文件 '{upload_file_local_path}' 已成功上传到 MinIO 桶 '{bucket_name}'，对象名称为 '{object_name}'。")
+        return True, f"{settings.MINIO_URL}/{bucket_name}/{object_name}"
     except S3Error as e:
         error_msg = f"MinIO 上传失败: {e}"
         print(f"❌ {error_msg}")
