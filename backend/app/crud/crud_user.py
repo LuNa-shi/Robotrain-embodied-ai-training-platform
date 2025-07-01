@@ -2,6 +2,8 @@ from typing import Optional
 from datetime import datetime, timezone
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import selectinload
+
 
 from app.models.user import AppUser
 from app.schemas.user import UserCreateDB, UserUpdate
@@ -59,3 +61,16 @@ async def delete_user(db_session: AsyncSession, user_id: int) -> Optional[AppUse
         await db_session.flush()
         return user
     return None
+
+async def get_datasets_owned_by_user(db_session: AsyncSession, user_id: int):
+    """
+    获取用户拥有的数据集列表。
+    """
+    statement = select(AppUser).where(AppUser.id == user_id).options(
+        selectinload(AppUser.owned_datasets)
+    )
+    result = await db_session.exec(statement)
+    user = result.first()
+    if user:
+        return user.owned_datasets
+    return []

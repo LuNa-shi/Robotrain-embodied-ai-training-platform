@@ -4,6 +4,7 @@ from typing import Annotated
 
 from app.core.deps import get_db
 from app.service.dataset import DatasetService
+from app.service.user import UserService
 from app.schemas.dataset import DatasetPublic
 from app.core.security import get_current_user
 from app.models.user import AppUser
@@ -12,9 +13,13 @@ from app.schemas.dataset import DatasetCreate
 # 创建路由实例
 router = APIRouter()
 
-# 依赖注入 UserService
+# 依赖注入 DatasetService
 async def get_dataset_service(db: Annotated[AsyncSession, Depends(get_db)]) -> DatasetService:
     return DatasetService(db)
+
+# 依赖注入 UserService
+async def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserService:
+    return UserService(db)
 
 @router.get("/me", summary="获取当前用户的数据集列表")
 async def get_my_datasets(
@@ -38,6 +43,7 @@ async def get_dataset(
     dataset_id: int,
     current_user: Annotated[AppUser, Depends(get_current_user)],
     dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> DatasetPublic:
     """
     **获取数据集详情**
@@ -52,7 +58,8 @@ async def get_dataset(
     - `404 Not Found`: 数据集不存在。
     """
     # 验证用户是否拥有该数据集
-    if dataset_id not in [dataset.id for dataset in current_user.owned_datasets]:
+    dataset_owned = await user_service.datasets_owned_by_user(current_user.id)
+    if dataset_id not in [dataset.id for dataset in dataset_owned]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="该数据集不存在或该数据集不属于当前用户。",
@@ -117,6 +124,7 @@ async def delete_dataset(
     dataset_id: int,
     current_user: Annotated[AppUser, Depends(get_current_user)],
     dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> DatasetPublic:
     """
     **删除数据集**
@@ -132,7 +140,9 @@ async def delete_dataset(
     - `401 Unauthorized`: 用户未登录。
     """
     # 验证用户是否拥有该数据集
-    if dataset_id not in [dataset.id for dataset in current_user.owned_datasets]:
+    dataset_owned = await user_service.datasets_owned_by_user(current_user.id)
+
+    if dataset_id not in [dataset.id for dataset in dataset_owned]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="该数据集不存在或该数据集不属于当前用户。",

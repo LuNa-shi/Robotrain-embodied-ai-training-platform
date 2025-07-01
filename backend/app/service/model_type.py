@@ -29,6 +29,7 @@ class ModelTypeService:
             model_type_create_db=model_type_create_db
         )
         
+        await self.db_session.commit()  # 提交事务
         # 刷新模型类型对象以获取最新数据
         await self.db_session.refresh(model_type)
         

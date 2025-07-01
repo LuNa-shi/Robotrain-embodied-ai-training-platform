@@ -75,7 +75,32 @@ async def upload_dataset_to_minio(
         bucket_name=settings.DATASET_BUCKET, # 使用配置文件中的桶名
         object_prefix="datasets/" # 可以根据需要调整前缀
     )
-    
+
+async def delete_dataset_from_minio(
+    client: Minio,
+    uuid_str: str,
+    bucket_name: str = settings.DATASET_BUCKET,
+    object_prefix: str = "datasets/"
+) -> Tuple[bool, str]:
+    """
+    从 MinIO 中删除指定的文件。
+
+    Args:
+        client (Minio): 已连接的异步 Minio 客户端实例。
+        uuid_str (str): 数据集的 UUID 字符串，用于构建对象名称。
+        bucket_name (str): 目标 MinIO 桶的名称。
+        object_prefix (str): 对象在桶内的路径前缀。
+
+    Returns:
+        Tuple[bool, str]: 删除成功则返回 (True, "删除成功")，失败则返回 (False, 错误信息)。
+    """
+    return await delete_file_from_minio(
+        client=client,
+        bucket_name=bucket_name,
+        object_name=f"{uuid_str}.zip",  # 假设数据集文件名为 UUID.zip
+        object_prefix=object_prefix
+    )
+  
 async def upload_file_to_minio(
     client: Minio,
     upload_file: UploadFile,
@@ -151,5 +176,42 @@ async def upload_file_to_minio(
         return False, error_msg
     except Exception as e:
         error_msg = f"文件上传时发生意外错误: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    
+async def delete_file_from_minio(
+    client: Minio,
+    bucket_name: str,
+    object_name: str,
+    object_prefix: str = ""  # 对象在桶内的前缀路径，例如 "images/" 或 "documents/"
+) -> Tuple[bool, str]:
+    """
+    从 MinIO 中删除指定的文件。
+
+    Args:
+        client (Minio): 已连接的异步 Minio 客户端实例。
+        bucket_name (str): 目标 MinIO 桶的名称。
+        object_name (str): 要删除的对象名称（包括前缀）。
+        object_prefix (str): 对象在桶内的路径前缀。例如，如果设为 "docs/"，则 object_name 应为 "docs/your_file.txt"。
+
+    Returns:
+        Tuple[bool, str]: 删除成功则返回 (True, "删除成功")，失败则返回 (False, 错误信息)。
+    """
+    if not isinstance(client, Minio):
+        return False, "传入的 MinIO 客户端无效或未初始化。"
+
+    # 确保 object_name 包含前缀
+    full_object_name = f"{object_prefix.strip('/')}/{object_name}" if object_prefix else object_name
+
+    try:
+        await client.remove_object(bucket_name, full_object_name)
+        print(f"✅ 文件 '{full_object_name}' 已成功从桶 '{bucket_name}' 中删除。")
+        return True, "删除成功"
+    except S3Error as e:
+        error_msg = f"MinIO 删除失败: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"删除文件时发生意外错误: {e}"
         print(f"❌ {error_msg}")
         return False, error_msg

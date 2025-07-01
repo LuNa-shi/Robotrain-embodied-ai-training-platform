@@ -49,3 +49,10 @@ class UserService:
         直接调用 CRUD 层。
         """
         return await crud_user.get_user_by_username(self.db_session, username=username)
+
+    async def datasets_owned_by_user(self, user_id: int):
+        """
+        获取用户拥有的数据集列表。
+        直接调用 CRUD 层。
+        """
+        return await crud_user.get_datasets_owned_by_user(self.db_session, user_id=user_id)

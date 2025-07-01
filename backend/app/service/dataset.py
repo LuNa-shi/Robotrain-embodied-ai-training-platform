@@ -6,7 +6,7 @@ from app.models.user import AppUser
 from app.models.dataset import Dataset
 from app.schemas.dataset import DatasetCreate, DatasetCreateDB
 from app.crud import crud_dataset
-from app.core.minio_utils import upload_dataset_to_minio, get_minio_client
+from app.core.minio_utils import upload_dataset_to_minio, get_minio_client, delete_dataset_from_minio
 
 
 class DatasetService:
@@ -41,7 +41,7 @@ class DatasetService:
             raise ValueError("MinIO 客户端未初始化，请检查配置。")
         try:
             # 上传数据集到 MinIO
-            await upload_dataset_to_minio(minio_client, upload_file, {str(new_uuid)} + ".zip")
+            await upload_dataset_to_minio(minio_client, upload_file, str(new_uuid) + ".zip")
         except Exception as e:
             # 处理上传错误
             print(f"上传数据集到 MinIO 失败: {e}")
@@ -87,11 +87,30 @@ class DatasetService:
         """
         根据数据集ID删除数据集。
         """
+        uuid_to_delete = await crud_dataset.get_dataset_by_id(
+            db_session=self.db_session,
+            dataset_id=dataset_id
+        )
         deleted_dataset = await crud_dataset.delete_dataset(
             db_session=self.db_session,
             dataset_id=dataset_id
         )
         if deleted_dataset:
+            # 删除数据集文件
+            minio_client = await get_minio_client()
+            if not minio_client:
+                raise ValueError("MinIO 客户端未初始化，请检查配置。")
+            try:
+                # 删除 MinIO 中的数据集文件
+                await delete_dataset_from_minio(
+                    client=minio_client,
+                    uuid_str=str(uuid_to_delete.dataset_uuid)
+                )
+            except Exception as e:
+                # 处理删除错误
+                print(f"从 MinIO 删除数据集文件失败: {e}")
+                raise ValueError("数据集文件删除失败，请稍后重试。")
+            print(f"数据集文件 {str(uuid_to_delete.dataset_uuid)}.zip 已从 MinIO 删除。")
             # 提交事务
             await self.db_session.commit()
             return deleted_dataset

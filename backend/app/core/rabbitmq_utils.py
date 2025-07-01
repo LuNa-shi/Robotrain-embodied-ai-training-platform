@@ -6,6 +6,7 @@ from aio_pika.exchange import ExchangeType, Exchange
 from typing import Optional
 from app.core.config import settings
 import json
+from uuid import uuid4
 from app.core.websocket_utils import send_log_to_websockets
 rabbit_connection: Optional[Connection] = None
 rabbit_channel: Optional[Channel] = None
@@ -57,50 +58,52 @@ async def on_status_message(message: aio_pika.IncomingMessage):
     from app.service.train_task import TrainTaskService
     from app.schemas.train_task import TrainTaskUpdate
     from app.core.deps import get_db
-    db = get_db()  # 获取数据库会话
-    TrainTaskService = TrainTaskService(db_session=db)  # 确保 TrainTaskService 已经正确导入和初始化
-    
-    try:
-        # 打印接收到的消息内容
-        print(f"[Status Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})")
+    # db = await get_db()  # 获取数据库会话
+    async for session in get_db():
+        TrainTaskService = TrainTaskService(db_session=session)  # 确保 TrainTaskService 已经正确导入和初始化
+        try:
+            # 打印接收到的消息内容
+            print(f"[Status Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})")
 
-        # 在这里添加处理状态消息的逻辑
-        # 例如，解析消息内容并更新训练任务状态
-        # 假设消息内容是 JSON 格式的字符串
-        message_content = message.body.decode()
-        # 这里可以根据实际消息格式进行解析和处理
-        # 例如，如果消息是 JSON 格式，可以使用 json.loads() 解析
-        status_data = json.loads(message_content)
-        # 假设 status_data 包含任务 ID 和状态信息
-        task_id = status_data.get("task_id")
-        status = status_data.get("status")
-        if status == "completed":
-            model_uuid_str = status_data.get("model_uuid")
-            log_uuid_str = status_data.get("log_uuid")
-            # 调用 TrainTaskService 更新任务状态
-            train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
-                status=status,
-                model_uuid=model_uuid_str,
-                log_uuid=log_uuid_str
-            )
-            await TrainTaskService.update_train_task(task_id, train_task_to_update)
-            print(f"[Status Consumer] Task {task_id} status updated to '{status}' with model UUID '{model_uuid_str}' and log UUID '{log_uuid_str}'.")
-        else:
-            # 如果状态不是 "completed"，可以根据需要进行其他处理
-            train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
-                status=status
-            )
-            await TrainTaskService.update_train_task(task_id, train_task_to_update)
-            print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
+            # 在这里添加处理状态消息的逻辑
+            # 例如，解析消息内容并更新训练任务状态
+            # 假设消息内容是 JSON 格式的字符串
+            message_content = message.body.decode()
+            # 这里可以根据实际消息格式进行解析和处理
+            # 例如，如果消息是 JSON 格式，可以使用 json.loads() 解析
+            status_data = json.loads(message_content)
+            if not isinstance(status_data, dict):
+                print(f"[Status Consumer] Received invalid message format: {message_content}")
+                return
+            # 假设 status_data 包含任务 ID 和状态信息
+            task_id = status_data.get("task_id")
+            status = status_data.get("status")
+            if status == "completed":
+                model_uuid_str = status_data.get("model_uuid")
+                # 调用 TrainTaskService 更新任务状态
+                train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
+                    status=status,
+                    model_uuid=model_uuid_str,
+                    log_uuid=uuid4() #之后应该从数据库中提取出所有的日志 UUID
+                )
+                await TrainTaskService.update_train_task(task_id, train_task_to_update)
+                print(f"[Status Consumer] Task {task_id} status updated to '{status}' with model UUID '{model_uuid_str}'.")
+            else:
+                # 如果状态不是 "completed"，可以根据需要进行其他处理
+                train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
+                    status=status
+                )
+                await TrainTaskService.update_train_task(task_id, train_task_to_update)
+                print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
 
-        # 确认消息已被处理
-        await message.ack()
-        print(f"[Status Consumer] Message '{message.body.decode()}' processed and acknowledged.")
+            # 确认消息已被处理
+            await message.ack()
+            print(f"[Status Consumer] Message '{message.body.decode()}' processed and acknowledged.")
 
-    except Exception as e:
-        print(f"[Status Consumer] Error processing message '{message.body.decode()}': {e}")
-        # 如果处理失败，将消息 NACK 并不重新入队，通常会进入死信队列
-        await message.nack(requeue=False)
+        except Exception as e:
+            print(f"[Status Consumer] Error processing message '{message.body.decode()}': {e}")
+            # 如果处理失败，将消息 NACK 并不重新入队，通常会进入死信队列
+            await message.nack(requeue=False)
 
 async def on_train_log_message(message: aio_pika.IncomingMessage):
     """
@@ -109,7 +112,7 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
     from app.core.websocket_utils import send_log_to_websockets
     try:
         # 打印接收到的消息内容
-        print(f"[Train Log Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})")
+        print(f"[Train Log Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})", flush=True)
 
         # 在这里添加处理训练日志消息的逻辑
         # 例如，解析消息内容并发送到 WebSocket 客户端
@@ -117,17 +120,21 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
         
         # 假设消息内容是 JSON 格式的字符串
         log_data = json.loads(log_message)
+        if not isinstance(log_data, dict):
+            print(f"[Train Log Consumer] Received invalid message format: {log_message}", flush=True)
+            return
         task_id = log_data.get("task_id")
-        log_content = log_data.get("log_content")
+        log_content = log_data.get("log_message")
+        # 记得还有 epoch, loss, accuracy 等字段，之后要加上
 
         # 发送日志到 WebSocket 客户端
         await send_log_to_websockets(task_id, log_content)
 
         # 确认消息已被处理
         await message.ack()
-        print(f"[Train Log Consumer] Message '{message.body.decode()}' processed and acknowledged.")
+        print(f"[Train Log Consumer] Message '{message.body.decode()}' processed and acknowledged.", flush=True)
     except Exception as e:
-        print(f"[Train Log Consumer] Error processing message '{message.body.decode()}': {e}")
+        print(f"[Train Log Consumer] Error processing message '{message.body.decode()}': {e}", flush=True)
         # 如果处理失败，将消息 NACK 并不重新入队，通常会进入死信队列
         await message.nack(requeue=False)
 
@@ -135,10 +142,10 @@ async def start_train_log_queue_consumer():
     """
     创建并启动监听训练日志队列的消费者。
     """
-    global rabbit_channel, rabbit_exchange, request_queue
+    global rabbit_channel, rabbit_exchange, log_queue
 
     # 确保 RabbitMQ 已经初始化
-    if rabbit_channel is None or rabbit_channel.is_closed or request_queue is None:
+    if rabbit_channel is None or rabbit_channel.is_closed or log_queue is None:
         print("RabbitMQ 连接或请求队列未就绪，请先调用 init_rabbitmq() 方法。")
         return
 
@@ -146,13 +153,13 @@ async def start_train_log_queue_consumer():
         # 注册消息处理回调函数
         # no_ack=False 表示手动确认消息，确保消息可靠性
         print(f"[Train Log Consumer] Starting to consume messages from queue '{request_queue.name}'.")
-        await request_queue.consume(on_train_log_message, no_ack=False)
+        await log_queue.consume(on_train_log_message, no_ack=False)
 
         # 消费者协程会持续运行，直到通道关闭或被取消
         # 这里不需要 asyncio.Future()，因为 consume() 会保持协程运行
         # 如果这个函数是作为主应用的一部分，它会一直监听
         # 如果是独立的协程，需要确保事件循环不会立即退出
-        print(f"[Train Log Consumer] Consumer for '{request_queue.name}' started. Waiting for messages...")
+        print(f"[Train Log Consumer] Consumer for '{log_queue.name}' started. Waiting for messages...")
 
     except Exception as e:
         print(f"[Train Log Consumer] Error starting consumer: {e}")
@@ -185,7 +192,7 @@ async def start_status_queue_consumer():
         print(f"[Status Consumer] Error starting consumer: {e}")
 
 async def init_rabbitmq():
-    global rabbit_connection, rabbit_channel, rabbit_exchange, request_queue, status_queue
+    global rabbit_connection, rabbit_channel, rabbit_exchange, request_queue, status_queue, log_queue
     if rabbit_connection is not None:
         print("RabbitMQ 连接已存在")
     else:
@@ -277,7 +284,7 @@ async def init_rabbitmq():
     else:
         print("RabbitMQ 正在声明log队列。")
         try:
-            status_queue = await rabbit_channel.declare_queue(
+            log_queue = await rabbit_channel.declare_queue(
                 settings.RABBIT_TRAIN_LOG_QUEUE_NAME,
                 durable=True,
                 auto_delete=False,
@@ -289,7 +296,7 @@ async def init_rabbitmq():
             return
     try:
         print("正在绑定log队列到交换机。")
-        await status_queue.bind(
+        await log_queue.bind(
             rabbit_exchange,
             routing_key=settings.RABBIT_TRAIN_LOG_BINDING_KEY
         )

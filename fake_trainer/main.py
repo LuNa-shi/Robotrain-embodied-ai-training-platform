@@ -1,9 +1,12 @@
 from rabbitmq_utils import init_rabbitmq, start_task_queue_consumer
+from minio_utils import get_minio_client, connect_minio
 import asyncio
 import signal
 async def main():
     shutdown_event = asyncio.Future()
     await init_rabbitmq()
+    await connect_minio()
+    print("RabbitMQ 和 MinIO 已初始化。", flush=True)
     
     await start_task_queue_consumer()
     print("消费者已启动。", flush=True)

@@ -37,7 +37,7 @@ async def send_status_message(task_id: int, status: str, uuid: Optional[str] = N
         message_body = json.dumps({
             "task_id": task_id,
             "status": status,
-            "uuid": uuid
+            "model_uuid": uuid
         }).encode('utf-8')
         rabbit_message = aio_pika.Message(body=message_body)
 
@@ -112,6 +112,7 @@ async def on_task_message(message: aio_pika.IncomingMessage):
             dataset_uuid: str = task_data.get("dataset_uuid")
             model_type: str = task_data.get("model_type")
             hyperparam:  dict= task_data.get("hyperparam")
+            owner_id: int = task_data.get("owner_id")
             if task_id is None or dataset_uuid is None or model_type is None or hyperparam is None:
                 print(f"[Task Consumer] Received message with missing fields: {message_body}")
                 return
@@ -119,7 +120,7 @@ async def on_task_message(message: aio_pika.IncomingMessage):
             print(f"[Task Consumer] Received task ID: {task_id}")
 
             
-            await fake_train(task_id, dataset_uuid, hyperparam)
+            await fake_train(task_id, model_type, dataset_uuid, hyperparam, owner_id)
 
             # 打印接收到的消息内容
         print(f"[Task Consumer] Received message: {message.body.decode('utf-8')}")

@@ -5,8 +5,10 @@ from app.models.user import AppUser
 from app.models.train_task import TrainTask
 from app.models.dataset import Dataset
 from app.schemas.train_task import TrainTaskCreate, TrainTaskCreateDB, TrainTaskUpdate
-from app.crud import crud_train_task, crud_dataset
+from app.crud import crud_train_task, crud_dataset, crud_model_type
 from app.core.rabbitmq_utils import send_task_message
+from uuid import UUID
+from app.models.model_type import ModelType
 
 class TrainTaskService:
     def __init__(self, db_session: AsyncSession): # 接收同步 Session
@@ -46,13 +48,20 @@ class TrainTaskService:
         await self.db_session.refresh(train_task)
 
         # 4. 向 RabbitMQ 发送任务消息
-        dataset_uuid: Dataset = dataset.dataset_uuid
+        dataset_uuid: UUID = dataset.dataset_uuid
+        model_type: ModelType = await crud_model_type.get_model_type_by_id(
+            self.db_session, train_task_create.model_type_id
+        )
+        if not model_type:
+            print(f"模型类型 ID {train_task_create.model_type_id} 不存在，无法创建训练任务")
+            return None
+        
         #将创建的任务写成一个json并转成字符串
         task_msg_json_str: str = json.dumps({
             "task_id": train_task.id,
             "dataset_uuid": str(dataset_uuid),
-            "model_type_id": train_task_create.model_type_id,
-            "hyperparameter": train_task_create.hyperparameter,
+            "model_type": model_type.type_name,
+            "hyperparam": train_task_create.hyperparameter,
             "owner_id": user.id
         })
         # 发送训练任务消息到 RabbitMQ
@@ -65,6 +74,8 @@ class TrainTaskService:
         
         # 提交事务
         await self.db_session.commit()
+        # 提交事务后刷新训练任务对象以获取最新数据
+        await self.db_session.refresh(train_task)
         
         
         return train_task
@@ -112,7 +123,7 @@ class TrainTaskService:
         updated_train_task = await crud_train_task.update_train_task(
             db_session=self.db_session,
             train_task_id=train_task_id,
-            train_task_update=train_task_update
+            train_task_update_db=train_task_update
         )
         
         await self.db_session.commit()
