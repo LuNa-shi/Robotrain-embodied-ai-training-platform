@@ -99,60 +99,64 @@ const BasicLayout = () => {
 
   return (
     <Layout className={styles.appLayout}>
-      <Header className={styles.header}>
-        <div className={styles.logoBar}>
-          <img src="/logo.svg" alt="logo" className={styles.logoImage} />
-          <Title level={3} style={{ margin: 0, whiteSpace: 'nowrap', lineHeight: '1', fontFamily: 'Consolas', fontSize: '24px', fontWeight: '600' }}>
-            RoboTrain
-          </Title>
-        </div>
-        <div className={styles.headerMenu}>
-          <Button type="text" icon={<QuestionCircleOutlined />} onClick={handleHelpClick}>
-            文档帮助
-          </Button>
-          <Tooltip title="设置">
-            <Button shape="circle" icon={<SettingOutlined />} onClick={() => navigate('/settings')} />
-          </Tooltip>
-          <Tooltip title="个人资料">
-             <Avatar icon={<UserOutlined />} onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} />
-          </Tooltip>
-          <Tooltip title="登出">
-            <Button 
-              shape="circle" 
-              icon={<LogoutOutlined />} 
-              onClick={handleLogout}
-              style={{ marginLeft: '8px' }}
-            />
-          </Tooltip>
-        </div>
-      </Header>
+      {/* 背景图片，延伸到顶部导航栏区域 */}
+      <div className={styles.mainBg} />
       <Layout>
-        <Sider 
-          theme="light" 
-          width={220} 
-          collapsedWidth={80}
-          className={styles.sider}
-          collapsible // 允许收缩
-          collapsed={collapsed} // 3. 将Sider的收缩状态与我们的state同步
-          trigger={null} // 隐藏Antd自带的trigger，因为我们要自定义
-        >
-          <Menu
-            mode="inline"
-            selectedKeys={[location.pathname]}
-            items={menuItems}
-            onClick={handleMenuClick}
-            className={styles.siderMenu}
-            inlineCollapsed={collapsed} // 3. 将Menu的收缩状态与我们的state同步
-          />
-          {/* 4. 添加自定义的收缩/展开按钮 */}
-          <div className={styles.siderCollapseButton} onClick={() => setCollapsed(!collapsed)}>
-            {collapsed ? <RightOutlined /> : <LeftOutlined />}
-            {!collapsed && window.innerWidth > 992 && <span style={{ marginLeft: '8px' }}>收起侧边栏</span>}
+        <Header className={styles.header}>
+          <div className={styles.logoBar}>
+            <img src="/logo.svg" alt="logo" className={styles.logoImage} />
+            <Title level={3} style={{ margin: 0, whiteSpace: 'nowrap', lineHeight: '1', fontFamily: 'Consolas', fontSize: '24px', fontWeight: '600' }}>
+              RoboTrain
+            </Title>
           </div>
-        </Sider>
-        <Content className={styles.pageContent}>
-          <Outlet />
-        </Content>
+          <div className={styles.headerMenu}>
+            <Button type="text" icon={<QuestionCircleOutlined />} onClick={handleHelpClick}>
+              文档帮助
+            </Button>
+            <Tooltip title="设置">
+              <Button shape="circle" icon={<SettingOutlined />} onClick={() => navigate('/settings')} />
+            </Tooltip>
+            <Tooltip title="个人资料">
+              <Avatar icon={<UserOutlined />} onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} />
+            </Tooltip>
+            <Tooltip title="登出">
+              <Button 
+                shape="circle" 
+                icon={<LogoutOutlined />} 
+                onClick={handleLogout}
+                style={{ marginLeft: '8px' }}
+              />
+            </Tooltip>
+          </div>
+        </Header>
+        <Layout>
+          <Sider 
+            theme="light" 
+            width={220} 
+            collapsedWidth={80}
+            className={styles.sider}
+            collapsible // 允许收缩
+            collapsed={collapsed} // 3. 将Sider的收缩状态与我们的state同步
+            trigger={null} // 隐藏Antd自带的trigger，因为我们要自定义
+          >
+            <Menu
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              items={menuItems}
+              onClick={handleMenuClick}
+              className={styles.siderMenu}
+              inlineCollapsed={collapsed} // 3. 将Menu的收缩状态与我们的state同步
+            />
+            {/* 4. 添加自定义的收缩/展开按钮 */}
+            <div className={styles.siderCollapseButton} onClick={() => setCollapsed(!collapsed)}>
+              {collapsed ? <RightOutlined /> : <LeftOutlined />}
+              {!collapsed && window.innerWidth > 992 && <span style={{ marginLeft: '8px' }}>收起侧边栏</span>}
+            </div>
+          </Sider>
+          <Content className={styles.pageContent}>
+            <Outlet />
+          </Content>
+        </Layout>
       </Layout>
     </Layout>
   );

@@ -176,9 +176,9 @@ const Register = () => {
             
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <Text>管理员权限</Text>
-              <Form.Item
-                name="isAdmin"
-                valuePropName="checked"
+            <Form.Item
+              name="isAdmin"
+              valuePropName="checked"
                 noStyle
               >
                 <Switch 
@@ -190,7 +190,7 @@ const Register = () => {
                   }}
                 />
               </Form.Item>
-            </div>
+              </div>
             
             <Form.Item
               name="agree"

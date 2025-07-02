@@ -1,8 +1,13 @@
 /* .homePageLayout 的改动实现了完美居中 */
+body, #root, .homePageLayout {
+  background: linear-gradient(135deg, #eaf3ff 0%, #b3d0f7 40%, #7fa7e6 100%) !important;
+}
+
 .homePageLayout {
   height: 100%;
   overflow: auto;
-  background-color: #f0f2f5;
+  /* 只保留背景透明，去除原有背景色 */
+  background: transparent !important;
   padding: 24px;
   display: flex;
   justify-content: center; /* 实现水平居中 */
@@ -37,7 +42,7 @@
 }
 
 .dragger {
-  background-color: #fafafa !important;
+  background: transparent !important;
   border: 2px dashed #d9d9d9 !important;
   border-radius: 8px !important;
 

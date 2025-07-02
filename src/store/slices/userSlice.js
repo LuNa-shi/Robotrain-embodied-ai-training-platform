@@ -39,19 +39,19 @@ export const loginUser = createAsyncThunk(
         // 如果获取用户信息失败，尝试从JWT token中解析基本信息
         try {
           const payload = JSON.parse(atob(response.access_token.split('.')[1]));
-          userInfo = {
-            id: payload.user_id || payload.sub || payload.id,
-            username: payload.username || username,
-            role: payload.role || 'user',
-            isAdmin: payload.is_admin || payload.admin || false,
-            exp: payload.exp,
-            iat: payload.iat
-          };
+        userInfo = {
+          id: payload.user_id || payload.sub || payload.id,
+          username: payload.username || username,
+          role: payload.role || 'user',
+          isAdmin: payload.is_admin || payload.admin || false,
+          exp: payload.exp,
+          iat: payload.iat
+        };
           
           // 更新localStorage中的用户信息
           storeUserInfo(response.access_token, response.token_type, userInfo);
-        } catch (parseError) {
-          console.warn('无法从JWT token解析用户信息:', parseError);
+      } catch (parseError) {
+        console.warn('无法从JWT token解析用户信息:', parseError);
         }
       }
       

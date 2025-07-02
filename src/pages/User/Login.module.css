@@ -9,7 +9,7 @@
   
   display: flex;
   overflow: hidden;
-  background-color: #ffffff;
+  background: transparent !important;
 }
 
 /* Left Visual Panel */

@@ -1,7 +1,7 @@
 /* 整体页面容器 */
 .profileContainer {
   padding: 24px;
-  background-color: #f0f2f5;
+  background: transparent !important;
 }
 
 /* 页面头部 */
@@ -124,5 +124,9 @@
   font-weight: 700;
   /* 你可以在这里自定义信息内容的字体 */
   font-family: 'Consolas', monospace;
+}
+
+.profilePage {
+  background: transparent !important;
 }
  

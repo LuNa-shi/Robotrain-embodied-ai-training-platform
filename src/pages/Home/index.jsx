@@ -118,8 +118,7 @@ const HomePage = () => {
       <Content className={styles.mainContent}>
         <div className={styles.centerStage}>
           <Title level={2} className={styles.mainTitle}>RoboTrain</Title>
-          <Paragraph type="secondary">你的机器人训练助手</Paragraph>
-          
+          <Paragraph className={styles.subTitle}>你的机器人训练助手</Paragraph>
           <div className={styles.uploadSection}>
             <Dragger
               name="file"
@@ -142,7 +141,6 @@ const HomePage = () => {
                 </div>
               </div>
             </Dragger>
-            
             <Button
               type="primary"
               size="large"
@@ -154,72 +152,68 @@ const HomePage = () => {
               开始上传
             </Button>
           </div>
-                  </div>
-
-          {/* 上传模态框 */}
-          <Modal
-            title="上传数据集"
-            open={uploadModalVisible}
-            onCancel={handleCancel}
-            footer={null}
-            width={600}
+        </div>
+        {/* 上传模态框 */}
+        <Modal
+          title="上传数据集"
+          open={uploadModalVisible}
+          onCancel={handleCancel}
+          footer={null}
+          width={600}
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleUpload}
+            initialValues={{
+              name: '',
+              description: '',
+            }}
           >
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleUpload}
-              initialValues={{
-                name: '',
-                description: '',
-              }}
+            <Form.Item
+              label="数据集名称"
+              name="name"
+              rules={[
+                { required: true, message: '请输入数据集名称' },
+                { max: 100, message: '数据集名称不能超过100个字符' }
+              ]}
             >
-              <Form.Item
-                label="数据集名称"
-                name="name"
-                rules={[
-                  { required: true, message: '请输入数据集名称' },
-                  { max: 100, message: '数据集名称不能超过100个字符' }
-                ]}
+              <Input placeholder="请输入数据集名称" />
+            </Form.Item>
+            <Form.Item
+              label="数据集描述"
+              name="description"
+              rules={[
+                { required: true, message: '请输入数据集描述' },
+                { max: 500, message: '数据集描述不能超过500个字符' }
+              ]}
+            >
+              <TextArea
+                rows={4}
+                placeholder="请输入数据集描述"
+                showCount
+                maxLength={500}
+              />
+            </Form.Item>
+            <Form.Item label="上传文件">
+              <Text>{fileList.length > 0 ? fileList[0].name : '未选择文件'}</Text>
+            </Form.Item>
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={uploading}
+                block
+                size="large"
               >
-                <Input placeholder="请输入数据集名称" />
-              </Form.Item>
-
-              <Form.Item
-                label="数据集描述"
-                name="description"
-                rules={[
-                  { required: true, message: '请输入数据集描述' },
-                  { max: 500, message: '数据集描述不能超过500个字符' }
-                ]}
-              >
-                <TextArea
-                  rows={4}
-                  placeholder="请输入数据集描述"
-                  showCount
-                  maxLength={500}
-                />
-              </Form.Item>
-
-              <Form.Item label="上传文件">
-                <Text>{fileList.length > 0 ? fileList[0].name : '未选择文件'}</Text>
-              </Form.Item>
-
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={uploading}
-                  block
-                  size="large"
-                >
-                  {uploading ? '上传中...' : '确认上传'}
-                </Button>
-              </Form.Item>
-            </Form>
-          </Modal>
-        </Content>
-      </Layout>
-    );
-  };
+                {uploading ? '上传中...' : '确认上传'}
+              </Button>
+            </Form.Item>
+          </Form>
+        </Modal>
+      </Content>
+    </Layout>
+  );
+};
 
 export default HomePage;

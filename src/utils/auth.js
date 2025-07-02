@@ -166,21 +166,21 @@ export const storeUserInfo = (accessToken, tokenType = 'bearer', userInfo = null
     if (userInfo) {
       localStorage.setItem('userInfo', JSON.stringify(userInfo));
     } else {
-      // 从JWT token中解析用户信息（如果可能）
-      try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+    // 从JWT token中解析用户信息（如果可能）
+    try {
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
         const parsedUserInfo = {
-          id: payload.user_id || payload.sub || payload.id,
-          username: payload.username || payload.name,
-          role: payload.role || 'user',
-          isAdmin: payload.is_admin || payload.admin || false,
-          exp: payload.exp,
-          iat: payload.iat
-        };
+        id: payload.user_id || payload.sub || payload.id,
+        username: payload.username || payload.name,
+        role: payload.role || 'user',
+        isAdmin: payload.is_admin || payload.admin || false,
+        exp: payload.exp,
+        iat: payload.iat
+      };
         localStorage.setItem('userInfo', JSON.stringify(parsedUserInfo));
-      } catch (parseError) {
-        console.warn('无法从JWT token解析用户信息:', parseError);
-        // 如果无法解析，至少存储token
+    } catch (parseError) {
+      console.warn('无法从JWT token解析用户信息:', parseError);
+      // 如果无法解析，至少存储token
       }
     }
   } catch (error) {

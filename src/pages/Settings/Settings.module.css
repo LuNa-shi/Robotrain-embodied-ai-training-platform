@@ -1,7 +1,7 @@
 /* Settings Page Container */
 .settingsContainer {
   padding: 24px;
-  background-color: #f0f2f5;
+  background: transparent !important;
   min-height: 100%;
 }
 
@@ -201,4 +201,8 @@
 
 .settingItem .ant-select {
   width: 100%;
+}
+
+.settingsPage {
+  background: transparent !important;
 } 
