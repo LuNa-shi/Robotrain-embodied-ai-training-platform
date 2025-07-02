@@ -119,7 +119,7 @@ docs/_build/
 # PyBuilder
 .pybuilder/
 target/
-
+./training_platform/tests/data/
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -171,3 +171,5 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+outputs/

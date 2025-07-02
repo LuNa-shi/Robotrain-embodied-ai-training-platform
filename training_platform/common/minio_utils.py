@@ -9,10 +9,6 @@ from miniopy_async.error import S3Error
 from training_platform.configs.settings import settings
 
 class _MinIOManager:
-    """
-    一个内部单例类，用于管理 MinIO 客户端的生命周期。
-    对外部调用者透明。
-    """
     _instance: Optional['_MinIOManager'] = None
     _lock = asyncio.Lock()
 
@@ -22,6 +18,7 @@ class _MinIOManager:
 
     @classmethod
     async def get_instance(cls) -> '_MinIOManager':
+        # (这个方法保持不变)
         if cls._instance is None:
             async with cls._lock:
                 if cls._instance is None:
@@ -29,13 +26,28 @@ class _MinIOManager:
         return cls._instance
 
     async def get_client_internal(self) -> Minio:
-        if self.client is None or self.client._http.is_closed():
+        # 检查连接是否已关闭或不存在
+        client_is_invalid = self.client is None
+        if self.client and hasattr(self.client, '_http') and self.client._http:
+             client_is_invalid = self.client._http.is_closed()
+        
+        if client_is_invalid:
             async with self._lock:
-                if self.client is None or self.client._http.is_closed():
+                # 再次检查，防止在等待锁时连接已被其他协程建立
+                client_is_invalid_again = self.client is None
+                if self.client and hasattr(self.client, '_http') and self.client._http:
+                    client_is_invalid_again = self.client._http.is_closed()
+                
+                if client_is_invalid_again:
                     if self._is_connecting:
                         while self._is_connecting:
                             await asyncio.sleep(0.1)
-                        return self.client
+                        # 在等待后，另一个协程可能已经成功连接，直接返回
+                        if self.client and not self.client._http.is_closed():
+                            return self.client
+                        else:
+                            # 如果等待后仍然连接失败，则抛出异常
+                            raise ConnectionError("另一个协程尝试连接失败。")
 
                     self._is_connecting = True
                     try:
@@ -46,33 +58,38 @@ class _MinIOManager:
                             secret_key=settings.MINIO_SECRET_KEY,
                             secure=False
                         )
-                        await client.list_buckets()
+                        # 使用一个轻量级的操作作为健康检查
+                        await client.bucket_exists("health-check-bucket-that-may-not-exist")
                         self.client = client
                         print("✅ 成功连接到 MinIO 服务器！")
                     except Exception as e:
-                        print(f"❌ 连接 MinIO 失败: {e}")
+                        print(f"❌ 连接 MinIO 失败。原始错误: {e}")
                         self.client = None
-                        raise
+                        # --- 关键修改：直接抛出异常 ---
+                        raise ConnectionError(f"无法连接到 MinIO 服务器 at {settings.MINIO_URL}") from e
                     finally:
                         self._is_connecting = False
         
-        if not self.client:
-            raise ConnectionError("无法建立 MinIO 连接")
+        # 能走到这里，self.client 一定是一个有效的对象
         return self.client
 
-# --- 以下是你原有的函数，我们保持接口不变，但内部实现调用Manager ---
+# --- 函数接口 ---
 
-# 包装 connect_minio 和 get_minio_client
-async def connect_minio() -> Optional[Minio]:
-    try:
-        manager = await _MinIOManager.get_instance()
-        return await manager.get_client_internal()
-    except Exception as e:
-        print(f"connect_minio 最终失败: {e}")
-        return None
+# --- 关键修改：让函数在失败时抛出异常，而不是返回 None ---
+async def get_minio_client() -> Minio:
+    """
+    获取一个保证可用的 MinIO 客户端。如果无法连接，则抛出 ConnectionError。
+    """
+    manager = await _MinIOManager.get_instance()
+    return await manager.get_client_internal()
 
-async def get_minio_client() -> Optional[Minio]:
-    return await connect_minio()
+async def connect_minio() -> Minio:
+    """
+    连接到 MinIO。这是 get_minio_client 的别名。
+    """
+    return await get_minio_client()
+
+
 
 # 其他函数保持完全不变，因为它们依赖传入的 client 对象
 async def upload_model_to_minio(
