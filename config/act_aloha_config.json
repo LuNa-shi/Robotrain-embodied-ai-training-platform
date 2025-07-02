@@ -1,7 +1,7 @@
 {
   "dataset": {
     "repo_id": "lerobot/aloha_sim_insertion_human",
-    "episodes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "episodes": null,
     "video_backend": "pyav",
     "image_transforms": {
       "enable": true
