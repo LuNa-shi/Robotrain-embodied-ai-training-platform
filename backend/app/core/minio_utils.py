@@ -72,15 +72,13 @@ async def upload_dataset_to_minio(
         client=client,
         upload_file=dataset_file,
         filename=filename,
-        bucket_name=settings.DATASET_BUCKET, # 使用配置文件中的桶名
-        object_prefix="datasets/" # 可以根据需要调整前缀
+        bucket_name=settings.MINIO_BUCKET, # 使用配置文件中的桶名
+        object_dir=settings.MINIO_DATASET_DIR # 可以根据需要调整前缀
     )
 
 async def delete_dataset_from_minio(
     client: Minio,
-    uuid_str: str,
-    bucket_name: str = settings.DATASET_BUCKET,
-    object_prefix: str = "datasets/"
+    dataset_uuid_str: str,
 ) -> Tuple[bool, str]:
     """
     从 MinIO 中删除指定的文件。
@@ -96,9 +94,9 @@ async def delete_dataset_from_minio(
     """
     return await delete_file_from_minio(
         client=client,
-        bucket_name=bucket_name,
-        object_name=f"{uuid_str}.zip",  # 假设数据集文件名为 UUID.zip
-        object_prefix=object_prefix
+        bucket_name=settings.MINIO_BUCKET,
+        object_name=f"{dataset_uuid_str}.zip",  # 假设数据集文件名为 UUID.zip
+        object_dir=settings.MINIO_DATASET_DIR  # 使用配置文件中的数据集目录前缀
     )
   
 async def upload_file_to_minio(
@@ -106,7 +104,7 @@ async def upload_file_to_minio(
     upload_file: UploadFile,
     filename: str,
     bucket_name: str,
-    object_prefix: str = "", # 对象在桶内的前缀路径，例如 "images/" 或 "documents/"
+    object_dir: str = "", # 对象在桶内的前缀路径，例如 "images/" 或 "documents/"
 ) -> Tuple[bool, str]:
     """
     将 FastAPI UploadFile 对象的文件内容直接异步上传到 MinIO 的指定桶中。
@@ -131,7 +129,7 @@ async def upload_file_to_minio(
 
     # 构造 MinIO 中的对象完整路径
     # object_prefix 需要清理前后的斜杠，确保路径格式正确
-    minio_object_name = f"{object_prefix.strip('/')}/{filename}" if object_prefix else filename
+    minio_object_name = f"{object_dir}/{filename}" if object_dir else filename
 
     # 确定文件内容类型：优先使用 UploadFile 提供的，否则就猜测
     final_content_type = upload_file.content_type
@@ -183,7 +181,7 @@ async def delete_file_from_minio(
     client: Minio,
     bucket_name: str,
     object_name: str,
-    object_prefix: str = ""  # 对象在桶内的前缀路径，例如 "images/" 或 "documents/"
+    object_dir: str = ""  # 对象在桶内的前缀路径，例如 "images/" 或 "documents/"
 ) -> Tuple[bool, str]:
     """
     从 MinIO 中删除指定的文件。
@@ -201,7 +199,7 @@ async def delete_file_from_minio(
         return False, "传入的 MinIO 客户端无效或未初始化。"
 
     # 确保 object_name 包含前缀
-    full_object_name = f"{object_prefix.strip('/')}/{object_name}" if object_prefix else object_name
+    full_object_name = f"{object_dir}/{object_name}" if object_dir else object_name
 
     try:
         await client.remove_object(bucket_name, full_object_name)

@@ -16,7 +16,7 @@ status_queue: Optional[aio_pika.Queue] = None
 log_queue: Optional[aio_pika.Queue] = None
 
 
-async def send_task_message(message: str):
+async def send_task_message(task_id: int, user_id: int, dataset_uuid: str, config: dict):
     global rabbit_channel, rabbit_exchange, request_queue
     if rabbit_channel is None:
         print("RabbitMQ 通道未就绪，请先调用 init_rabbitmq() 方法。")
@@ -29,7 +29,12 @@ async def send_task_message(message: str):
         return
     try:
         # 创建一个新的消息
-        message_body = message.encode('utf-8')
+        message_body = json.dumps({
+            "task_id": task_id,
+            "user_id": user_id,
+            "dataset_uuid": dataset_uuid,
+            "config": config
+        }).encode('utf-8')  # 将字典转换为 JSON 字符串并编码为字节
         rabbit_message = aio_pika.Message(body=message_body)
 
         # 发送消息到指定的交换机和路由键
@@ -37,7 +42,7 @@ async def send_task_message(message: str):
             rabbit_message,
             routing_key=settings.RABBIT_REQUEST_BINDING_KEY
         )
-        print(f"已发送任务消息: {message}")
+        print(f"已发送任务消息: task_id = {task_id}, user_id = {user_id}, dataset_uuid = {dataset_uuid}")
     except Exception as e:
         print(f"发送任务消息失败: {e}")
 
@@ -112,7 +117,7 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
     from app.core.websocket_utils import send_log_to_websockets
     try:
         # 打印接收到的消息内容
-        print(f"[Train Log Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})", flush=True)
+        print(f"[Train Log Consumer] Received message: {message.body.decode()}", flush=True)
 
         # 在这里添加处理训练日志消息的逻辑
         # 例如，解析消息内容并发送到 WebSocket 客户端
@@ -126,6 +131,9 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
         task_id = log_data.get("task_id")
         log_content = log_data.get("log_message")
         # 记得还有 epoch, loss, accuracy 等字段，之后要加上
+        epoch = log_data.get("epoch", 0)
+        loss = log_data.get("loss", 0.0)
+        accuracy = log_data.get("accuracy", 0.0)
 
         # 发送日志到 WebSocket 客户端
         await send_log_to_websockets(task_id, log_content)

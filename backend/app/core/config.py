@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str
     MINIO_SERVER: str
     MINIO_PORT: int
-    DATASET_BUCKET: str
+    MINIO_BUCKET: str
+    MINIO_DATASET_DIR: str
+    MINIO_MODEL_DIR: str
 
     RABBITMQ_DEFAULT_USER: str
     RABBITMQ_DEFAULT_PASS: str

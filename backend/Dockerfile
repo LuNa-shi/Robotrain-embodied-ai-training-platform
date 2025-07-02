@@ -6,6 +6,7 @@ WORKDIR /app
 # 复制 requirements.txt 文件到工作目录
 # 这一步是为了利用 Docker 缓存，如果 requirements.txt 没有变化，则不会重新安装依赖
 COPY requirements.txt .
+ENV PYTHONUNBUFFERED=1 
 
 # 替换为阿里云 APT 镜像源
 RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list && \
