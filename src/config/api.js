@@ -43,7 +43,7 @@ export const API_ENDPOINTS = {
   // 用户相关
   user: {
     getById: (id) => `/user/${id}`,
-    getCurrent: '/api/auth/me', // 可选的获取当前用户接口
+    getCurrent: '/api/users/me', // 获取当前用户信息（包含管理员状态）
   },
   
   // 数据集相关

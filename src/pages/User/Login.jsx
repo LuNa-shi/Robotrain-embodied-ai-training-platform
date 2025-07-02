@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { loginUser } from '@/store/slices/userSlice';
+import { debugUserInfo } from '@/utils/debug';
 import styles from './Login.module.css';
 
 const { Title, Text } = Typography;
@@ -47,6 +48,12 @@ const Login = () => {
       if (loginUser.fulfilled.match(result)) {
         // 登录成功
         message.success('登录成功！正在跳转...', 2);
+        
+        // 在开发环境下运行调试
+        if (import.meta.env.DEV) {
+          console.log('登录成功，运行调试信息...');
+          debugUserInfo();
+        }
         
         // 延迟跳转，让用户看到成功消息
         setTimeout(() => {

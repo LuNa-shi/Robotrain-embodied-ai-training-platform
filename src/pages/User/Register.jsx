@@ -12,6 +12,13 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const { message } = App.useApp();
+  const [debugValues, setDebugValues] = useState({});
+
+  // 监听表单值变化
+  const handleFormChange = (changedValues, allValues) => {
+    console.log('表单值变化:', { changedValues, allValues });
+    setDebugValues(allValues);
+  };
 
   // 处理注册逻辑
   const handleRegister = async () => {
@@ -61,14 +68,18 @@ const Register = () => {
     setLoading(true);
     
     try {
+      console.log('注册页面 - 表单值:', values);
+      console.log('注册页面 - isAdmin值:', values.isAdmin);
+      console.log('注册页面 - isAdmin类型:', typeof values.isAdmin);
+      
       console.log('注册信息:', {
         username: values.username,
         password: values.password,
-        isAdmin: values.isAdmin || false
+        isAdmin: values.isAdmin
       });
       
       // 调用注册API
-      const userData = await signupAPI(values.username, values.password, values.isAdmin || false);
+      const userData = await signupAPI(values.username, values.password, values.isAdmin);
       
       // 显示成功消息
       const adminText = values.isAdmin ? '（管理员权限）' : '';
@@ -126,6 +137,7 @@ const Register = () => {
               agree: false,
               isAdmin: false,
             }}
+            onValuesChange={handleFormChange}
             size="large"
           >
             <Form.Item
@@ -162,15 +174,23 @@ const Register = () => {
               />
             </Form.Item>
             
-            <Form.Item
-              name="isAdmin"
-              valuePropName="checked"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text>管理员权限</Text>
-                <Switch disabled={loading} />
-              </div>
-            </Form.Item>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <Text>管理员权限</Text>
+              <Form.Item
+                name="isAdmin"
+                valuePropName="checked"
+                noStyle
+              >
+                <Switch 
+                  disabled={loading}
+                  onChange={(checked) => {
+                    console.log('Switch onChange:', checked);
+                    console.log('Switch onChange - 当前表单值:', form.getFieldsValue());
+                    console.log('Switch onChange - isAdmin值:', form.getFieldValue('isAdmin'));
+                  }}
+                />
+              </Form.Item>
+            </div>
             
             <Form.Item
               name="agree"
@@ -198,6 +218,56 @@ const Register = () => {
             <div className={styles.formFooter}>
               已有账户? <Link to="/user/login">立即登录!</Link>
             </div>
+            
+            {/* 调试信息 - 仅在开发环境显示 */}
+            {import.meta.env.DEV && (
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '12px', 
+                background: '#f5f5f5', 
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontFamily: 'monospace'
+              }}>
+                <div><strong>调试信息:</strong></div>
+                <div>isAdmin: {String(debugValues.isAdmin)}</div>
+                <div>isAdmin类型: {typeof debugValues.isAdmin}</div>
+                <div>Switch状态: {String(debugValues.isAdmin)}</div>
+                <div>完整表单值: {JSON.stringify(debugValues, null, 2)}</div>
+                <div style={{ marginTop: '8px' }}>
+                  <Button 
+                    size="small" 
+                    onClick={() => {
+                      console.log('手动测试 - 当前表单值:', form.getFieldsValue());
+                      console.log('手动测试 - isAdmin值:', form.getFieldValue('isAdmin'));
+                      console.log('手动测试 - 表单实例:', form);
+                    }}
+                  >
+                    测试表单值
+                  </Button>
+                  <Button 
+                    size="small" 
+                    style={{ marginLeft: '8px' }}
+                    onClick={() => {
+                      form.setFieldValue('isAdmin', true);
+                      console.log('手动设置isAdmin为true');
+                    }}
+                  >
+                    设置Admin为True
+                  </Button>
+                  <Button 
+                    size="small" 
+                    style={{ marginLeft: '8px' }}
+                    onClick={() => {
+                      form.setFieldValue('isAdmin', false);
+                      console.log('手动设置isAdmin为false');
+                    }}
+                  >
+                    设置Admin为False
+                  </Button>
+                </div>
+              </div>
+            )}
           </Form>
         </div>
       </div>

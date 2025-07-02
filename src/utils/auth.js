@@ -107,17 +107,18 @@ export const getCurrentUserAPI = async () => {
     await checkNetworkBeforeRequest();
     
     const token = getStoredToken();
+    console.log('getCurrentUserAPI - 获取到的token:', token ? token.substring(0, 20) + '...' : 'null');
+    
     if (!token) {
       throw new Error('未找到token');
     }
     
-    // 从JWT token中解析用户ID
-    const userId = getUserIdFromToken(token);
-    if (!userId) {
-      throw new Error('无法从token中获取用户ID');
-    }
+    console.log('getCurrentUserAPI - 准备调用API:', API_ENDPOINTS.user.getCurrent);
     
-    const response = await api.get(API_ENDPOINTS.user.getById(userId));
+    // 使用新的 /api/users/me 端点获取当前用户信息
+    const response = await api.get(API_ENDPOINTS.user.getCurrent);
+    
+    console.log('getCurrentUserAPI - API响应:', response.data);
     
     // 验证响应格式
     if (!response.data.id || !response.data.username) {
@@ -127,6 +128,12 @@ export const getCurrentUserAPI = async () => {
     return response.data;
   } catch (error) {
     console.error('获取用户信息失败:', error);
+    console.error('错误详情:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    });
     throw error;
   }
 };
@@ -143,7 +150,7 @@ const getUserIdFromToken = (token) => {
 };
 
 // 存储用户信息到localStorage
-export const storeUserInfo = (accessToken, tokenType = 'bearer') => {
+export const storeUserInfo = (accessToken, tokenType = 'bearer', userInfo = null) => {
   try {
     // 存储完整的token信息
     const tokenInfo = {
@@ -155,21 +162,26 @@ export const storeUserInfo = (accessToken, tokenType = 'bearer') => {
     localStorage.setItem('token', accessToken);
     localStorage.setItem('tokenInfo', JSON.stringify(tokenInfo));
     
-    // 从JWT token中解析用户信息（如果可能）
-    try {
-      const payload = JSON.parse(atob(accessToken.split('.')[1]));
-      const userInfo = {
-        id: payload.user_id || payload.sub || payload.id,
-        username: payload.username || payload.name,
-        role: payload.role || 'user',
-        isAdmin: payload.is_admin || payload.admin || false,
-        exp: payload.exp,
-        iat: payload.iat
-      };
+    // 如果提供了用户信息，直接存储
+    if (userInfo) {
       localStorage.setItem('userInfo', JSON.stringify(userInfo));
-    } catch (parseError) {
-      console.warn('无法从JWT token解析用户信息:', parseError);
-      // 如果无法解析，至少存储token
+    } else {
+      // 从JWT token中解析用户信息（如果可能）
+      try {
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        const parsedUserInfo = {
+          id: payload.user_id || payload.sub || payload.id,
+          username: payload.username || payload.name,
+          role: payload.role || 'user',
+          isAdmin: payload.is_admin || payload.admin || false,
+          exp: payload.exp,
+          iat: payload.iat
+        };
+        localStorage.setItem('userInfo', JSON.stringify(parsedUserInfo));
+      } catch (parseError) {
+        console.warn('无法从JWT token解析用户信息:', parseError);
+        // 如果无法解析，至少存储token
+      }
     }
   } catch (error) {
     console.error('存储用户信息失败:', error);
@@ -251,15 +263,26 @@ export const isTokenExpired = (token) => {
 };
 
 // 注册API
-export const signupAPI = async (username, password, isAdmin = false) => {
+export const signupAPI = async (username, password, isAdmin) => {
   try {
     // 网络检查失败时不阻止请求
     await checkNetworkBeforeRequest();
     
+    // 确保isAdmin是布尔值
+    const isAdminValue = Boolean(isAdmin);
+    
+    console.log('signupAPI - 注册参数:', { 
+      username, 
+      password, 
+      isAdmin, 
+      isAdminValue,
+      is_admin: isAdminValue 
+    });
+    
     const response = await api.post(API_ENDPOINTS.auth.signup, {
       username,
       password,
-      is_admin: isAdmin,
+      is_admin: isAdminValue,
     });
     
     // 验证响应格式 - 根据后端返回的用户信息格式

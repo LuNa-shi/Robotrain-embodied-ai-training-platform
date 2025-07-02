@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { 
   Card, 
   Avatar, 
@@ -22,7 +23,8 @@ import {
   SaveOutlined, 
   CameraOutlined,
   CalendarOutlined,
-  EnvironmentOutlined
+  EnvironmentOutlined,
+  CrownOutlined
 } from '@ant-design/icons';
 import styles from './Profile.module.css';
 
@@ -34,6 +36,9 @@ const Profile = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
+  // 从Redux store获取用户信息
+  const { userInfo } = useSelector(state => state.user);
+
   const [userData, setUserData] = useState({
     username: 'admin',
     email: 'admin@robotrain.com',
@@ -44,6 +49,18 @@ const Profile = () => {
     joinDate: '2024-01-15',
     role: '管理员',
   });
+
+  // 当用户信息更新时，同步更新本地状态
+  useEffect(() => {
+    if (userInfo) {
+      setUserData(prev => ({
+        ...prev,
+        username: userInfo.username || prev.username,
+        role: userInfo.isAdmin ? '管理员' : '普通用户',
+        joinDate: userInfo.created_at ? new Date(userInfo.created_at).toLocaleDateString('zh-CN') : prev.joinDate,
+      }));
+    }
+  }, [userInfo]);
 
   const stats = [
     { title: '上传数据集', value: 25, suffix: '个' },
@@ -137,7 +154,10 @@ const Profile = () => {
               </Col>
               <Col xs={24} sm={12}>
                 <Form.Item label="角色">
-                  <Tag color="blue">{userData.role}</Tag>
+                  <Tag color={userData.role === '管理员' ? 'red' : 'blue'}>
+                    {userData.role === '管理员' && <CrownOutlined style={{ marginRight: 4 }} />}
+                    {userData.role}
+                  </Tag>
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12}>
@@ -176,6 +196,25 @@ const Profile = () => {
             ))}
           </Row>
         </Card>
+
+        {/* 调试信息卡片 - 仅在开发环境显示 */}
+        {import.meta.env.DEV && (
+          <Card
+            className={styles.statsCard}
+            title={<div className={styles.statsTitle}>调试信息（仅开发环境）</div>}
+          >
+            <div style={{ fontSize: '12px', fontFamily: 'monospace' }}>
+              <p><strong>Redux Store 用户信息:</strong></p>
+              <pre style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px', overflow: 'auto' }}>
+                {JSON.stringify(userInfo, null, 2)}
+              </pre>
+              <p style={{ marginTop: '16px' }}><strong>本地用户数据:</strong></p>
+              <pre style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px', overflow: 'auto' }}>
+                {JSON.stringify(userData, null, 2)}
+              </pre>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

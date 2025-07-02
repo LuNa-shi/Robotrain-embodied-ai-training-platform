@@ -7,10 +7,13 @@ export const loginUser = createAsyncThunk(
   async ({ username, password }, { rejectWithValue }) => {
     try {
       const response = await loginAPI(username, password);
-      // 存储到localStorage
-      storeUserInfo(response.access_token, response.token_type);
+      console.log('登录成功，获取到token:', response.access_token.substring(0, 20) + '...');
       
-      // 从JWT token中解析用户信息
+      // 先存储token到localStorage，这样getCurrentUserAPI才能找到token
+      storeUserInfo(response.access_token, response.token_type);
+      console.log('Token已存储到localStorage');
+      
+      // 登录成功后，调用新的API获取用户信息（包含管理员状态）
       let userInfo = {
         username: username,
         role: 'user',
@@ -18,17 +21,38 @@ export const loginUser = createAsyncThunk(
       };
       
       try {
-        const payload = JSON.parse(atob(response.access_token.split('.')[1]));
+        // 调用 /api/users/me 获取完整的用户信息
+        const userResponse = await getCurrentUserAPI();
         userInfo = {
-          id: payload.user_id || payload.sub || payload.id,
-          username: payload.username || username,
-          role: payload.role || 'user',
-          isAdmin: payload.is_admin || payload.admin || false,
-          exp: payload.exp,
-          iat: payload.iat
+          id: userResponse.id,
+          username: userResponse.username,
+          role: userResponse.is_admin ? 'admin' : 'user',
+          isAdmin: userResponse.is_admin,
+          created_at: userResponse.created_at,
+          last_login: userResponse.last_login
         };
-      } catch (parseError) {
-        console.warn('无法从JWT token解析用户信息:', parseError);
+        
+        // 更新localStorage中的用户信息
+        storeUserInfo(response.access_token, response.token_type, userInfo);
+      } catch (userError) {
+        console.warn('获取用户信息失败，使用默认信息:', userError);
+        // 如果获取用户信息失败，尝试从JWT token中解析基本信息
+        try {
+          const payload = JSON.parse(atob(response.access_token.split('.')[1]));
+          userInfo = {
+            id: payload.user_id || payload.sub || payload.id,
+            username: payload.username || username,
+            role: payload.role || 'user',
+            isAdmin: payload.is_admin || payload.admin || false,
+            exp: payload.exp,
+            iat: payload.iat
+          };
+          
+          // 更新localStorage中的用户信息
+          storeUserInfo(response.access_token, response.token_type, userInfo);
+        } catch (parseError) {
+          console.warn('无法从JWT token解析用户信息:', parseError);
+        }
       }
       
       return {
