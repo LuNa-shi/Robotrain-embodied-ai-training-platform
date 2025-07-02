@@ -55,18 +55,17 @@ class TrainTaskService:
         if not model_type:
             print(f"模型类型 ID {train_task_create.model_type_id} 不存在，无法创建训练任务")
             return None
-        
-        #将创建的任务写成一个json并转成字符串
-        task_msg_json_str: str = json.dumps({
-            "task_id": train_task.id,
-            "dataset_uuid": str(dataset_uuid),
-            "model_type": model_type.type_name,
-            "hyperparam": train_task_create.hyperparameter,
-            "owner_id": user.id
-        })
+    
         # 发送训练任务消息到 RabbitMQ
         try:
-            await send_task_message(task_msg_json_str)
+            await send_task_message(
+                task_id=train_task.id,
+                user_id=user.id,
+                dataset_uuid=str(dataset_uuid),
+                config=train_task_create.hyperparameter,
+                model_type=model_type.type_name
+            )
+            print(f"训练任务消息已发送到 RabbitMQ: task_id={train_task.id}, user_id={user.id}, dataset_uuid={dataset_uuid}, model_type={model_type.type_name}")
         except Exception as e:
             # 处理发送消息错误
             print(f"发送训练任务消息到 RabbitMQ 失败: {e}")

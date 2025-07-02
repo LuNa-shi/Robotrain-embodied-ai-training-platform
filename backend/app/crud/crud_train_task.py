@@ -39,7 +39,7 @@ async def update_train_task(db_session: AsyncSession, train_task_id: int, train_
     if train_task:
         for key, value in train_task_update_db.model_dump().items():
             setattr(train_task, key, value)
-        train_task.updated_at = datetime.now(timezone.utc)  # 更新修改时间
+        # train_task.upda = datetime.now(timezone.utc)  # 更新修改时间
         db_session.add(train_task)
         await db_session.flush()
         return train_task

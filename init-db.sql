@@ -39,12 +39,12 @@ CREATE TABLE IF NOT EXISTS train_task(
 
     CONSTRAINT chk_status CHECK (status IN ('pending', 'running', 'completed', 'failed')),
 
-    CONSTRAINT chk_completed_fields CHECK (
-        CASE
-            WHEN status = 'completed' THEN (model_uuid IS NOT NULL AND logs_uuid IS NOT NULL)
-            ELSE TRUE
-        END
-    )
+    -- CONSTRAINT chk_completed_fields CHECK (
+        -- CASE
+            -- WHEN status = 'completed' THEN (model_uuid IS NOT NULL AND logs_uuid IS NOT NULL)
+            -- ELSE TRUE
+        -- END
+    -- )
 );
 CREATE INDEX IF NOT EXISTS idx_train_tasks_owner_id ON train_task (owner_id);
 

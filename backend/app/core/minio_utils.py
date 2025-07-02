@@ -174,7 +174,7 @@ async def upload_file_to_minio(
         return False, error_msg
     except Exception as e:
         error_msg = f"文件上传时发生意外错误: {e}"
-        print(f"❌ {error_msg}")
+        print(f"❌ {error_msg},{bucket_name}")
         return False, error_msg
     
 async def delete_file_from_minio(

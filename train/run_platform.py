@@ -24,10 +24,8 @@ async def on_task_message(message: aio_pika.IncomingMessage):
             task_data = json.loads(message.body.decode('utf-8'))
             await scheduler_actor_handle.add_task.remote(task_data)
             print(f"✅ [Consumer] Received task message: {task_data}")
-            await message.ack()  # 确认消息已处理
         except Exception as e:
             print(f"❌ [Consumer] Error processing message: {e}")
-            await message.nack(requeue=False) # 不重新入队，进入死信队列
 
 async def main():
     if not ray.is_initialized(): ray.init()

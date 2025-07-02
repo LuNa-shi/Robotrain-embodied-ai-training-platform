@@ -7,6 +7,7 @@ from training_platform.configs.settings import settings
 from training_platform.common.task_models import TrainingTask
 from training_platform.common.rabbitmq_utils import init_rabbitmq, send_status_message
 from training_platform.trainer.trainer_actor import TrainerActor
+from uuid import uuid4
 
 @ray.remote
 class Scheduler:
@@ -44,13 +45,15 @@ class Scheduler:
                 start_epoch = self.running_task.current_step
                 end_epoch = min(start_epoch + self.steps_per_timeslice, total_epochs)
                 
-                await send_status_message(task_id=self.running_task.task_id, status="running", model_uuid=None)
+                # await send_status_message(task_id=self.running_task.task_id, status="running", model_uuid=None)
                 
                 try:
                     final_epoch = await self.trainer_actor.train.remote(start_epoch, end_epoch)
                     self.running_task.current_step = final_epoch
                     
                     if final_epoch >= total_epochs:
+                        model_uuid = str(uuid4())
+                        self.running_task.model_uuid = model_uuid
                         await send_status_message(task_id=int(self.running_task.task_id), status="completed", model_uuid=self.running_task.model_uuid)
                     else:
                         self.task_queue.append(self.running_task)

@@ -6,6 +6,7 @@ class TrainingTask(BaseModel):
     task_id: int
     user_id: int
     dataset_uuid: str
+    model_type: str  # 模型类型
     config: Dict[str, Any]  # 对应 lerobot 的 TrainPipelineConfig 内容
     
     # 由 Scheduler 维护的状态

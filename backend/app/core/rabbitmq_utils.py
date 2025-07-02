@@ -16,7 +16,7 @@ status_queue: Optional[aio_pika.Queue] = None
 log_queue: Optional[aio_pika.Queue] = None
 
 
-async def send_task_message(task_id: int, user_id: int, dataset_uuid: str, config: dict):
+async def send_task_message(task_id: int, user_id: int, model_type: str, dataset_uuid: str, config: dict):
     global rabbit_channel, rabbit_exchange, request_queue
     if rabbit_channel is None:
         print("RabbitMQ 通道未就绪，请先调用 init_rabbitmq() 方法。")
@@ -32,6 +32,7 @@ async def send_task_message(task_id: int, user_id: int, dataset_uuid: str, confi
         message_body = json.dumps({
             "task_id": task_id,
             "user_id": user_id,
+            "model_type": model_type,
             "dataset_uuid": dataset_uuid,
             "config": config
         }).encode('utf-8')  # 将字典转换为 JSON 字符串并编码为字节
@@ -42,7 +43,7 @@ async def send_task_message(task_id: int, user_id: int, dataset_uuid: str, confi
             rabbit_message,
             routing_key=settings.RABBIT_REQUEST_BINDING_KEY
         )
-        print(f"已发送任务消息: task_id = {task_id}, user_id = {user_id}, dataset_uuid = {dataset_uuid}")
+        print(f"已发送任务消息: task_id = {task_id}, user_id = {user_id}, model_type = {model_type}, dataset_uuid = {dataset_uuid}")
     except Exception as e:
         print(f"发送任务消息失败: {e}")
 
