@@ -4,7 +4,7 @@
 const API_CONFIG = {
   // 开发环境API地址
   development: {
-    baseURL: 'http://localhost:8000', // 后端开发环境地址
+    baseURL: '', // 使用相对路径，通过Vite代理转发到后端
     timeout: 15000, // 增加超时时间，适应网络延迟
     withCredentials: false, // 开发环境通常不需要跨域cookie
   },
@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     getMyDatasets: '/api/datasets/me', // 获取当前用户的数据集列表
     getById: (id) => `/api/datasets/${id}`,
     create: '/api/datasets',
+    upload: '/api/datasets/upload', // 上传数据集文件
     update: (id) => `/api/datasets/${id}`,
     delete: (id) => `/api/datasets/${id}`,
   },

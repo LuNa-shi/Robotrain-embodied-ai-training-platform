@@ -18,6 +18,7 @@ import NotFound from '@/pages/NotFound/index.jsx';
 import DataCenter from '@/pages/DataCenter/index.jsx'; // 数据中心页
 import ProjectCenter from '@/pages/ProjectCenter/index.jsx'; // 项目中心页
 import TrainingDetailPage from '@/pages/TrainingDetail/index.jsx';
+import DatasetDetailPage from '@/pages/DatasetDetail/index.jsx'; // 数据集详情页
 import DataManagement from '@/pages/DataManagement/index.jsx'; // 数据管理页
 import EvaluationCreate from '@/pages/EvaluationCreate/index.jsx'; // 发起评估页
 import TrainingManagement from '@/pages/TrainingManagement/index.jsx'; // 训练管理页
@@ -75,8 +76,9 @@ const routes = [
       { path: '/evaluation-create', element: <EvaluationCreate /> },
       { path: '/project-center', element: <ProjectCenter /> },
       { path: '/data-center', element: <DataCenter /> },
+      { path: '/dataset/:datasetId', element: <DatasetDetailPage /> },
       { path: '/evaluation', element: <Evaluation /> },
-              { path: '/project-center/:trainingId', element: <TrainingDetailPage /> },
+      { path: '/project-center/:trainingId', element: <TrainingDetailPage /> },
       { path: '/profile', element: <Profile /> },
       { path: '/settings', element: <Settings /> },
       { 
