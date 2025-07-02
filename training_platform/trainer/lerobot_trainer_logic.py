@@ -54,6 +54,7 @@ def prepare_config(
             overrides.append(f"--{key}={value}")
  
     # 直接调用 draccus.parse 来加载和合并
+    # !
     cfg: TrainPipelineConfig = draccus.parse(
         config_class=TrainPipelineConfig,
         config_path=base_config_path,
@@ -79,7 +80,7 @@ def prepare_config(
     logging.info(pformat(cfg.to_dict()))
     return cfg
 
-# TODO resume the previous training state
+# TODO resume the previous training state, reserve and restore the training state --resume
 def initialize_training_objects(
     cfg: TrainPipelineConfig,
     device: torch.device,

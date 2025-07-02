@@ -39,7 +39,7 @@ class Scheduler:
                 print(f"[Scheduler] Starting training for task: {self.running_task.task_id}")
                 
                 trainer_options = {"num_gpus": self.num_gpus_per_trainer}
-                self.trainer_actor = TrainerActor.options(**trainer_options).remote(self.running_task)
+                self.trainer_actor = TrainerActor.options(**trainer_options).remote(self.running_task) #constructor
                 
                 total_epochs = self.running_task.config.get('epochs', 10)
                 start_epoch = self.running_task.current_step
@@ -48,7 +48,7 @@ class Scheduler:
                 await send_status_message(task_id=int(self.running_task.task_id), status="training", uuid=self.running_task.uuid)
                 
                 try:
-                    final_epoch = await self.trainer_actor.train.remote(start_epoch, end_epoch)
+                    final_epoch = await self.trainer_actor.train.remote(start_epoch, end_epoch) #method
                     self.running_task.current_step = final_epoch
                     
                     if final_epoch >= total_epochs:

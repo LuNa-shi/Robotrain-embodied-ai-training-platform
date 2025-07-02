@@ -69,6 +69,7 @@ class TrainerActor:
 
         except Exception as e:
             print(f"❌ [{self.task.task_id}] Failed to upload checkpoint for step {step}: {e}")
+    
     def _determine_base_config_path(self) -> str:
         # 这个方法保持不变
         user_conf = self.task.config
@@ -102,7 +103,9 @@ class TrainerActor:
             minio_client = await get_minio_client()
             
             # 准备：下载数据集（如果第一次运行）和 checkpoint (如果断点续练)
-            # 1. 下载数据集
+            # 1. 下载数据集, minIO 存在哪里？ 先自己上传到minio，再下载下来。
+            # 最大的问题是 下载到哪，repo id local 可能有冲突 /tmp/uuid/....
+            # 不知道要不要convert to v21
             local_dataset_dir = os.path.join(self.run_dir, "dataset")
             if not os.path.exists(local_dataset_dir) and start_step == 0:
                 print(f"[{task_id}] Downloading dataset...")
@@ -131,6 +134,7 @@ class TrainerActor:
                 shutil.unpack_archive(dataset_zip_path, local_dataset_dir)
                 os.remove(dataset_zip_path)
 
+                # -------------new part: convert to v21
                 # --- 添加调试代码 ---
                 print(f"[{task_id}] --- Verifying dataset structure ---")
                 for root, dirs, files in os.walk(local_dataset_dir):
@@ -174,7 +178,7 @@ class TrainerActor:
                         print(f"Dataset conversion successful.")
                         print(process.stdout)
 
-            # 2. 下载上一个 checkpoint
+            # 2. 下载上一个 checkpoint 从minio 下载到本地
             if start_step > 0:
                 print(f"[{task_id}] Downloading previous checkpoint to resume training...")
                 # 假设 Scheduler 知道上一个 checkpoint 的 step

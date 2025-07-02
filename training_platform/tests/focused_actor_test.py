@@ -162,7 +162,7 @@ async def main():
     """Main function to orchestrate the test steps."""
     try:
         # Step 1: Ensure local data is available. This is synchronous.
-        prepare_local_dataset()
+        # prepare_local_dataset()
 
         # Step 2: Run the focused, async test on the actor.
         await run_training_test_on_local_data()
