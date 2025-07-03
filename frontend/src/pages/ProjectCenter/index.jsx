@@ -9,11 +9,10 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
-  PlusOutlined,
-  ExperimentOutlined
+  PlusOutlined
 } from '@ant-design/icons';
 import styles from './ProjectCenter.module.css';
-import { trainTasksAPI } from '@/utils/api';
+import { trainTasksAPI, modelsAPI } from '@/utils/api';
 
 const { Title, Text } = Typography;
 
@@ -36,6 +35,24 @@ const ProjectCenterPage = () => {
   const navigate = useNavigate();
   const [trainingRecords, setTrainingRecords] = useState(defaultTrainingRecords);
   const [loading, setLoading] = useState(false);
+  const [modelTypes, setModelTypes] = useState([]);
+  const [modelTypesLoading, setModelTypesLoading] = useState(false);
+
+  // 获取模型类型列表
+  const fetchModelTypes = async () => {
+    try {
+      setModelTypesLoading(true);
+      const data = await modelsAPI.getAllModelTypes();
+      setModelTypes(data);
+      console.log('获取模型类型列表成功:', data);
+    } catch (err) {
+      console.error('获取模型类型列表失败:', err);
+      // 如果获取失败，使用空列表
+      setModelTypes([]);
+    } finally {
+      setModelTypesLoading(false);
+    }
+  };
 
   // 获取训练任务列表
   const fetchTrainingTasks = async () => {
@@ -44,17 +61,45 @@ const ProjectCenterPage = () => {
       const data = await trainTasksAPI.getMyTasks();
       
       // 将后端数据格式转换为前端需要的格式
-      const formattedRecords = data.map(task => ({
-        id: task.id.toString(),
-        name: `训练任务 ${task.id}`,
-        dataset: `数据集 ${task.dataset_id}`,
-        startTime: new Date(task.create_time).toLocaleString('zh-CN'),
-        duration: task.status === 'running' ? '进行中...' : 'N/A',
-        status: task.status,
-        accuracy: 'N/A', // 后端数据中没有准确率字段
-        // 保存原始数据用于后续操作
-        originalData: task
-      }));
+      const formattedRecords = data.map(task => {
+        // 获取模型类型名称
+        const modelType = modelTypes.find(mt => mt.id === task.model_type_id);
+        const modelTypeName = modelType ? modelType.type_name : '未知模型';
+        
+        // 计算训练时长
+        let duration = 'N/A';
+        if (task.status === 'completed' && task.start_time && task.end_time) {
+          const startTime = new Date(task.start_time);
+          const endTime = new Date(task.end_time);
+          const diffMs = endTime - startTime;
+          const diffSeconds = Math.floor(diffMs / 1000);
+          const diffMinutes = Math.floor(diffSeconds / 60);
+          const diffHours = Math.floor(diffMinutes / 60);
+          
+          if (diffHours > 0) {
+            duration = `${diffHours}小时${diffMinutes % 60}分钟`;
+          } else if (diffMinutes > 0) {
+            duration = `${diffMinutes}分钟${diffSeconds % 60}秒`;
+          } else {
+            duration = `${diffSeconds}秒`;
+          }
+        } else if (task.status === 'running') {
+          duration = '进行中...';
+        }
+        
+        return {
+          id: task.id.toString(),
+          name: `训练任务 ${task.id}`,
+          modelType: modelTypeName,
+          dataset: task.dataset_id ? `数据集 ${task.dataset_id}` : '未指定数据集',
+          startTime: new Date(task.create_time).toLocaleString('zh-CN'),
+          duration: duration,
+          status: task.status,
+          modelUuid: task.model_uuid,
+          // 保存原始数据用于后续操作
+          originalData: task
+        };
+      });
       
       setTrainingRecords(formattedRecords);
       console.log('获取训练任务列表成功:', formattedRecords);
@@ -69,16 +114,39 @@ const ProjectCenterPage = () => {
   };
 
   useEffect(() => {
-    fetchTrainingTasks();
+    fetchModelTypes();
   }, []);
+
+  useEffect(() => {
+    if (modelTypes.length > 0) {
+      fetchTrainingTasks();
+    }
+  }, [modelTypes]);
 
   const handleViewDetail = (trainingId) => {
     navigate(`/project-center/${trainingId}/progress`);
   };
 
-  const handleDownload = (record) => {
-    message.success(`开始下载模型: ${record.name}`);
-    // 这里可以添加实际的下载逻辑
+  const handleDownload = async (record) => {
+    try {
+      // 检查任务状态，只有完成的训练任务才能下载模型
+      if (record.status !== 'completed') {
+        message.warning('只有已完成的训练任务才能下载模型文件');
+        return;
+      }
+
+      message.loading('正在下载模型文件...', 0);
+      
+      // 调用下载API
+      await trainTasksAPI.downloadModel(record.originalData.id);
+      
+      message.destroy(); // 清除加载消息
+      message.success(`模型文件下载成功: ${record.name}`);
+    } catch (error) {
+      message.destroy(); // 清除加载消息
+      console.error('下载模型文件失败:', error);
+      message.error('下载失败: ' + error.message);
+    }
   };
 
   const handleDelete = (record) => {
@@ -86,40 +154,7 @@ const ProjectCenterPage = () => {
     // 这里可以添加实际的删除逻辑
   };
 
-  const handleStartEvaluation = async (record) => {
-    try {
-      // 构建评估配置 - 使用项目默认参数
-      const evaluationConfig = {
-        trained_project_id: record.id,
-        trained_project_name: record.name,
-        dataset: record.dataset,
-        parameters: {
-          testCases: 1000,
-          timeout: 300,
-          batchSize: 32,
-          threshold: 0.8,
-        },
-        description: `机器人模型评估 - ${record.name}`,
-      };
-      
-      console.log('评估配置:', evaluationConfig);
-      
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 生成评估ID（模拟后端返回）
-      const evaluationId = `eval-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-      
-      message.success(`评估任务 ${evaluationId} 创建成功！`);
-      
-      // 可以在这里跳转到评估页面查看详情
-      // navigate(`/evaluation/${evaluationId}`);
-      
-    } catch (error) {
-      console.error('创建评估任务失败:', error);
-      message.error('创建评估任务失败: ' + error.message);
-    }
-  };
+
 
 
   
@@ -167,47 +202,41 @@ const ProjectCenterPage = () => {
               <Title level={5} className={styles.recordName}>{record.name}</Title>
               <Row gutter={[48, 16]} className={styles.infoGrid}>
                 <Col span={12}>
-                  <Text type="secondary">机器人数据集:</Text>
+                  <Text type="secondary">模型类型:</Text>
+                  <Text>{record.modelType}</Text>
+                </Col>
+                <Col span={12}>
+                  <Text type="secondary">数据集:</Text>
                   <Text>{record.dataset}</Text>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">准确率:</Text>
-                  <Text>{record.accuracy}</Text>
-                </Col>
-                <Col span={12}>
-                  <Text type="secondary">开始时间:</Text>
+                  <Text type="secondary">创建时间:</Text>
                   <Text>{record.startTime}</Text>
                 </Col>
                 <Col span={12}>
                   <Text type="secondary">
-                    {record.status === 'running' ? '累计用时:' : '总计用时:'}
+                    {record.status === 'running' ? '累计用时:' : '训练用时:'}
                   </Text>
                   <Text>{record.duration}</Text>
                 </Col>
+                {record.status === 'completed' && record.modelUuid && (
+                  <Col span={24}>
+                    <Text type="secondary">模型ID:</Text>
+                    <Text code style={{ fontSize: '12px' }}>{record.modelUuid}</Text>
+                  </Col>
+                )}
               </Row>
             </div>
 
             {/* 下方部分 */}
             <div className={styles.cardFooter}>
               <Space>
-                {record.status === 'completed' && (
-                  <Tooltip title="发起评估">
-                    <Button 
-                      type="text" 
-                      shape="circle" 
-                      icon={<ExperimentOutlined />} 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEvaluation(record);
-                      }}
-                    />
-                  </Tooltip>
-                )}
-                <Tooltip title="下载模型">
+                <Tooltip title={record.status === 'completed' ? "下载模型" : "只有已完成的训练任务才能下载模型"}>
                   <Button 
                     type="text" 
                     shape="circle" 
                     icon={<DownloadOutlined />} 
+                    disabled={record.status !== 'completed'}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDownload(record);

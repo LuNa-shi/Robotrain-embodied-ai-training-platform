@@ -328,6 +328,116 @@ export const trainTasksAPI = {
       throw error;
     }
   },
+
+  /**
+   * 根据ID获取训练任务详情
+   * @param {number} taskId 训练任务ID
+   * @returns {Promise<Object>} 训练任务详情
+   */
+  getById: async (taskId) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.trainTasks.getById(taskId));
+      return response.data;
+    } catch (error) {
+      console.error('获取训练任务详情失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 下载训练任务生成的模型文件
+   * @param {number} taskId 训练任务ID
+   * @returns {Promise<void>} 下载成功
+   */
+  downloadModel: async (taskId) => {
+    try {
+      // 创建专门用于文件下载的axios实例
+      const downloadApi = axios.create({
+        baseURL: apiConfig.baseURL,
+        timeout: 60000, // 文件下载需要更长的超时时间
+        withCredentials: apiConfig.withCredentials,
+        responseType: 'blob', // 设置响应类型为blob以处理文件下载
+      });
+
+      // 添加请求拦截器
+      downloadApi.interceptors.request.use(
+        (config) => {
+          const token = localStorage.getItem('token');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          return config;
+        },
+        (error) => {
+          console.error('下载请求拦截器错误:', error);
+          return Promise.reject(error);
+        }
+      );
+
+      // 添加响应拦截器
+      downloadApi.interceptors.response.use(
+        (response) => {
+          return response;
+        },
+        (error) => {
+          console.error('下载响应错误:', error);
+          
+          // 处理特定的下载错误
+          if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userInfo');
+            localStorage.removeItem('tokenInfo');
+            
+            if (window.location.pathname !== '/user/login') {
+              window.location.href = '/user/login';
+            }
+            return Promise.reject(new Error('用户未登录，请重新登录'));
+          }
+          
+          if (error.response?.status === 403) {
+            return Promise.reject(new Error('权限不足，无法下载该模型文件'));
+          }
+          
+          if (error.response?.status === 404) {
+            return Promise.reject(new Error('训练任务不存在或模型文件未生成'));
+          }
+          
+          // 其他错误处理
+          const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || '下载失败';
+          return Promise.reject(new Error(errorMessage));
+        }
+      );
+
+      const response = await downloadApi.get(API_ENDPOINTS.trainTasks.downloadModel(taskId));
+      
+      // 从响应头中获取文件名
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `model_${taskId}.zip`; // 默认文件名
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      // 创建下载链接
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('模型文件下载成功:', filename);
+    } catch (error) {
+      console.error('下载模型文件失败:', error);
+      throw error;
+    }
+  },
 };
 
 export default api; 
