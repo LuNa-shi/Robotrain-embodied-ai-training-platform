@@ -233,6 +233,28 @@
   color: #d9d9d9;
 }
 
+/* 加载容器 */
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  gap: 16px;
+}
+
+/* 训练项目列表 */
+.trainingProjectsList {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.trainingProjectsList .ant-list-item {
+  padding: 0;
+  border: none;
+  margin-bottom: 1px;
+}
+
 /* --- Global Ant Design Overrides --- */
 :global(.ant-statistic-title) {
   font-size: 14px;

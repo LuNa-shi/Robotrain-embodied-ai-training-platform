@@ -18,7 +18,8 @@ import {
   Descriptions,
   List,
   Avatar,
-  Badge
+  Badge,
+  Spin
 } from 'antd';
 import {
   DownloadOutlined,
@@ -32,9 +33,12 @@ import {
   ExperimentOutlined,
   PlayCircleOutlined,
   VideoCameraOutlined,
-  EyeOutlined
+  EyeOutlined,
+  PlusOutlined,
+  RobotOutlined
 } from '@ant-design/icons';
 import styles from './Evaluation.module.css';
+import { trainTasksAPI } from '@/utils/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -151,6 +155,12 @@ const EvaluationPage = () => {
   const [selectedRecordDetails, setSelectedRecordDetails] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const mainLayoutRef = useRef(null);
+  
+  // 新增状态：评估模式相关
+  const [isEvaluationMode, setIsEvaluationMode] = useState(false);
+  const [trainingProjects, setTrainingProjects] = useState([]);
+  const [selectedTrainingProject, setSelectedTrainingProject] = useState(null);
+  const [loadingTrainingProjects, setLoadingTrainingProjects] = useState(false);
 
   useEffect(() => {
     const leftPanelWidth = 260;
@@ -170,6 +180,77 @@ const EvaluationPage = () => {
     setTimeout(checkLayout, 0); // 首次渲染后测量一次
     return () => window.removeEventListener('resize', checkLayout);
   }, [records]);
+
+  // 获取已完成的训练项目
+  const fetchCompletedTrainingProjects = async () => {
+    try {
+      setLoadingTrainingProjects(true);
+      const data = await trainTasksAPI.getMyTasks();
+      
+      // 过滤出已完成的训练项目
+      const completedProjects = data
+        .filter(task => task.status === 'completed')
+        .map(task => ({
+          id: task.id.toString(),
+          name: `训练任务 ${task.id}`,
+          dataset: `数据集 ${task.dataset_id}`,
+          startTime: new Date(task.create_time).toLocaleString('zh-CN'),
+          status: task.status,
+          originalData: task
+        }));
+      
+      setTrainingProjects(completedProjects);
+      console.log('获取已完成训练项目成功:', completedProjects);
+    } catch (err) {
+      console.error('获取训练项目失败:', err);
+      message.error('获取训练项目失败: ' + err.message);
+      setTrainingProjects([]);
+    } finally {
+      setLoadingTrainingProjects(false);
+    }
+  };
+
+  // 处理发起评估
+  const handleStartEvaluation = async () => {
+    if (!selectedTrainingProject) {
+      message.warning('请先选择一个训练项目');
+      return;
+    }
+
+    try {
+      // 构建评估配置
+      const evaluationConfig = {
+        trained_project_id: selectedTrainingProject.id,
+        trained_project_name: selectedTrainingProject.name,
+        dataset: selectedTrainingProject.dataset,
+        parameters: {
+          testCases: 1000,
+          timeout: 300,
+          batchSize: 32,
+          threshold: 0.8,
+        },
+        description: `机器人模型评估 - ${selectedTrainingProject.name}`,
+      };
+      
+      console.log('评估配置:', evaluationConfig);
+      
+      // 模拟API调用
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 生成评估ID（模拟后端返回）
+      const evaluationId = `eval-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      
+      message.success(`评估任务 ${evaluationId} 创建成功！`);
+      
+      // 退出评估模式，回到正常模式
+      setIsEvaluationMode(false);
+      setSelectedTrainingProject(null);
+      
+    } catch (error) {
+      console.error('创建评估任务失败:', error);
+      message.error('创建评估任务失败: ' + error.message);
+    }
+  };
 
   // 处理菜单项点击
   const handleMenuClick = ({ key }, record) => {
@@ -230,66 +311,171 @@ const EvaluationPage = () => {
         <Text type="secondary">{record.model}</Text>
         <StatusDisplay status={record.status} />
       </div>
-              </div>
+    </div>
+  );
+
+  // 训练项目选择项渲染
+  const renderTrainingProjectItem = (project) => (
+    <List.Item
+      key={project.id}
+      className={`${styles.projectItem} ${selectedTrainingProject?.id === project.id ? styles.selectedProject : ''}`}
+      onClick={() => setSelectedTrainingProject(project)}
+    >
+      <div className={styles.projectItemContent}>
+        <div className={styles.projectInfo}>
+          <div className={styles.projectName}>{project.name}</div>
+          <div className={styles.projectMeta}>
+            <Text type="secondary">{project.dataset}</Text>
+            <StatusDisplay status={project.status} />
+          </div>
+          <div className={styles.projectStats}>
+            <Text type="secondary">开始时间: {project.startTime}</Text>
+          </div>
+        </div>
+      </div>
+    </List.Item>
+  );
+
+  // 加号项目项渲染
+  const renderAddProjectItem = () => (
+    <List.Item
+      key="add-evaluation"
+      className={`${styles.projectItem} ${isEvaluationMode ? styles.selectedProject : ''}`}
+      onClick={() => {
+        setIsEvaluationMode(true);
+        setSelectedRecord(null);
+        fetchCompletedTrainingProjects();
+      }}
+    >
+      <div className={styles.projectItemContent}>
+        <div className={styles.projectInfo}>
+          <div className={styles.projectName}>
+            <PlusOutlined style={{ marginRight: 8 }} />
+            发起评估
+          </div>
+          <div className={styles.projectMeta}>
+            <Text type="secondary">选择训练项目进行评估</Text>
+          </div>
+        </div>
+      </div>
+    </List.Item>
   );
   
   // Reusable component for the right panel content to avoid duplication
-  const RightPanelContent = () => (
+  const RightPanelContent = () => {
+    if (isEvaluationMode) {
+      return (
         <div className={styles.rightPanel}>
-          {selectedRecord ? (
-            <div className={styles.videoContent}>
-              <Card 
-                title={
-                  <div className={styles.videoTitle}>
-                    <VideoCameraOutlined />
-                    <span>{selectedRecord.name}</span>
-                    <StatusDisplay status={selectedRecord.status} />
-                  </div>
-                }
-                className={styles.videoCard}
-                extra={
+          <div className={styles.videoContent}>
+            <Card 
+              title={
+                <div className={styles.videoTitle}>
+                  <RobotOutlined />
+                  <span>选择训练项目进行评估</span>
+                </div>
+              }
+              className={styles.videoCard}
+              extra={
+                <Button 
+                  type="primary" 
+                  icon={<ExperimentOutlined />}
+                  disabled={!selectedTrainingProject}
+                  onClick={handleStartEvaluation}
+                >
+                  发起评估
+                </Button>
+              }
+            >
+              {loadingTrainingProjects ? (
+                <div className={styles.loadingContainer}>
+                  <Spin size="large" />
+                  <Text>加载训练项目中...</Text>
+                </div>
+              ) : trainingProjects.length === 0 ? (
+                <div className={styles.emptyContent}>
+                  <RobotOutlined className={styles.emptyIcon} />
+                  <Title level={3}>暂无已完成的训练项目</Title>
+                  <Text type="secondary">请先完成一个训练项目，然后才能发起评估</Text>
                   <Button 
                     type="primary" 
-                    icon={<DownloadOutlined />}
-                    onClick={() => message.info('下载视频功能待实现')}
+                    onClick={() => navigate('/training')}
+                    style={{ marginTop: 16 }}
                   >
-                    下载视频
+                    开始训练
                   </Button>
-                }
-              >
-                <div className={styles.videoContainer}>
-                  <video 
-                key={selectedRecord.videoUrl} // Use key to force re-render on source change
-                    controls 
-                autoPlay
-                muted
-                    className={styles.videoPlayer}
-                    poster={selectedRecord.thumbnail}
-                  >
-                    <source src={selectedRecord.videoUrl} type="video/mp4" />
-                    您的浏览器不支持视频播放。
-                  </video>
                 </div>
-              </Card>
-            </div>
-          ) : (
-            <div className={styles.noSelection}>
-              <Card className={styles.emptyCard}>
-                <div className={styles.emptyContent}>
-                  <VideoCameraOutlined className={styles.emptyIcon} />
-                  <Title level={3}>请选择测试项目</Title>
-              <Text type="secondary">从列表中选择一个测试项目来查看评估视频</Text>
+              ) : (
+                <div className={styles.trainingProjectsList}>
+                  <List
+                    dataSource={trainingProjects}
+                    renderItem={renderTrainingProjectItem}
+                    className={styles.projectList}
+                  />
                 </div>
-              </Card>
-            </div>
-          )}
+              )}
+            </Card>
+          </div>
         </div>
-  );
+      );
+    }
+
+    return (
+      <div className={styles.rightPanel}>
+        {selectedRecord ? (
+          <div className={styles.videoContent}>
+            <Card 
+              title={
+                <div className={styles.videoTitle}>
+                  <VideoCameraOutlined />
+                  <span>{selectedRecord.name}</span>
+                  <StatusDisplay status={selectedRecord.status} />
+                </div>
+              }
+              className={styles.videoCard}
+              extra={
+                <Button 
+                  type="primary" 
+                  icon={<DownloadOutlined />}
+                  onClick={() => message.info('下载视频功能待实现')}
+                >
+                  下载视频
+                </Button>
+              }
+            >
+              <div className={styles.videoContainer}>
+                <video 
+                  key={selectedRecord.videoUrl} // Use key to force re-render on source change
+                  controls 
+                  autoPlay
+                  muted
+                  className={styles.videoPlayer}
+                  poster={selectedRecord.thumbnail}
+                >
+                  <source src={selectedRecord.videoUrl} type="video/mp4" />
+                  您的浏览器不支持视频播放。
+                </video>
+              </div>
+            </Card>
+          </div>
+        ) : (
+          <div className={styles.noSelection}>
+            <Card className={styles.emptyCard}>
+              <div className={styles.emptyContent}>
+                <VideoCameraOutlined className={styles.emptyIcon} />
+                <Title level={3}>请选择测试项目</Title>
+                <Text type="secondary">从列表中选择一个测试项目来查看评估视频</Text>
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={styles.evaluationPage}>
       <div className={styles.pageHeader}>
-        <Title level={1} className={styles.pageTitle}>机器人模型评估测试</Title>
+        <Title level={1} className={styles.pageTitle}>模型评估</Title>
         <Text type="secondary">查看机器人模型的性能评估和仿真测试结果</Text>
       </div>
 
@@ -309,6 +495,7 @@ const EvaluationPage = () => {
               bodyStyle={{ padding: '12px' }}
             >
               <div className={styles.projectListHorizontal}>
+                {renderAddProjectItem()}
                 {records.map(renderProjectItemHorizontal)}
               </div>
             </Card>
@@ -329,8 +516,12 @@ const EvaluationPage = () => {
               className={styles.projectPanel}
             >
               <List
-                dataSource={records}
-                renderItem={renderProjectItem}
+                dataSource={[{ id: 'add-evaluation' }, ...records]}
+                renderItem={(item) => 
+                  item.id === 'add-evaluation' 
+                    ? renderAddProjectItem() 
+                    : renderProjectItem(item)
+                }
                 className={styles.projectList}
               />
             </Card>
