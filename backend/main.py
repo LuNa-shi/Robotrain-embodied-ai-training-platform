@@ -28,6 +28,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(
+    "fastapi.middleware.cors.CORSMiddleware",
+    allow_origins=["http://localhost:5173"],  # 允许所有来源
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有方法
+    allow_headers=["*"],  # 允许所有头部
+)
+
 app.include_router(api_router, prefix="/api")
 
 @app.get("/")
