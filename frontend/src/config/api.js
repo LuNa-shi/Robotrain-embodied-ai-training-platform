@@ -4,7 +4,7 @@
 const API_CONFIG = {
   // 开发环境API地址
   development: {
-    baseURL: '', // 使用相对路径，通过Vite代理转发到后端
+    baseURL: 'http://localhost:8000', // 开发环境后端地址
     timeout: 15000, // 增加超时时间，适应网络延迟
     withCredentials: false, // 开发环境通常不需要跨域cookie
   },
@@ -54,6 +54,17 @@ export const API_ENDPOINTS = {
     upload: '/api/datasets/upload', // 上传数据集文件
     update: (id) => `/api/datasets/${id}`,
     delete: (id) => `/api/datasets/${id}`,
+  },
+  
+  // 模型相关
+  models: {
+    getAllModelTypes: '/api/model_types', // 获取所有模型类型
+  },
+  
+  // 训练任务相关
+  trainTasks: {
+    create: '/api/train_tasks/', // 创建训练任务
+    getMyTasks: '/api/train_tasks/me', // 获取当前用户的训练任务列表
   },
   
   // 其他API端点可以在这里添加

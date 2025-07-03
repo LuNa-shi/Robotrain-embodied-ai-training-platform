@@ -267,4 +267,67 @@ export const datasetsAPI = {
   },
 };
 
+// 模型相关API函数
+export const modelsAPI = {
+  /**
+   * 获取所有模型类型
+   * @param {AbortSignal} signal 可选的AbortSignal用于取消请求
+   * @returns {Promise<Array>} 模型类型列表
+   */
+  getAllModelTypes: async (signal) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.models.getAllModelTypes, {
+        signal: signal
+      });
+      return response.data;
+    } catch (error) {
+      // 如果是取消请求，直接抛出
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        throw error;
+      }
+      console.error('获取模型类型列表失败:', error);
+      throw error;
+    }
+  },
+};
+
+// 训练任务相关API函数
+export const trainTasksAPI = {
+  /**
+   * 创建训练任务
+   * @param {Object} trainTaskData 训练任务数据
+   * @returns {Promise<Object>} 创建的训练任务
+   */
+  create: async (trainTaskData) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.trainTasks.create, trainTaskData);
+      return response.data;
+    } catch (error) {
+      console.error('创建训练任务失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 获取当前用户的训练任务列表
+   * @param {AbortSignal} signal 可选的AbortSignal用于取消请求
+   * @returns {Promise<Array>} 训练任务列表
+   */
+  getMyTasks: async (signal) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.trainTasks.getMyTasks, {
+        signal: signal
+      });
+      return response.data;
+    } catch (error) {
+      // 如果是取消请求，直接抛出
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        throw error;
+      }
+      console.error('获取训练任务列表失败:', error);
+      throw error;
+    }
+  },
+};
+
 export default api; 

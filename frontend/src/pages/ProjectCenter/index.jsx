@@ -1,5 +1,5 @@
-import React from 'react';
-import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col, message, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   InfoCircleOutlined,
@@ -13,39 +13,12 @@ import {
   ExperimentOutlined
 } from '@ant-design/icons';
 import styles from './ProjectCenter.module.css';
+import { trainTasksAPI } from '@/utils/api';
 
 const { Title, Text } = Typography;
 
-// 模拟训练记录数据
-const mockTrainingRecords = [
-  {
-    id: 'train-20250625-001',
-    name: '机器人视觉识别模型',
-    dataset: '工业机器人视觉数据集',
-    startTime: '2025-06-25 10:30',
-    duration: '2h 15m',
-    status: 'completed',
-    accuracy: '98.5%',
-  },
-  {
-    id: 'train-20250625-002',
-    name: '机械臂动作控制模型',
-    dataset: '机械臂动作控制数据',
-    startTime: '2025-06-25 14:00',
-    duration: '进行中...',
-    status: 'running',
-    accuracy: 'N/A',
-  },
-  {
-    id: 'train-20250624-005',
-    name: '机器人语音交互模型',
-    dataset: '机器人语音指令数据集',
-    startTime: '2025-06-24 09:00',
-    duration: '45m',
-    status: 'failed',
-    accuracy: '20.1%',
-  },
-];
+// 默认的训练记录数据（作为备用）
+const defaultTrainingRecords = [];
 
 // 根据状态返回不同的Tag和Icon
 const StatusDisplay = ({ status }) => {
@@ -53,6 +26,7 @@ const StatusDisplay = ({ status }) => {
     completed: { color: 'success', text: '已完成', icon: <CheckCircleOutlined /> },
     running: { color: 'processing', text: '进行中', icon: <SyncOutlined spin /> },
     failed: { color: 'error', text: '失败', icon: <CloseCircleOutlined /> },
+    pending: { color: 'default', text: '等待中', icon: <ClockCircleOutlined /> },
   };
   const { color, text, icon } = statusMap[status] || { color: 'default', text: '未知', icon: <ClockCircleOutlined /> };
   return <Tag icon={icon} color={color}>{text}</Tag>;
@@ -60,6 +34,43 @@ const StatusDisplay = ({ status }) => {
 
 const ProjectCenterPage = () => {
   const navigate = useNavigate();
+  const [trainingRecords, setTrainingRecords] = useState(defaultTrainingRecords);
+  const [loading, setLoading] = useState(false);
+
+  // 获取训练任务列表
+  const fetchTrainingTasks = async () => {
+    try {
+      setLoading(true);
+      const data = await trainTasksAPI.getMyTasks();
+      
+      // 将后端数据格式转换为前端需要的格式
+      const formattedRecords = data.map(task => ({
+        id: task.id.toString(),
+        name: `训练任务 ${task.id}`,
+        dataset: `数据集 ${task.dataset_id}`,
+        startTime: new Date(task.create_time).toLocaleString('zh-CN'),
+        duration: task.status === 'running' ? '进行中...' : 'N/A',
+        status: task.status,
+        accuracy: 'N/A', // 后端数据中没有准确率字段
+        // 保存原始数据用于后续操作
+        originalData: task
+      }));
+      
+      setTrainingRecords(formattedRecords);
+      console.log('获取训练任务列表成功:', formattedRecords);
+    } catch (err) {
+      console.error('获取训练任务列表失败:', err);
+      message.error('获取训练任务列表失败: ' + err.message);
+      // 如果获取失败，使用空列表
+      setTrainingRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrainingTasks();
+  }, []);
 
   const handleViewDetail = (trainingId) => {
     navigate(`/project-center/${trainingId}/progress`);
@@ -121,7 +132,24 @@ const ProjectCenterPage = () => {
       </div>
       
       <div className={styles.recordList}>
-        {mockTrainingRecords.map(record => (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: '16px' }}>加载中...</div>
+          </div>
+        ) : trainingRecords.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <InfoCircleOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
+            <Title level={4}>暂无训练项目</Title>
+            <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
+              您还没有创建任何训练项目，请先创建训练项目
+            </Text>
+            <Button type="primary" onClick={() => navigate('/training')}>
+              发起训练
+            </Button>
+          </div>
+        ) : (
+          trainingRecords.map(record => (
           <Card 
             key={record.id} 
             className={styles.recordCard}
@@ -200,7 +228,8 @@ const ProjectCenterPage = () => {
               </Space>
             </div>
           </Card>
-        ))}
+        ))
+        )}
         </div>
       </div>
     </div>

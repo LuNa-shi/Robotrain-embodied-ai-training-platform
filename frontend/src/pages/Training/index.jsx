@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons';
 import styles from './Training.module.css';
 import VerticalTimeline from './VerticalTimeline';
+import { datasetsAPI, modelsAPI, trainTasksAPI } from '@/utils/api';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -91,16 +92,8 @@ const mockDatasets = [
   }
 ];
 
-// 可用的模型列表
-const availableModels = [
-  { value: 'gpt-4-vision', label: 'GPT-4 Vision', description: '机器人视觉识别和图像理解模型' },
-  { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet', description: '机器人语音交互和决策推理模型' },
-  { value: 'whisper-large', label: 'Whisper Large', description: '机器人语音识别和指令理解模型' },
-  { value: 'robot-arm-controller', label: 'Robot Arm Controller', description: '机械臂动作控制和轨迹规划模型' },
-  { value: 'navigation-model', label: 'Navigation Model', description: '移动机器人导航和避障模型' },
-  { value: 'safety-monitor', label: 'Safety Monitor', description: '机器人安全监控和异常检测模型' },
-  { value: 'custom-model', label: '自定义模型', description: '使用您自己的机器人模型配置' },
-];
+// 默认的模型列表（作为备用）
+const defaultModels = [];
 
 const TrainingPage = () => {
   const navigate = useNavigate();
@@ -109,27 +102,55 @@ const TrainingPage = () => {
   const [selectedModel, setSelectedModel] = useState(null);
   const [trainingForm] = Form.useForm();
   const [trainingLoading, setTrainingLoading] = useState(false);
-  const [datasets, setDatasets] = useState(mockDatasets);
+  const [datasets, setDatasets] = useState([]);
+  const [availableModels, setAvailableModels] = useState(defaultModels);
   const [loading, setLoading] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState(null);
 
   // 获取数据集列表
   const fetchDatasets = async () => {
     try {
       setLoading(true);
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
-      console.log('使用静态数据集列表');
+      const data = await datasetsAPI.getMyDatasets();
+      setDatasets(data);
+      console.log('获取数据集列表成功:', data);
     } catch (err) {
       console.error('获取数据集列表失败:', err);
       message.error('获取数据集列表失败: ' + err.message);
+      // 如果获取失败，使用静态数据作为备用
+      setDatasets(mockDatasets);
     } finally {
       setLoading(false);
     }
   };
 
+  // 获取模型类型列表
+  const fetchModelTypes = async () => {
+    try {
+      setModelsLoading(true);
+      const data = await modelsAPI.getAllModelTypes();
+      // 将后端返回的数据格式转换为前端需要的格式
+      const formattedModels = data.map(model => ({
+        value: model.id.toString(),
+        label: model.type_name,
+        description: model.description
+      }));
+      setAvailableModels(formattedModels);
+      console.log('获取模型类型列表成功:', formattedModels);
+    } catch (err) {
+      console.error('获取模型类型列表失败:', err);
+      message.error('获取模型类型列表失败: ' + err.message);
+      // 如果获取失败，使用空列表
+      setAvailableModels([]);
+    } finally {
+      setModelsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDatasets();
+    fetchModelTypes();
   }, []);
 
   // 处理数据集选择
@@ -144,6 +165,8 @@ const TrainingPage = () => {
     setSelectedModel(model);
     setCurrentStep(2);
     
+    console.log('选择模型:', modelValue, '模型对象:', model);
+    
     // 设置表单默认值
     trainingForm.setFieldsValue({
       model: modelValue,
@@ -153,7 +176,6 @@ const TrainingPage = () => {
       validationSplit: 0.2,
       maxLength: 512,
       temperature: 0.7,
-      description: `机器人训练项目 - ${selectedDataset?.dataset_name}`
     });
   };
 
@@ -162,31 +184,50 @@ const TrainingPage = () => {
     try {
       setTrainingLoading(true);
       
-      // 构建训练配置
-      const trainingConfig = {
-        dataset_id: selectedDataset.id,
-        dataset_name: selectedDataset.dataset_name,
-        model: values.model,
-        parameters: {
-          epochs: values.epochs,
-          batch_size: values.batchSize,
-          learning_rate: values.learningRate,
-          validation_split: values.validationSplit,
-          max_length: values.maxLength,
-          temperature: values.temperature,
-        },
-        description: values.description,
-        custom_model_config: values.model === 'custom-model' ? values.customModelConfig : null,
+      // 构建超参数对象
+      const hyperparameter = {
+        epochs: values.epochs,
+        batch_size: values.batchSize,
+        learning_rate: values.learningRate,
+        validation_split: values.validationSplit,
+        max_length: values.maxLength,
+        temperature: values.temperature,
       };
       
-      console.log('训练配置:', trainingConfig);
+
       
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 添加调试信息
+      console.log('表单值:', values);
+      console.log('selectedModel:', selectedModel);
+      console.log('values.model:', values.model, '类型:', typeof values.model);
       
-      // 生成项目ID（模拟后端返回）
-      const projectId = `train-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-      setCreatedProjectId(projectId);
+      // 验证model值
+      if (!values.model || values.model === 'undefined' || values.model === 'null') {
+        throw new Error('请先选择模型');
+      }
+      
+      // 构建训练任务创建请求体
+      const trainTaskData = {
+        dataset_id: parseInt(selectedDataset.id),
+        model_type_id: parseInt(values.model),
+        hyperparameter: hyperparameter
+      };
+      
+      console.log('训练任务创建请求:', trainTaskData);
+      console.log('数据类型检查:', {
+        dataset_id: typeof trainTaskData.dataset_id,
+        model_type_id: typeof trainTaskData.model_type_id,
+        dataset_id_value: trainTaskData.dataset_id,
+        model_type_id_value: trainTaskData.model_type_id
+      });
+      
+      // 调用后端API创建训练任务
+      const response = await trainTasksAPI.create(trainTaskData);
+      
+      console.log('训练任务创建成功:', response);
+      
+      // 设置创建的项目ID
+      setCreatedProjectId(response.id.toString());
       
       message.success('机器人训练项目已成功创建！');
       setCurrentStep(3);
@@ -222,6 +263,17 @@ const TrainingPage = () => {
             <div style={{ textAlign: 'center', padding: '50px' }}>
               <Spin size="large" />
               <div style={{ marginTop: '16px' }}>加载中...</div>
+            </div>
+          ) : datasets.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+              <InfoCircleOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
+              <Title level={4}>暂无数据集</Title>
+              <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
+                您还没有上传任何数据集，请先上传数据集后再创建训练项目
+              </Text>
+              <Button type="primary" onClick={() => navigate('/data-center')}>
+                前往数据中心上传数据集
+              </Button>
             </div>
           ) : (
             <div className={styles.cardGrid}>
@@ -269,21 +321,36 @@ const TrainingPage = () => {
             />
           )}
           
-          <div className={styles.cardGrid}>
-            {availableModels.map(model => (
-              <Card 
-                key={model.value} 
-                className={styles.card}
-                hoverable
-                onClick={() => handleModelSelect(model.value)}
-              >
-                <div className={styles.cardContent}>
-                  <Title level={5} className={styles.cardTitle}>{model.label}</Title>
-                  <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
-                </div>
-              </Card>
-            ))}
-          </div>
+          {modelsLoading ? (
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+              <Spin size="large" />
+              <div style={{ marginTop: '16px' }}>加载模型中...</div>
+            </div>
+          ) : availableModels.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+              <InfoCircleOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
+              <Title level={4}>暂无可用模型</Title>
+              <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
+                当前没有可用的模型类型，请联系管理员添加模型
+              </Text>
+            </div>
+          ) : (
+            <div className={styles.cardGrid}>
+              {availableModels.map(model => (
+                <Card 
+                  key={model.value} 
+                  className={styles.card}
+                  hoverable
+                  onClick={() => handleModelSelect(model.value)}
+                >
+                  <div className={styles.cardContent}>
+                    <Title level={5} className={styles.cardTitle}>{model.label}</Title>
+                    <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )
     },
@@ -311,7 +378,7 @@ const TrainingPage = () => {
             onFinish={handleTrainingSubmit}
             className={styles.formContainer}
             initialValues={{
-              model: selectedModel?.value,
+              model: selectedModel?.value || undefined,
               epochs: 10,
               batchSize: 32,
               learningRate: 0.001,
@@ -419,31 +486,21 @@ const TrainingPage = () => {
             <Form.Item
               label="机器人训练项目描述"
               name="description"
-              rules={[{ required: true, message: '请输入机器人训练项目描述' }]}
+              rules={[{ required: false, message: '请输入机器人训练项目描述' }]}
             >
-              <Input placeholder="机器人训练项目描述" />
+              <Input placeholder="机器人训练项目描述（可选）" />
             </Form.Item>
 
+            {/* 隐藏的模型字段，确保模型值被正确传递 */}
             <Form.Item
-              noStyle
-              shouldUpdate={(prevValues, currentValues) => prevValues.model !== currentValues.model}
+              name="model"
+              hidden
+              rules={[{ required: true, message: '请选择模型' }]}
             >
-              {({ getFieldValue }) => {
-                const selectedModelValue = getFieldValue('model');
-                return selectedModelValue === 'custom-model' ? (
-                  <Form.Item
-                    label="自定义机器人模型配置"
-                    name="customModelConfig"
-                    rules={[{ required: true, message: '请输入自定义机器人模型配置' }]}
-                  >
-                    <TextArea
-                      rows={4}
-                      placeholder="请输入自定义机器人模型的配置信息（JSON格式）"
-                    />
-                  </Form.Item>
-                ) : null;
-              }}
+              <Input />
             </Form.Item>
+
+
 
             <Divider />
 

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
+import {
   Typography, 
   Card, 
   Button, 
-  Space, 
   message, 
   Spin,
   Row,
@@ -17,12 +16,9 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
   ReloadOutlined,
   InfoCircleOutlined,
-  BarChartOutlined,
-  VideoCameraOutlined
+  BarChartOutlined
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { datasetsAPI } from '@/utils/api';
@@ -82,7 +78,6 @@ const DatasetVisualizationPage = () => {
   const [jointData, setJointData] = useState(generateMockJointDataV2());
   const [currentTime, setCurrentTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   // 勾选状态：{ groupIndex: { jointKey_observation: true, jointKey_action: true, ... } }
   const [checkedLines, setCheckedLines] = useState({});
 
@@ -98,12 +93,14 @@ const DatasetVisualizationPage = () => {
   };
 
   // 生成 ECharts option
-  const getChartOption = (group, groupIdx) => {
+  const getChartOption = (group, groupIdx, checkedLines) => {
     const timeData = jointData.map(item => item.time);
     const series = [];
+    const legendData = [];
     group.joints.forEach(joint => {
       // observation.state
       if (checkedLines[groupIdx]?.[`${joint.key}_observation`]) {
+        legendData.push(`${joint.label} observation.state`);
         series.push({
           name: `${joint.label} observation.state`,
           type: 'line',
@@ -114,6 +111,7 @@ const DatasetVisualizationPage = () => {
       }
       // action
       if (checkedLines[groupIdx]?.[`${joint.key}_action`]) {
+        legendData.push(`${joint.label} action`);
         series.push({
           name: `${joint.label} action`,
           type: 'line',
@@ -125,23 +123,59 @@ const DatasetVisualizationPage = () => {
     });
     // 时间指示线
     return {
-      grid: { left: 40, right: 20, top: 30, bottom: 40 },
-      tooltip: { trigger: 'axis' },
-      legend: { top: 0, left: 0 },
+      grid: { left: 40, right: 20, top: 40, bottom: 40 },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'line' },
+        confine: true,
+        showContent: true,
+        // 只显示当前点数据
+        formatter: params => {
+          if (!params || !params.length) return '';
+          let html = `<div style='font-weight:600;margin-bottom:4px;'>time: ${params[0].axisValue}</div>`;
+          params.forEach(param => {
+            html += `<div><span style='display:inline-block;margin-right:6px;border-radius:50%;width:10px;height:10px;background:${param.color}'></span>${param.seriesName} <b>${param.value.toFixed(6)}</b></div>`;
+          });
+          return html;
+        }
+      },
+      legend: {
+        data: legendData,
+        type: 'scroll',
+        orient: 'horizontal',
+        top: 0,
+        icon: 'circle',
+        itemWidth: 16,
+        itemHeight: 8,
+        textStyle: { fontSize: 14 },
+        padding: [0, 0, 8, 0],
+      },
       xAxis: {
         type: 'category',
         data: timeData,
         name: 'time',
         nameLocation: 'start',
+        axisLabel: { fontSize: 13 },
+        show: true,
+        axisLine: { show: true, lineStyle: { color: '#ccc' } },
+        axisTick: { show: true },
+        splitLine: { show: true, lineStyle: { color: '#f0f0f0' } }
       },
-      yAxis: { type: 'value' },
+      yAxis: {
+        type: 'value',
+        axisLabel: { fontSize: 13 },
+        show: true,
+        axisLine: { show: true, lineStyle: { color: '#ccc' } },
+        axisTick: { show: true },
+        splitLine: { show: true, lineStyle: { color: '#f0f0f0' } }
+      },
       series,
       markLine: {
         symbol: 'none',
         data: [
           {
             xAxis: currentTime,
-            lineStyle: { color: '#fff', width: 2, type: 'solid' },
+            lineStyle: { color: '#aaa', width: 2, type: 'solid' },
             label: { show: false },
           },
         ],
@@ -175,18 +209,7 @@ const DatasetVisualizationPage = () => {
     setVideoDuration(video.duration);
   };
 
-  // 处理视频播放状态变化
-  const handlePlayPause = () => {
-    const video = document.getElementById('dataset-video');
-    if (video) {
-      if (isPlaying) {
-        video.pause();
-      } else {
-        video.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
+
 
   // 处理视频加载完成
   const handleLoadedMetadata = (e) => {
@@ -214,43 +237,16 @@ const DatasetVisualizationPage = () => {
             onClick={handleBack}
             className={styles.backButton}
           >
-            返回数据中心
+            返回
           </Button>
-          <Title level={2} className={styles.pageTitle}>
-            数据可视化
-          </Title>
+          
         </div>
 
-        {/* 数据集基本信息 */}
-        <Card className={styles.infoCard}>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Statistic 
-                title="数据点数量" 
-                value={jointData.length} 
-                suffix="个"
-              />
-            </Col>
-            <Col span={8}>
-              <Statistic 
-                title="视频时长" 
-                value={videoDuration.toFixed(1)} 
-                suffix="秒"
-              />
-            </Col>
-          </Row>
-        </Card>
-
         {/* 视频播放器 */}
-        <Card 
-          title={
-            <Space>
-              <VideoCameraOutlined />
-              <span>机器人动作视频</span>
-            </Space>
-          }
-          className={styles.videoCard}
-        >
+        <div className={styles.videoSection}>
+          <div className={styles.videoTitle}>
+            <Title level={3}>机器人动作视频</Title>
+          </div>
           <div className={styles.videoContainer}>
             <video
               id="dataset-video"
@@ -259,65 +255,54 @@ const DatasetVisualizationPage = () => {
               className={styles.videoPlayer}
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
             >
               您的浏览器不支持视频播放。
             </video>
-            <div className={styles.videoControls}>
-              <Space>
-                <Button 
-                  icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                  onClick={handlePlayPause}
-                >
-                  {isPlaying ? '暂停' : '播放'}
-                </Button>
-                <Text type="secondary">
-                  当前时间: {currentTime.toFixed(1)}s / {videoDuration.toFixed(1)}s
-                </Text>
-              </Space>
-            </div>
           </div>
-        </Card>
+        </div>
 
         {/* 图表分组展示 */}
         <div style={{ marginTop: 32 }}>
-          <Row gutter={[24, 24]}>
+          <Row gutter={[32, 0]} justify="center">
             {chartGroups.map((group, idx) => (
-              <Col span={12} key={group.title}>
-                <Card className={styles.chartCard}>
-                  <div style={{ marginBottom: 8, fontWeight: 600 }}>{group.title}</div>
+              <Col xs={24} sm={24} md={12} lg={12} xl={12} key={group.title} style={{ display: 'flex' }}>
+                <Card className={styles.chartCard} style={{ width: '100%', padding: 28 }}>
+                  <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 18 }}>{group.title}</div>
                   {/* 勾选项 */}
-                  <Checkbox.Group style={{ marginBottom: 8, width: '100%' }}>
-                    <Row gutter={[8, 8]}>
-                      {group.joints.map(joint => [
-                        <Col key={`${joint.key}_observation`}>
-                          <Checkbox
-                            checked={checkedLines[idx]?.[`${joint.key}_observation`]}
-                            onChange={e => handleLineCheck(idx, `${joint.key}_observation`, e.target.checked)}
-                            style={{ color: joint.color }}
-                          >
-                            {joint.label} observation.state
-                          </Checkbox>
-                        </Col>,
-                        <Col key={`${joint.key}_action`}>
-                          <Checkbox
-                            checked={checkedLines[idx]?.[`${joint.key}_action`]}
-                            onChange={e => handleLineCheck(idx, `${joint.key}_action`, e.target.checked)}
-                            style={{ color: joint.color, fontStyle: 'italic' }}
-                          >
-                            {joint.label} action
-                          </Checkbox>
-                        </Col>,
-                      ])}
-                    </Row>
-                  </Checkbox.Group>
+                  <div style={{ marginBottom: 8 }}>
+                    <Checkbox.Group>
+                      <Row gutter={[8, 8]}>
+                        {group.joints.map(joint => [
+                          <Col key={`${joint.key}_observation`}>
+                            <Checkbox
+                              checked={checkedLines[idx]?.[`${joint.key}_observation`]}
+                              onChange={e => handleLineCheck(idx, `${joint.key}_observation`, e.target.checked)}
+                              style={{ color: joint.color }}
+                            >
+                              {joint.label} observation.state
+                            </Checkbox>
+                          </Col>,
+                          <Col key={`${joint.key}_action`}>
+                            <Checkbox
+                              checked={checkedLines[idx]?.[`${joint.key}_action`]}
+                              onChange={e => handleLineCheck(idx, `${joint.key}_action`, e.target.checked)}
+                              style={{ color: joint.color, fontStyle: 'italic' }}
+                            >
+                              {joint.label} action
+                            </Checkbox>
+                          </Col>,
+                        ])}
+                      </Row>
+                    </Checkbox.Group>
+                  </div>
                   {/* 图表 */}
-                  <ReactECharts
-                    option={getChartOption(group, idx)}
-                    style={{ height: 300 }}
-                    className={styles.chart}
-                  />
+                  <div style={{ background: '#fff', borderRadius: 8, padding: 8 }}>
+                    <ReactECharts
+                      option={getChartOption(group, idx, checkedLines)}
+                      style={{ height: 340 }}
+                      className={styles.chart}
+                    />
+                  </div>
                 </Card>
               </Col>
             ))}

@@ -1,16 +1,15 @@
 .visualizationPage {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: transparent !important;
   padding: 20px;
 }
 
 .contentWrapper {
   max-width: 1200px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
+  background: transparent !important;
+  border-radius: 0;
+  box-shadow: none;
   padding: 30px;
 }
 
@@ -18,32 +17,38 @@
   display: flex;
   align-items: center;
   margin-bottom: 30px;
-  gap: 20px;
+  position: relative;
 }
 
 .backButton {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  color: white;
+  background: white;
+  border: 1px solid #d9d9d9;
+  color: #333;
   border-radius: 8px;
   height: 40px;
   padding: 0 20px;
   font-weight: 500;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .backButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: #1677ff;
+  border-color: #1677ff;
+}
+
+.titleContainer {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
 }
 
 .pageTitle {
   margin: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #222;
   font-weight: 700;
 }
 
@@ -51,41 +56,44 @@
   margin-bottom: 24px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  border: 1px solid #f0f0f0;
 }
 
-.videoCard {
-  margin-bottom: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+.videoSection {
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.videoTitle {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.videoTitle :global(.ant-typography) {
+  margin: 0 !important;
+  color: #333;
+  font-weight: 600;
 }
 
 .videoContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  width: 100%;
+  max-width: 800px;
 }
 
 .videoPlayer {
   width: 100%;
-  max-width: 800px;
   height: auto;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   background: #000;
 }
 
-.videoControls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 12px;
-  background: rgba(102, 126, 234, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(102, 126, 234, 0.1);
-}
+
 
 .chartsContainer {
   margin-bottom: 24px;
@@ -97,12 +105,13 @@
 .chartCard {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  border: 1px solid #f0f0f0;
 }
 
 .chart {
   border-radius: 8px;
   overflow: hidden;
+  background: #fff;
 }
 
 .statsContainer {
@@ -114,7 +123,7 @@
 .statsCard {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  border: 1px solid #f0f0f0;
 }
 
 .loadingContainer {
@@ -124,8 +133,10 @@
   justify-content: center;
   min-height: 400px;
   background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   border-radius: 16px;
   margin: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .errorContainer {
@@ -134,7 +145,7 @@
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  background: rgba(255, 255, 255, 0.95);
+  background: #fff;
   border-radius: 16px;
   margin: 20px;
   padding: 40px;
@@ -153,18 +164,21 @@
   
   .pageHeader {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .titleContainer {
+    position: static;
+    transform: none;
+    margin-top: 8px;
   }
   
   .videoPlayer {
     max-width: 100%;
   }
   
-  .videoControls {
-    flex-direction: column;
-    gap: 8px;
-  }
+
 }
 
 /* 图表容器样式 */
@@ -178,8 +192,8 @@
 }
 
 .chartCard :global(.ant-tabs-tab-active) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #e6f4ff;
+  color: #1677ff;
 }
 
 /* 统计卡片样式 */
@@ -197,7 +211,6 @@
 }
 
 /* 卡片标题样式 */
-.videoCard :global(.ant-card-head-title),
 .chartCard :global(.ant-card-head-title),
 .statsCard :global(.ant-card-head-title) {
   font-weight: 600;
@@ -233,10 +246,9 @@
 
 /* 悬停效果 */
 .infoCard:hover,
-.videoCard:hover,
 .chartCard:hover,
 .statsCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 } 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Typography, 
@@ -146,9 +146,30 @@ const StatusDisplay = ({ status }) => {
 
 const EvaluationPage = () => {
   const navigate = useNavigate();
-  const [selectedRecord, setSelectedRecord] = useState(mockEvaluationRecords[0]); // 默认选择第一个
   const [records, setRecords] = useState(mockEvaluationRecords);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedRecordDetails, setSelectedRecordDetails] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const mainLayoutRef = useRef(null);
+
+  useEffect(() => {
+    const leftPanelWidth = 260;
+    const layoutGap = 24;
+    const minWidthForDesktopLayout = leftPanelWidth + (leftPanelWidth * 2.5) + layoutGap;
+    const checkLayout = () => {
+      if (window.innerWidth < minWidthForDesktopLayout) {
+        setIsMobile(true);
+      } else {
+        setIsMobile(false);
+      }
+    };
+    // 默认选择"进行中"的测试项目
+    const runningRecord = records.find(r => r.status === 'running');
+    setSelectedRecord(runningRecord || records[0]);
+    window.addEventListener('resize', checkLayout);
+    setTimeout(checkLayout, 0); // 首次渲染后测量一次
+    return () => window.removeEventListener('resize', checkLayout);
+  }, [records]);
 
   // 处理菜单项点击
   const handleMenuClick = ({ key }, record) => {
@@ -174,9 +195,10 @@ const EvaluationPage = () => {
     { key: 'delete', label: '删除记录', danger: true, icon: <DeleteOutlined /> },
   ];
 
-  // 项目选择列表项渲染
+  // 项目选择列表项渲染 (Vertical for Desktop)
   const renderProjectItem = (record) => (
     <List.Item
+      key={record.id}
       className={`${styles.projectItem} ${selectedRecord?.id === record.id ? styles.selectedProject : ''}`}
       onClick={() => setSelectedRecord(record)}
     >
@@ -196,6 +218,74 @@ const EvaluationPage = () => {
     </List.Item>
   );
 
+  // 项目选择列表项渲染 (Horizontal for Mobile)
+  const renderProjectItemHorizontal = (record) => (
+    <div
+      key={record.id}
+      className={`${styles.projectItemHorizontal} ${selectedRecord?.id === record.id ? styles.selectedProjectHorizontal : ''}`}
+      onClick={() => setSelectedRecord(record)}
+    >
+      <div className={styles.projectName}>{record.name}</div>
+      <div className={styles.projectMeta}>
+        <Text type="secondary">{record.model}</Text>
+        <StatusDisplay status={record.status} />
+      </div>
+    </div>
+  );
+  
+  // Reusable component for the right panel content to avoid duplication
+  const RightPanelContent = () => (
+    <div className={styles.rightPanel}>
+      {selectedRecord ? (
+        <div className={styles.videoContent}>
+          <Card 
+            title={
+              <div className={styles.videoTitle}>
+                <VideoCameraOutlined />
+                <span>{selectedRecord.name}</span>
+                <StatusDisplay status={selectedRecord.status} />
+              </div>
+            }
+            className={styles.videoCard}
+            extra={
+              <Button 
+                type="primary" 
+                icon={<DownloadOutlined />}
+                onClick={() => message.info('下载视频功能待实现')}
+              >
+                下载视频
+              </Button>
+            }
+          >
+            <div className={styles.videoContainer}>
+              <video 
+                key={selectedRecord.videoUrl} // Use key to force re-render on source change
+                controls 
+                autoPlay
+                muted
+                className={styles.videoPlayer}
+                poster={selectedRecord.thumbnail}
+              >
+                <source src={selectedRecord.videoUrl} type="video/mp4" />
+                您的浏览器不支持视频播放。
+              </video>
+            </div>
+          </Card>
+        </div>
+      ) : (
+        <div className={styles.noSelection}>
+          <Card className={styles.emptyCard}>
+            <div className={styles.emptyContent}>
+              <VideoCameraOutlined className={styles.emptyIcon} />
+              <Title level={3}>请选择测试项目</Title>
+              <Text type="secondary">从列表中选择一个测试项目来查看评估视频</Text>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.evaluationPage}>
       <div className={styles.pageHeader}>
@@ -203,75 +293,51 @@ const EvaluationPage = () => {
         <Text type="secondary">查看机器人模型的性能评估和仿真测试结果</Text>
       </div>
 
-      <div className={styles.mainLayout}>
-        {/* 左侧项目选择轴 */}
-        <div className={styles.leftPanel}>
-          <Card 
-            title={
-              <div className={styles.panelTitle}>
-                <ExperimentOutlined />
-                <span>测试项目</span>
-                <Badge count={records.length} style={{ backgroundColor: '#52c41a' }} />
+      {isMobile ? (
+        <>
+          <div className={styles.topPanel}>
+            <Card
+              size="small"
+              title={
+                <div className={styles.panelTitle}>
+                  <ExperimentOutlined />
+                  <span>测试项目</span>
+                  <Badge count={records.length} style={{ backgroundColor: '#52c41a' }} />
+                </div>
+              }
+              className={styles.projectPanel}
+              bodyStyle={{ padding: '12px' }}
+            >
+              <div className={styles.projectListHorizontal}>
+                {records.map(renderProjectItemHorizontal)}
               </div>
-            }
-            className={styles.projectPanel}
-          >
-            <List
-              dataSource={records}
-              renderItem={renderProjectItem}
-              className={styles.projectList}
-            />
-          </Card>
-        </div>
-
-        {/* 右侧评估视频内容 */}
-        <div className={styles.rightPanel}>
-          {selectedRecord ? (
-            <div className={styles.videoContent}>
-              <Card 
-                title={
-                  <div className={styles.videoTitle}>
-                    <VideoCameraOutlined />
-                    <span>{selectedRecord.name}</span>
-                    <StatusDisplay status={selectedRecord.status} />
-                  </div>
-                }
-                className={styles.videoCard}
-                extra={
-                  <Button 
-                    type="primary" 
-                    icon={<DownloadOutlined />}
-                    onClick={() => message.info('下载视频功能待实现')}
-                  >
-                    下载视频
-                  </Button>
-                }
-              >
-                <div className={styles.videoContainer}>
-                  <video 
-                    controls 
-                    className={styles.videoPlayer}
-                    poster={selectedRecord.thumbnail}
-                  >
-                    <source src={selectedRecord.videoUrl} type="video/mp4" />
-                    您的浏览器不支持视频播放。
-                  </video>
+            </Card>
+          </div>
+          <RightPanelContent />
+        </>
+      ) : (
+        <div className={styles.mainLayout} ref={mainLayoutRef}>
+          <div className={styles.leftPanel}>
+            <Card
+              title={
+                <div className={styles.panelTitle}>
+                  <ExperimentOutlined />
+                  <span>测试项目</span>
+                  <Badge count={records.length} style={{ backgroundColor: '#52c41a' }} />
                 </div>
-              </Card>
-            </div>
-          ) : (
-            <div className={styles.noSelection}>
-              <Card className={styles.emptyCard}>
-                <div className={styles.emptyContent}>
-                  <VideoCameraOutlined className={styles.emptyIcon} />
-                  <Title level={3}>请选择测试项目</Title>
-                  <Text type="secondary">从左侧列表中选择一个测试项目来查看评估视频</Text>
-                </div>
-              </Card>
-            </div>
-          )}
+              }
+              className={styles.projectPanel}
+            >
+              <List
+                dataSource={records}
+                renderItem={renderProjectItem}
+                className={styles.projectList}
+              />
+            </Card>
+          </div>
+          <RightPanelContent />
         </div>
-      </div>
+      )}
 
       {/* 测试详情弹窗 */}
       <Modal
@@ -292,6 +358,7 @@ const EvaluationPage = () => {
           </Button>
         ]}
         width={800}
+        className="evaluation-modal"
       >
         {selectedRecordDetails && (
           <div>
@@ -358,4 +425,4 @@ const EvaluationPage = () => {
   );
 };
 
-export default EvaluationPage; 
+export default EvaluationPage;
