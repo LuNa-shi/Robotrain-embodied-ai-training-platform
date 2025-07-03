@@ -19,7 +19,7 @@ from training_platform.common.minio_utils import get_minio_client, upload_file_t
 from training_platform.trainer.lerobot_trainer_logic import run_lerobot_training
 from lerobot.common.utils.train_utils import TrainPipelineConfig
 
-# @ray.remote
+@ray.remote
 class TrainerActor:
     def __init__(self, task: TrainingTask):
         self.task = task

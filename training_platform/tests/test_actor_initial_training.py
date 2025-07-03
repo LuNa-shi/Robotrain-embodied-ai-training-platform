@@ -73,10 +73,11 @@ async def run_initial_training_test():
 
     try:
         # --- 初始训练运行 (0 -> 50 steps) ---
-        print("\n" + "="*50 + "\n�� 初始训练运行 (steps 0 -> 50)\n" + "="*50)
+        print("\n" + "="*50 + "\n🎯 初始训练运行 (steps 0 -> 50)\n" + "="*50)
+        # actor = TrainerActor.options(num_gpus=1).remote(initial_task)
+        # final_step = await actor.train.remote(start_step=0, end_step=50)
         actor = TrainerActor(initial_task)
         final_step = await actor.train(start_step=0, end_step=50)
-        
         print(f"\n✅ 初始训练完成。Actor在步数: {final_step} 结束")
         assert final_step == 50
         time.sleep(2) # 给Ray时间清理

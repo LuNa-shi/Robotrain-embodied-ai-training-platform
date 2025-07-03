@@ -6,9 +6,19 @@ from pprint import pformat
 from typing import Callable, Dict, Any, Tuple
 
 import torch
-from torch.amp import GradScaler
+from torch.amp.grad_scaler import GradScaler
 import draccus
 import os
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('training.log')
+    ]
+)
 
 # 导入所有 lerobot 的依赖
 from lerobot.common.datasets.factory import make_dataset
@@ -240,6 +250,7 @@ def run_lerobot_training(
     主入口函数，编排整个训练流程。
     """
     # 阶段一：准备配置
+    
     cfg = prepare_config(base_config_path, user_override_config, run_dir, start_step, end_step)
 
     print(f"base_config_path: {base_config_path}")
@@ -250,6 +261,17 @@ def run_lerobot_training(
     device = get_safe_torch_device(cfg.policy.device, log=True)
     torch.backends.cudnn.benchmark = True
     torch.backends.cuda.matmul.allow_tf32 = True
+
+        # 添加GPU监控代码
+    print(f"🔍 GPU监控信息:")
+    print(f"   - 实际使用的设备: {device}")
+    print(f"   - CUDA可用: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"   - GPU数量: {torch.cuda.device_count()}")
+        print(f"   - 当前GPU: {torch.cuda.current_device()}")
+        print(f"   - GPU名称: {torch.cuda.get_device_name()}")
+        print(f"   - GPU内存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+    
 
     # 阶段二：初始化所有对象
     training_objects = initialize_training_objects(cfg, device, start_step)

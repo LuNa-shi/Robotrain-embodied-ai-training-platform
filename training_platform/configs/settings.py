@@ -42,8 +42,8 @@ class Settings:
 
 
     # --- 平台自身配置 (新增加的部分) ---
-    SCHEDULER_STEPS_PER_TIMESLICE: int = int(os.getenv("SCHEDULER_STEPS_PER_TIMESLICE", 5)) # for fake_train
-    SCHEDULER_GPUS_PER_TRAINER: int = int(os.getenv("SCHEDULER_GPUS_PER_TRAINER", 0)) # for fake_train, no GPU
+    SCHEDULER_STEPS_PER_TIMESLICE: int = int(os.getenv("SCHEDULER_STEPS_PER_TIMESLICE", 50)) # for fake_train
+    SCHEDULER_GPUS_PER_TRAINER: int = int(os.getenv("SCHEDULER_GPUS_PER_TRAINER", 1)) # for fake_train, no GPU
     
     # 运行目录
     RUN_DIR_BASE: str = os.getenv("RUN_DIR_BASE", "/tmp/training_platform_runs")

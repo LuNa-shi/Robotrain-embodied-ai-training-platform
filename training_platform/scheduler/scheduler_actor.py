@@ -7,6 +7,7 @@ from training_platform.configs.settings import settings
 from training_platform.common.task_models import TrainingTask
 from training_platform.common.rabbitmq_utils import init_rabbitmq, send_status_message
 from training_platform.trainer.lerobot_train_actor import TrainerActor
+import torch.cuda
 
 @ray.remote
 class Scheduler:
@@ -23,6 +24,12 @@ class Scheduler:
         asyncio.create_task(init_rabbitmq())
         
         print("[Scheduler] Actor initialized.")
+        
+        # Test CUDA
+        if torch.cuda.is_available():
+            print(f"✅ CUDA OK: {torch.cuda.device_count()} GPUs available")
+        else:
+            print("❌ CUDA not available")
 
     async def add_task(self, task_data: dict):
         task = TrainingTask(**task_data)
@@ -39,19 +46,23 @@ class Scheduler:
                 print(f"[Scheduler] Starting training for task: {self.running_task.task_id}")
                 
                 trainer_options = {"num_gpus": self.num_gpus_per_trainer}
-                self.trainer_actor = TrainerActor.options(**trainer_options).remote(self.running_task) #constructor
+                print(f"[Scheduler] Trainer options: {trainer_options}")
                 
-                total_epochs = self.running_task.config.get('epochs', 10)
-                start_epoch = self.running_task.current_step
-                end_epoch = min(start_epoch + self.steps_per_timeslice, total_epochs)
+                self.trainer_actor = TrainerActor.options(**trainer_options).remote(self.running_task) #constructor
+                # self.trainer_actor = TrainerActor(self.running_task)
+                
+                total_steps = self.running_task.config.get('steps', 10)
+                start_step = self.running_task.current_step
+                end_step = min(start_step + self.steps_per_timeslice, total_steps)
                 
                 await send_status_message(task_id=int(self.running_task.task_id), status="training", uuid=self.running_task.uuid)
                 
                 try:
-                    final_epoch = await self.trainer_actor.train.remote(start_epoch, end_epoch) #method
-                    self.running_task.current_step = final_epoch
+                    final_step = await self.trainer_actor.train.remote(start_step, end_step) #method
+                    # final_step = await self.trainer_actor.train(start_step, end_step)
+                    self.running_task.current_step = final_step
                     
-                    if final_epoch >= total_epochs:
+                    if final_step >= total_steps:
                         await send_status_message(task_id=int(self.running_task.task_id), status="completed", uuid=self.running_task.uuid)
                     else:
                         self.task_queue.append(self.running_task)
