@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Typography, 
   Card, 
@@ -97,6 +97,7 @@ const defaultModels = [];
 
 const TrainingPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
@@ -114,12 +115,32 @@ const TrainingPage = () => {
       setLoading(true);
       const data = await datasetsAPI.getMyDatasets();
       setDatasets(data);
+      // 检查URL参数，自动选中数据集
+      const params = new URLSearchParams(location.search);
+      const datasetId = params.get('datasetId');
+      if (datasetId) {
+        const found = data.find(ds => String(ds.id) === String(datasetId));
+        if (found) {
+          setSelectedDataset(found);
+          setCurrentStep(1);
+        }
+      }
       console.log('获取数据集列表成功:', data);
     } catch (err) {
       console.error('获取数据集列表失败:', err);
       message.error('获取数据集列表失败: ' + err.message);
       // 如果获取失败，使用静态数据作为备用
       setDatasets(mockDatasets);
+      // 检查URL参数，自动选中数据集（静态数据）
+      const params = new URLSearchParams(location.search);
+      const datasetId = params.get('datasetId');
+      if (datasetId) {
+        const found = mockDatasets.find(ds => String(ds.id) === String(datasetId));
+        if (found) {
+          setSelectedDataset(found);
+          setCurrentStep(1);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -271,8 +292,8 @@ const TrainingPage = () => {
               <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
                 您还没有上传任何数据集，请先上传数据集后再创建训练项目
               </Text>
-              <Button type="primary" onClick={() => navigate('/data-center')}>
-                前往数据中心上传数据集
+              <Button type="primary" onClick={() => navigate('/home')}>
+                去上传数据
               </Button>
             </div>
           ) : (
