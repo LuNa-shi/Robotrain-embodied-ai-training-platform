@@ -56,5 +56,10 @@ CREATE TABLE IF NOT EXISTS train_log (
 );
 CREATE INDEX IF NOT EXISTS idx_train_logs_task_id ON train_log (train_task_id);
 
+-- 往model_type表中插入初始数据
+INSERT INTO model_type (type_name, description) VALUES
+    ('ACT', 'ACT'),
+    ('Diffusion', 'Diffusion')
+
 
 

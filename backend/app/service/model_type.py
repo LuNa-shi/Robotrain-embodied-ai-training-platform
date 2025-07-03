@@ -35,9 +35,18 @@ class ModelTypeService:
         
         return model_type
 
-    async def get_model_types(self) -> list[ModelTypePublic]:
+    async def get_all_model_types(self) -> list[ModelTypePublic]:
         """
         获取所有模型类型的业务逻辑。
         """
         model_types = await crud_model_type.get_all_model_types(db_session=self.db_session)
-        return [mt for mt in model_types]
+        list_model_type_publics: list[ModelTypePublic] = []
+        for model_type in model_types:
+            model_type_public = ModelTypePublic(
+                id=model_type.id,
+                type_name=model_type.type_name,
+                description=model_type.description
+            )
+            list_model_type_publics.append(model_type_public)
+        return list_model_type_publics
+    

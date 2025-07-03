@@ -42,3 +42,18 @@ async def create_model_type(
             detail="你不是管理员，无法创建模型类型。",
         )
     return await model_type_service.create_model_type(model_type_create)
+
+@router.get("/", response_model=list[ModelTypePublic], summary="获取所有模型类型")
+async def get_all_model_types(
+    model_type_service: Annotated[ModelTypeService, Depends(get_train_task_service)]
+) -> list[ModelTypePublic]:
+    """
+    **获取所有模型类型**
+
+    返回系统中所有已创建的模型类型列表。
+
+    **响应:**
+    - `200 OK`: 成功返回模型类型列表。
+    - `404 Not Found`: 没有找到任何模型类型。
+    """
+    return await model_type_service.get_all_model_types()
