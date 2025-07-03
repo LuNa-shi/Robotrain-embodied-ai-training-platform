@@ -28,7 +28,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://backend:8000',  // 直接使用Docker服务名
         changeOrigin: true,
         secure: false,
         configure: (proxy, options) => {

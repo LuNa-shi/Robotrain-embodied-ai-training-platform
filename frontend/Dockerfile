@@ -14,5 +14,7 @@ RUN npm install --frozen-lockfile
 # 复制所有项目文件到工作目录
 COPY . .
 
+RUN npm run build
+
 # 构建 Vite 应用
 CMD ["npm", "run", "dev"]

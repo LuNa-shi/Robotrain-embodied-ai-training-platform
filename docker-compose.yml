@@ -3,8 +3,8 @@ services:
     build:
       context: ./frontend
     environment:
-      BACNEND_SERVER: backend
-      BACKEND_PORT: ${BACKEND_PORT}
+      VITE_BACNEND_SERVER: backend
+      VITE_BACKEND_PORT: 8000
     ports:
       - "5173:5173"
     volumes:

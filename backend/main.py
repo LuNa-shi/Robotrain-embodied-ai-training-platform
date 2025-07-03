@@ -28,8 +28,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
-    "fastapi.middleware.cors.CORSMiddleware",
+    CORSMiddleware,
     allow_origins=["http://localhost:5173"],  # 允许所有来源
     allow_credentials=True,
     allow_methods=["*"],  # 允许所有方法
