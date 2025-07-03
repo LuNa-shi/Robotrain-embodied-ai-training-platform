@@ -8,10 +8,15 @@ import {
   Button,
   message,
   Modal,
+  Row,
+  Col,
+  Card,
 } from 'antd';
 import {
   InboxOutlined,
   UploadOutlined,
+  DatabaseOutlined,
+  ProjectOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { datasetsAPI } from '@/utils/api';
@@ -113,46 +118,99 @@ const HomePage = () => {
     setFileList([]);
   };
 
+  // 跳转到数据中心
+  const handleDataCenterClick = () => {
+    navigate('/data-center');
+  };
+
+  // 跳转到项目中心
+  const handleProjectCenterClick = () => {
+    navigate('/project-center');
+  };
+
   return (
     <Layout className={styles.homePageLayout}>
       <Content className={styles.mainContent}>
         <div className={styles.centerStage}>
+          {/* 主标题 */}
           <Title level={2} className={styles.mainTitle}>RoboTrain</Title>
           <Paragraph className={styles.subTitle}>你的机器人训练助手</Paragraph>
-          <div className={styles.uploadSection}>
-            <Dragger
-              name="file"
-              fileList={fileList}
-              beforeUpload={beforeUpload}
-              onChange={handleFileChange}
-              accept=".zip"
-              className={styles.dragger}
-            >
-              <div className={styles.draggerContent}>
-                <p className="ant-upload-drag-icon">
-                  <InboxOutlined />
-                </p>
-                <div className={styles.draggerText}>
-                  <p className="ant-upload-text">上传数据文件</p>
-                  <p className="ant-upload-hint">
-                    点击或拖拽ZIP文件到此区域进行上传
-                  </p>
-                  <Text type="secondary">支持ZIP格式，最大100MB</Text>
+          
+          {/* 三栏布局 */}
+          <Row gutter={[24, 24]} className={styles.threeColumnLayout}>
+            {/* 左侧：上传数据区域 */}
+            <Col xs={24} lg={8}>
+              <Card className={styles.card}>
+                <div className={styles.cardContent}>
+                  <Title level={3} className={styles.cardTitle}>上传数据</Title>
+                  <Paragraph className={styles.cardDescription}>
+                    上传您的训练数据文件，支持ZIP格式，最大100MB。上传后可以查看和管理您的数据集。
+                  </Paragraph>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<UploadOutlined />}
+                    onClick={showUploadModal}
+                    className={styles.cardButton}
+                  >
+                    上传数据
+                  </Button>
                 </div>
-              </div>
-            </Dragger>
-            <Button
-              type="primary"
-              size="large"
-              icon={<UploadOutlined />}
-              onClick={showUploadModal}
-              disabled={fileList.length === 0}
-              className={styles.uploadButton}
-            >
-              开始上传
-            </Button>
-          </div>
+              </Card>
+            </Col>
+
+            {/* 中间：数据中心 */}
+            <Col xs={24} lg={8}>
+              <Card 
+                className={styles.card}
+                hoverable
+                onClick={handleDataCenterClick}
+              >
+                <div className={styles.cardContent}>
+                  <Title level={3} className={styles.cardTitle}>数据中心</Title>
+                  <Paragraph className={styles.cardDescription}>
+                    管理和查看您的训练数据，包括数据上传、预处理和标注等功能。
+                  </Paragraph>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<DatabaseOutlined />}
+                    onClick={handleDataCenterClick}
+                    className={styles.cardButton}
+                  >
+                    进入数据中心
+                  </Button>
+                </div>
+              </Card>
+            </Col>
+
+            {/* 右侧：项目中心 */}
+            <Col xs={24} lg={8}>
+              <Card 
+                className={styles.card}
+                hoverable
+                onClick={handleProjectCenterClick}
+              >
+                <div className={styles.cardContent}>
+                  <Title level={3} className={styles.cardTitle}>项目中心</Title>
+                  <Paragraph className={styles.cardDescription}>
+                    管理训练项目，创建新的训练任务，监控训练进度和结果。
+                  </Paragraph>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<ProjectOutlined />}
+                    onClick={handleProjectCenterClick}
+                    className={styles.cardButton}
+                  >
+                    进入项目中心
+                  </Button>
+                </div>
+              </Card>
+            </Col>
+          </Row>
         </div>
+
         {/* 上传模态框 */}
         <Modal
           title="上传数据集"
@@ -180,6 +238,7 @@ const HomePage = () => {
             >
               <Input placeholder="请输入数据集名称" />
             </Form.Item>
+            
             <Form.Item
               label="数据集描述"
               name="description"
@@ -195,9 +254,38 @@ const HomePage = () => {
                 maxLength={500}
               />
             </Form.Item>
-            <Form.Item label="上传文件">
-              <Text>{fileList.length > 0 ? fileList[0].name : '未选择文件'}</Text>
+            
+            <Form.Item
+              label="上传数据文件"
+              required
+            >
+              <Dragger
+                name="file"
+                fileList={fileList}
+                beforeUpload={beforeUpload}
+                onChange={handleFileChange}
+                accept=".zip"
+                className={styles.modalDragger}
+              >
+                <div className={styles.modalDraggerContent}>
+                  <p className="ant-upload-drag-icon">
+                    <InboxOutlined />
+                  </p>
+                  <div className={styles.modalDraggerText}>
+                    <p className="ant-upload-text">点击或拖拽ZIP文件到此区域</p>
+                    <p className="ant-upload-hint">
+                      支持ZIP格式，最大100MB
+                    </p>
+                  </div>
+                </div>
+              </Dragger>
+              {fileList.length > 0 && (
+                <div className={styles.selectedFile}>
+                  <Text type="secondary">已选择文件: {fileList[0].name}</Text>
+                </div>
+              )}
             </Form.Item>
+            
             <Form.Item>
               <Button
                 type="primary"
@@ -205,6 +293,7 @@ const HomePage = () => {
                 loading={uploading}
                 block
                 size="large"
+                disabled={fileList.length === 0}
               >
                 {uploading ? '上传中...' : '确认上传'}
               </Button>

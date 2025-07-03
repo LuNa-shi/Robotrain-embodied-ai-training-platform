@@ -1,16 +1,16 @@
 import React from 'react';
-import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col } from 'antd';
+import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   InfoCircleOutlined,
   SyncOutlined,
   DownloadOutlined,
   DeleteOutlined,
-  MoreOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
-  PlusOutlined
+  PlusOutlined,
+  ExperimentOutlined
 } from '@ant-design/icons';
 import styles from './ProjectCenter.module.css';
 
@@ -62,13 +62,55 @@ const ProjectCenterPage = () => {
   const navigate = useNavigate();
 
   const handleViewDetail = (trainingId) => {
-            navigate(`/project-center/${trainingId}`);
+    navigate(`/project-center/${trainingId}/progress`);
   };
 
-  const getMenuItems = (record) => [
-    { key: 'download', label: '下载模型', icon: <DownloadOutlined /> },
-    { key: 'delete', label: '删除记录', danger: true, icon: <DeleteOutlined /> },
-  ];
+  const handleDownload = (record) => {
+    message.success(`开始下载模型: ${record.name}`);
+    // 这里可以添加实际的下载逻辑
+  };
+
+  const handleDelete = (record) => {
+    message.success(`删除项目: ${record.name}`);
+    // 这里可以添加实际的删除逻辑
+  };
+
+  const handleStartEvaluation = async (record) => {
+    try {
+      // 构建评估配置 - 使用项目默认参数
+      const evaluationConfig = {
+        trained_project_id: record.id,
+        trained_project_name: record.name,
+        dataset: record.dataset,
+        parameters: {
+          testCases: 1000,
+          timeout: 300,
+          batchSize: 32,
+          threshold: 0.8,
+        },
+        description: `机器人模型评估 - ${record.name}`,
+      };
+      
+      console.log('评估配置:', evaluationConfig);
+      
+      // 模拟API调用
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 生成评估ID（模拟后端返回）
+      const evaluationId = `eval-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      
+      message.success(`评估任务 ${evaluationId} 创建成功！`);
+      
+      // 可以在这里跳转到评估页面查看详情
+      // navigate(`/evaluation/${evaluationId}`);
+      
+    } catch (error) {
+      console.error('创建评估任务失败:', error);
+      message.error('创建评估任务失败: ' + error.message);
+    }
+  };
+
+
   
   return (
     <div className={styles.projectCenterPage}>
@@ -80,7 +122,12 @@ const ProjectCenterPage = () => {
       
       <div className={styles.recordList}>
         {mockTrainingRecords.map(record => (
-          <Card key={record.id} className={styles.recordCard}>
+          <Card 
+            key={record.id} 
+            className={styles.recordCard}
+            hoverable
+            onClick={() => handleViewDetail(record.id)}
+          >
             {/* 上方部分 */}
             <div className={styles.cardHeader}>
               <Text type="secondary">编号: {record.id}</Text>
@@ -115,20 +162,41 @@ const ProjectCenterPage = () => {
             {/* 下方部分 */}
             <div className={styles.cardFooter}>
               <Space>
-                <Tooltip title="查看详情">
+                {record.status === 'completed' && (
+                  <Tooltip title="发起评估">
+                    <Button 
+                      type="text" 
+                      shape="circle" 
+                      icon={<ExperimentOutlined />} 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEvaluation(record);
+                      }}
+                    />
+                  </Tooltip>
+                )}
+                <Tooltip title="下载模型">
                   <Button 
                     type="text" 
                     shape="circle" 
-                    icon={<InfoCircleOutlined />} 
-                    onClick={() => handleViewDetail(record.id)}
+                    icon={<DownloadOutlined />} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(record);
+                    }}
                   />
                 </Tooltip>
-                <Tooltip title="重新训练">
-                  <Button type="text" shape="circle" icon={<SyncOutlined />} />
+                <Tooltip title="删除项目">
+                  <Button 
+                    type="text" 
+                    shape="circle" 
+                    icon={<DeleteOutlined />} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(record);
+                    }}
+                  />
                 </Tooltip>
-                <Dropdown menu={{ items: getMenuItems(record) }} placement="bottomRight" arrow>
-                  <Button type="text" shape="circle" icon={<MoreOutlined />} />
-                </Dropdown>
               </Space>
             </div>
           </Card>

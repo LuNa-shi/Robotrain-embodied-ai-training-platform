@@ -20,7 +20,8 @@ import {
   DeleteOutlined,
   MoreOutlined,
   SettingOutlined,
-  UploadOutlined
+  UploadOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import { datasetsAPI } from '@/utils/api';
 import styles from './DataCenter.module.css';
@@ -111,11 +112,19 @@ const DataCenterPage = () => {
     navigate(`/dataset/${dataset.id}`);
   };
 
+  // 处理查看可视化 - 跳转到数据集可视化页面
+  const handleViewVisualization = (dataset) => {
+    navigate(`/dataset/${dataset.id}/visualization`);
+  };
+
   // 处理菜单项点击
   const handleMenuClick = ({ key }, record) => {
     switch (key) {
       case 'details':
         handleViewDetails(record);
+        break;
+      case 'visualization':
+        handleViewVisualization(record);
         break;
       case 'train':
         handleStartTraining(record);
@@ -164,8 +173,7 @@ const DataCenterPage = () => {
   };
 
   const getMenuItems = (record) => [
-    { key: 'details', label: '查看详情', icon: <InfoCircleOutlined /> },
-    { key: 'train', label: '发起训练', icon: <PlayCircleOutlined /> },
+    { key: 'visualization', label: '查看可视化', icon: <BarChartOutlined /> },
     { key: 'download', label: '下载', icon: <DownloadOutlined /> },
     { key: 'edit', label: '编辑', icon: <EditOutlined /> },
     { type: 'divider' },
@@ -216,7 +224,13 @@ const DataCenterPage = () => {
         ) : (
           <div className={styles.recordList}>
             {datasets.map(dataset => (
-              <Card key={dataset.id} className={styles.recordCard}>
+              <Card 
+                key={dataset.id} 
+                className={styles.recordCard}
+                hoverable
+                onClick={() => handleViewVisualization(dataset)}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className={styles.cardHeader}>
                   <Text type="secondary">编号: {dataset.dataset_uuid}</Text>
                   <StatusTag status={getDatasetStatus(dataset)} />
@@ -227,7 +241,7 @@ const DataCenterPage = () => {
                   <br />
                   <Text type="secondary">上传于: {new Date(dataset.uploaded_at).toLocaleString('zh-CN')}</Text>
                 </div>
-                <div className={styles.cardActions}>
+                <div className={styles.cardActions} onClick={e => e.stopPropagation()}>
                   <Space>
                     <Tooltip title="查看详情">
                       <Button 

@@ -1,15 +1,9 @@
 .evaluationPage {
-  padding: 24px;
+  padding: 48px 7vw;
   background: transparent !important;
-}
-
-/* 内容区域包装器，用于居中和限制宽度 */
-.contentWrapper {
-  max-width: 1200px;
-  margin: 0 auto;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 24px;
 }
 
 /* 页面头部 */
@@ -17,69 +11,222 @@
   text-align: center;
   margin-bottom: 24px;
   position: relative;
+  flex-shrink: 0;
 }
 
 .pageTitle {
   margin-bottom: 24px !important;
 }
 
-/* 开始测试按钮绝对定位到右上角 */
-.pageHeader .startButton {
-  position: absolute;
-  top: 0;
-  right: 0;
+/* 主布局容器 */
+.mainLayout {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
 }
 
-/* 统计信息行 */
-.statsRow {
-  margin-bottom: 24px;
+/* 左侧面板 - 18% 宽度 */
+.leftPanel {
+  width: 18%;
+  flex-shrink: 0;
 }
 
-.statsRow .ant-card {
+/* 右侧面板 - 55% 宽度 */
+.rightPanel {
+  width: 55%;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 项目面板 */
+.projectPanel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.projectPanel .ant-card-body {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 面板标题 */
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  justify-content: center;
+  width: 100%;
   text-align: center;
 }
 
-/* 表格卡片 */
-.tableCard {
-  margin-bottom: 24px;
+/* 项目列表 */
+.projectList {
+  height: 100%;
+  overflow-y: auto;
 }
 
-/* 测试信息样式 */
-.testInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.projectList .ant-list-item {
+  padding: 0;
+  border: none;
+  margin-bottom: 1px;
 }
 
-.testName {
-  font-weight: 500;
-  color: #262626;
+/* 项目项 */
+.projectItem {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 0;
+  padding: 16px;
 }
 
-.testMeta {
-  display: flex;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.testMeta .ant-typography {
-  font-size: 12px;
-}
-
-/* 表格样式优化 */
-:global(.ant-table-thead > tr > th) {
-  background-color: #fafafa;
-  font-weight: 500;
-}
-
-:global(.ant-table-tbody > tr:hover > td) {
+.projectItem:hover {
   background-color: #f5f5f5;
 }
 
-/* 状态标签样式 */
-:global(.ant-tag) {
-  border-radius: 4px;
+.selectedProject {
+  background-color: #e6f7ff !important;
+  border-right: 3px solid #1890ff;
+}
+
+/* 项目项内容 */
+.projectItemContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* 项目信息 */
+.projectInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.projectName {
   font-weight: 500;
+  color: #262626;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  width: 100%;
+}
+
+.projectMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  justify-content: center;
+  width: 100%;
+}
+
+.projectMeta .ant-typography {
+  font-size: 12px;
+}
+
+.projectStats {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  justify-content: center;
+  width: 100%;
+}
+
+.projectStats .ant-typography {
+  font-size: 12px;
+}
+
+/* 视频内容 */
+.videoContent {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.videoCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.videoCard .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+/* 视频标题 */
+.videoTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+/* 视频容器 */
+.videoContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.videoPlayer {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  border-radius: 8px;
+}
+
+/* 视频信息 */
+.videoInfo {
+  margin-bottom: 24px;
+}
+
+/* 无选择状态 */
+.noSelection {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emptyCard {
+  text-align: center;
+  padding: 48px;
+  background: #fafafa;
+  border: 2px dashed #d9d9d9;
+}
+
+.emptyContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  color: #d9d9d9;
 }
 
 /* 统计卡片样式 */
@@ -91,6 +238,12 @@
 :global(.ant-statistic-content) {
   font-size: 24px;
   font-weight: 600;
+}
+
+/* 状态标签样式 */
+:global(.ant-tag) {
+  border-radius: 4px;
+  font-weight: 500;
 }
 
 /* 弹窗样式 */
@@ -117,43 +270,14 @@
   font-weight: 500;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .evaluationPage {
-    padding: 16px;
-  }
-  
-  .contentWrapper {
-    max-width: 100%;
-  }
-  
-  .pageHeader .startButton {
-    position: static;
-    margin-top: 16px;
-  }
-  
-  .statsRow .ant-col {
-    margin-bottom: 16px;
-  }
-}
-
-/* 动画效果 */
-.testInfo {
-  transition: all 0.3s ease;
-}
-
-.testInfo:hover {
-  transform: translateY(-1px);
-}
-
-/* 加载状态样式 */
-:global(.ant-spin-dot) {
-  font-size: 20px;
-}
-
-/* 进度条样式 */
-:global(.ant-progress-text) {
+/* 表格样式优化 */
+:global(.ant-table-thead > tr > th) {
+  background-color: #fafafa;
   font-weight: 500;
+}
+
+:global(.ant-table-tbody > tr:hover > td) {
+  background-color: #f5f5f5;
 }
 
 /* 按钮样式优化 */
@@ -163,4 +287,56 @@
 
 :global(.ant-btn-primary:hover) {
   box-shadow: 0 4px 8px rgba(24, 144, 255, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .mainLayout {
+    flex-direction: column;
+  }
+  
+  .leftPanel,
+  .rightPanel {
+    width: 100%;
+  }
+  
+  .leftPanel {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .evaluationPage {
+    padding: 16px;
+  }
+  
+  .mainLayout {
+    gap: 16px;
+  }
+  
+  .projectItem {
+    padding: 12px;
+  }
+  
+  .videoCard .ant-card-body {
+    padding: 16px;
+  }
+}
+
+/* 滚动条样式 */
+.projectList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.projectList::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.projectList::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.projectList::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 } 

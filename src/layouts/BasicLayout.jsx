@@ -58,7 +58,6 @@ const BasicLayout = () => {
     { key: '/data-center', icon: <DatabaseOutlined />, label: '数据中心' },
     { key: '/training', icon: <RocketOutlined />, label: '发起训练' },
     { key: '/project-center', icon: <PlaySquareOutlined />, label: '项目中心' },
-    { key: '/evaluation-create', icon: <ExperimentOutlined />, label: '发起评估' },
     { key: '/evaluation', icon: <BarChartOutlined />, label: '模型评估' },
     ...(userInfo?.isAdmin ? [
       { type: 'divider' },
