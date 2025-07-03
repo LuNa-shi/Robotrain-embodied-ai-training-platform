@@ -230,60 +230,60 @@ const EvaluationPage = () => {
         <Text type="secondary">{record.model}</Text>
         <StatusDisplay status={record.status} />
       </div>
-    </div>
+              </div>
   );
   
   // Reusable component for the right panel content to avoid duplication
   const RightPanelContent = () => (
-    <div className={styles.rightPanel}>
-      {selectedRecord ? (
-        <div className={styles.videoContent}>
-          <Card 
-            title={
-              <div className={styles.videoTitle}>
-                <VideoCameraOutlined />
-                <span>{selectedRecord.name}</span>
-                <StatusDisplay status={selectedRecord.status} />
-              </div>
-            }
-            className={styles.videoCard}
-            extra={
-              <Button 
-                type="primary" 
-                icon={<DownloadOutlined />}
-                onClick={() => message.info('下载视频功能待实现')}
+        <div className={styles.rightPanel}>
+          {selectedRecord ? (
+            <div className={styles.videoContent}>
+              <Card 
+                title={
+                  <div className={styles.videoTitle}>
+                    <VideoCameraOutlined />
+                    <span>{selectedRecord.name}</span>
+                    <StatusDisplay status={selectedRecord.status} />
+                  </div>
+                }
+                className={styles.videoCard}
+                extra={
+                  <Button 
+                    type="primary" 
+                    icon={<DownloadOutlined />}
+                    onClick={() => message.info('下载视频功能待实现')}
+                  >
+                    下载视频
+                  </Button>
+                }
               >
-                下载视频
-              </Button>
-            }
-          >
-            <div className={styles.videoContainer}>
-              <video 
+                <div className={styles.videoContainer}>
+                  <video 
                 key={selectedRecord.videoUrl} // Use key to force re-render on source change
-                controls 
+                    controls 
                 autoPlay
                 muted
-                className={styles.videoPlayer}
-                poster={selectedRecord.thumbnail}
-              >
-                <source src={selectedRecord.videoUrl} type="video/mp4" />
-                您的浏览器不支持视频播放。
-              </video>
+                    className={styles.videoPlayer}
+                    poster={selectedRecord.thumbnail}
+                  >
+                    <source src={selectedRecord.videoUrl} type="video/mp4" />
+                    您的浏览器不支持视频播放。
+                  </video>
+                </div>
+              </Card>
             </div>
-          </Card>
-        </div>
-      ) : (
-        <div className={styles.noSelection}>
-          <Card className={styles.emptyCard}>
-            <div className={styles.emptyContent}>
-              <VideoCameraOutlined className={styles.emptyIcon} />
-              <Title level={3}>请选择测试项目</Title>
+          ) : (
+            <div className={styles.noSelection}>
+              <Card className={styles.emptyCard}>
+                <div className={styles.emptyContent}>
+                  <VideoCameraOutlined className={styles.emptyIcon} />
+                  <Title level={3}>请选择测试项目</Title>
               <Text type="secondary">从列表中选择一个测试项目来查看评估视频</Text>
+                </div>
+              </Card>
             </div>
-          </Card>
+          )}
         </div>
-      )}
-    </div>
   );
 
   return (
@@ -425,4 +425,4 @@ const EvaluationPage = () => {
   );
 };
 
-export default EvaluationPage;
+export default EvaluationPage; 
