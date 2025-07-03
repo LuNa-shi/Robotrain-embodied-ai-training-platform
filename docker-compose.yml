@@ -101,10 +101,10 @@ services:
       - "5432:5432"
     healthcheck: # <-- 在这里添加healthcheck
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 30s
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 30s # 允许容器有足够的时间启动并初始化数据库
+      start_period: 5s # 允许容器有足够的时间启动并初始化数据库
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -124,10 +124,10 @@ services:
       - "9001:9001" # MinIO 控制台端口映射
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 5s
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
@@ -146,8 +146,8 @@ services:
       - "15672:15672" # RabbitMQ 管理界面端口映射（Web UI）
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 5s
       retries: 5
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}

@@ -9,6 +9,7 @@ from app.crud import crud_train_task, crud_dataset, crud_model_type
 from app.core.rabbitmq_utils import send_task_message
 from uuid import UUID
 from app.models.model_type import ModelType
+from datetime import datetime, timezone
 
 class TrainTaskService:
     def __init__(self, db_session: AsyncSession): # 接收同步 Session
@@ -119,6 +120,11 @@ class TrainTaskService:
             print(f"训练任务 ID {train_task_id} 不存在，无法更新")
             return None
         # 2. 调用 CRUD 层更新训练任务
+        # 若更新为"running"状态，则设置开始时间为当前时间
+        if train_task_update.status == "running" and not train_task.start_time:
+            train_task_update.start_time = datetime.now(timezone.utc)
+        if (train_task_update.status == "completed" or train_task_update.status == "failed") and not train_task.end_time:
+            train_task_update.end_time = datetime.now(timezone.utc)
         updated_train_task = await crud_train_task.update_train_task(
             db_session=self.db_session,
             train_task_id=train_task_id,

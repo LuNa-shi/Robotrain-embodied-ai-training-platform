@@ -63,6 +63,8 @@ async def on_status_message(message: aio_pika.IncomingMessage):
     """
     from app.service.train_task import TrainTaskService
     from app.schemas.train_task import TrainTaskUpdate
+    from app.service.train_log import TrainLogService
+    from app.models.train_log import TrainLog
     from app.core.deps import get_db
     # db = await get_db()  # 获取数据库会话
     async for session in get_db():
@@ -93,7 +95,12 @@ async def on_status_message(message: aio_pika.IncomingMessage):
                     log_uuid=uuid4() #之后应该从数据库中提取出所有的日志 UUID
                 )
                 await TrainTaskService.update_train_task(task_id, train_task_to_update)
-                print(f"[Status Consumer] Task {task_id} status updated to '{status}' with model UUID '{model_uuid_str}'.")
+                all_train_logs: list[TrainLog] = await TrainLogService.get_train_logs_by_task_id(task_id)
+                # 生成一个uuid，保存到minio中
+                log_uuid = str(uuid4())
+                # 更新数据库中的uuid字段
+                # await TrainLogService.delete_train_logs_by_task_id(task_id)
+                print(f"[Status Consumer] Task {task_id} status updated to '{status}' with model UUID '{model_uuid_str}', log UUID '{log_uuid}'.")
             else:
                 # 如果状态不是 "completed"，可以根据需要进行其他处理
                 train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
@@ -138,6 +145,38 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
 
         # 发送日志到 WebSocket 客户端
         await send_log_to_websockets(task_id, log_content)
+
+        from app.core.deps import get_db
+        from app.service.train_log import TrainLogService
+        from app.service.user import UserService
+        from app.service.train_task import TrainTaskService
+        from app.schemas.train_log import TrainLogCreate
+        async for session in get_db():
+            train_log_service = TrainLogService(db_session=session)
+            user_service = UserService(db_session=session)
+            train_task_service = TrainTaskService(db_session=session)
+            # 获取用户信息，假设 task_id 对应的任务有 owner_id 字段
+            # 这里需要根据实际情况获取用户 ID
+            # 假设 task_id 是训练任务的 ID，可以通过 TrainTaskService 获取
+            # 创建训练日志对象
+            train_task = await train_task_service.get_train_task_by_id(task_id)
+            if not train_task:
+                print(f"[Train Log Consumer] Task with ID {task_id} not found. Cannot create log.")
+                return
+            task_user = await user_service.get_user_by_username(train_task.owner.username)
+            if not task_user:
+                print(f"[Train Log Consumer] User with ID {train_task.owner_id} not found. Cannot create log.")
+                return
+            train_log_to_create = TrainLogCreate(
+                train_task_id=task_id,
+                log_message=log_content,
+            )
+            # 保存训练日志到数据库
+            
+            await train_log_service.create_train_log_for_task(
+                user=task_user,
+                train_log_create=train_log_to_create
+            )
 
         # 确认消息已被处理
         await message.ack()
