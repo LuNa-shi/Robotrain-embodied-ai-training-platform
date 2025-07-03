@@ -7,7 +7,7 @@ import {
   QuestionCircleOutlined,
   SettingOutlined,
   UserOutlined,
-  UploadOutlined,
+  HomeOutlined,
   PlaySquareOutlined,
   DatabaseOutlined,
   LeftOutlined, // 引入新图标
@@ -54,7 +54,7 @@ const BasicLayout = () => {
 
   // 根据用户角色动态生成菜单项
   const menuItems = [
-    { key: '/home', icon: <UploadOutlined />, label: '上传数据' },
+    { key: '/home', icon: <HomeOutlined />, label: '首页' },
     { key: '/data-center', icon: <DatabaseOutlined />, label: '数据中心' },
     { key: '/training', icon: <RocketOutlined />, label: '发起训练' },
     { key: '/project-center', icon: <PlaySquareOutlined />, label: '项目中心' },
@@ -98,16 +98,58 @@ const BasicLayout = () => {
 
   return (
     <Layout className={styles.appLayout}>
-      {/* 背景图片，延伸到顶部导航栏区域 */}
+      {/* 背景图片层 */}
       <div className={styles.mainBg} />
-      <Layout>
-        <Header className={styles.header}>
-          <div className={styles.logoBar}>
+      {/* 侧边栏，固定在页面最左侧，logo区在顶部 */}
+      <Sider
+        theme="light"
+        width={220}
+        collapsedWidth={80}
+        className={styles.sider}
+        collapsible
+        collapsed={collapsed}
+        trigger={null}
+        style={{ position: 'fixed', left: 0, top: 0, height: '100vh', zIndex: 100 }}
+      >
+        <div className={styles.logoBar}>
+          <div
+            className={styles.logoClickable}
+            onClick={() => navigate('/home')}
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          >
             <img src="/logo.svg" alt="logo" className={styles.logoImage} />
-            <Title level={3} style={{ margin: 0, whiteSpace: 'nowrap', lineHeight: '1', fontFamily: 'Consolas', fontSize: '24px', fontWeight: '600' }}>
-              RoboTrain
-            </Title>
+            {!collapsed && (
+              <Title level={3} style={{ margin: 0, whiteSpace: 'nowrap', lineHeight: '1', fontFamily: 'Consolas', fontSize: '24px', fontWeight: '600' }}>
+                RoboTrain
+              </Title>
+            )}
           </div>
+        </div>
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={handleMenuClick}
+          className={styles.siderMenu}
+          inlineCollapsed={collapsed}
+        />
+        <div className={styles.siderCollapseButton} onClick={() => setCollapsed(!collapsed)}>
+          {collapsed ? <RightOutlined /> : <LeftOutlined />}
+          {!collapsed && window.innerWidth > 992 && <span style={{ marginLeft: '8px' }}>收起侧边栏</span>}
+        </div>
+      </Sider>
+      {/* 右侧主区域，Header固定在页面右上角，Content加padding-top，整体margin-left等于侧边栏宽度 */}
+      <Layout style={{ marginLeft: collapsed ? 80 : 220, minHeight: '100vh' }}>
+        <Header
+          className={styles.header}
+          style={{
+            position: 'fixed',
+            right: 0,
+            top: 0,
+            zIndex: 10,
+            width: `calc(100vw - ${collapsed ? 80 : 220}px)`
+          }}
+        >
           <div className={styles.headerMenu}>
             <Button type="text" icon={<QuestionCircleOutlined />} onClick={handleHelpClick}>
               文档帮助
@@ -128,34 +170,12 @@ const BasicLayout = () => {
             </Tooltip>
           </div>
         </Header>
-        <Layout>
-          <Sider 
-            theme="light" 
-            width={220} 
-            collapsedWidth={80}
-            className={styles.sider}
-            collapsible // 允许收缩
-            collapsed={collapsed} // 3. 将Sider的收缩状态与我们的state同步
-            trigger={null} // 隐藏Antd自带的trigger，因为我们要自定义
-          >
-            <Menu
-              mode="inline"
-              selectedKeys={[location.pathname]}
-              items={menuItems}
-              onClick={handleMenuClick}
-              className={styles.siderMenu}
-              inlineCollapsed={collapsed} // 3. 将Menu的收缩状态与我们的state同步
-            />
-            {/* 4. 添加自定义的收缩/展开按钮 */}
-            <div className={styles.siderCollapseButton} onClick={() => setCollapsed(!collapsed)}>
-              {collapsed ? <RightOutlined /> : <LeftOutlined />}
-              {!collapsed && window.innerWidth > 992 && <span style={{ marginLeft: '8px' }}>收起侧边栏</span>}
-            </div>
-          </Sider>
-          <Content className={styles.pageContent}>
-            <Outlet />
-          </Content>
-        </Layout>
+        <Content
+          className={styles.pageContent}
+          style={{ paddingTop: 64 }}
+        >
+          <Outlet />
+        </Content>
       </Layout>
     </Layout>
   );

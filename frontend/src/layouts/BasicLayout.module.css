@@ -18,14 +18,13 @@ body {
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   background: transparent !important;
-  padding: 0 24px !important;
-  border-bottom: none !important;
+  padding: 0 32px 0 0;
+  z-index: 10;
+  height: 64px !important;
   box-shadow: none !important;
-  height: 64px;
   position: relative;
-  z-index: 1;
   overflow: hidden;
 }
 
@@ -40,23 +39,36 @@ body {
 }
 
 .logoImage {
-  height: 40px;
   width: 40px;
-  flex-shrink: 0;
+  height: 40px;
   display: block;
+  margin: 0 8px 0 0;
+  transition: all 0.3s;
+  flex-shrink: 0;
   object-fit: contain;
   background: transparent;
 }
 
-.logo :global(.ant-typography) {
+.logoBar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0 20px 0;
+  box-sizing: border-box;
+  transition: all 0.3s;
+  min-height: 64px;
+}
+
+.logoBar :global(.ant-typography) {
   margin: 0 !important;
   white-space: nowrap !important;
   overflow: visible !important;
   text-overflow: unset !important;
   flex-shrink: 0;
   line-height: 1 !important;
-  font-size: 2rem !important;
-  font-weight: 700 !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
   display: flex;
   align-items: center;
   height: 40px;
@@ -70,12 +82,17 @@ body {
 }
 
 .sider {
+  position: fixed !important;
+  left: 0;
+  top: 0;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  z-index: 100;
+  box-shadow: 1px 0 8px 0 rgba(0,0,0,0.03);
   background: #fff !important;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid #f0f0f0;
-  height: calc(100vh - 64px);
-  transition: all 0.2s;
-  position: relative;
-  min-width: 80px !important; /* 确保最小宽度 */
 }
 
 .siderMenu {
@@ -108,10 +125,10 @@ body {
 
 .pageContent {
   position: relative;
-  height: calc(100vh - 64px);
-  overflow-y: auto;
+  min-height: calc(100vh - 64px);
   background: transparent !important;
   z-index: 1;
+  padding-top: 64px !important;
 }
 
 /* 侧边栏菜单样式 */
@@ -354,32 +371,16 @@ body {
     min-height: 40px;
   }
 }
-.logoBar {
-  height: 64px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: flex-start;
-  padding-left: 0;
-  position: relative;
+
+/* 右侧主区域左边留出侧边栏宽度 */
+.appLayout > .ant-layout {
+  margin-left: 220px;
+  transition: margin-left 0.3s;
 }
 
-/* 居中于侧边栏宽度 */
-@media (min-width: 993px) {
-  .logoBar {
-    left: 0;
-    width: 220px;
-    justify-content: center;
-    margin-left: 0;
-    margin-right: auto;
-  }
-}
-
-@media (max-width: 992px) {
-  .logoBar {
-    width: 80px;
-    justify-content: center;
-  }
+/* 折叠时主区域左边距变小 */
+.appLayout > .ant-layout[style*="margin-left: 80px"] {
+  margin-left: 80px !important;
 }
 
 .mainBg {
@@ -394,4 +395,16 @@ body {
 .pageContent > *:not(.mainBg) {
   position: relative;
   z-index: 1;
+}
+
+/* 折叠时只显示logo，隐藏项目名称，并让logo居中 */
+.sider :global(.ant-layout-sider-collapsed) .logoBar {
+  justify-content: center !important;
+}
+.sider :global(.ant-layout-sider-collapsed) .logoBar .logoImage {
+  margin: 0 auto !important;
+  display: block;
+}
+.sider :global(.ant-layout-sider-collapsed) .logoBar :global(.ant-typography) {
+  display: none !important;
 }
