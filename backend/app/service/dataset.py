@@ -104,7 +104,7 @@ class DatasetService:
                 # 删除 MinIO 中的数据集文件
                 await delete_dataset_from_minio(
                     client=minio_client,
-                    uuid_str=str(uuid_to_delete.dataset_uuid)
+                    dataset_uuid_str=str(uuid_to_delete.dataset_uuid)
                 )
             except Exception as e:
                 # 处理删除错误

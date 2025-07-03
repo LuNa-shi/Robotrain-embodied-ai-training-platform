@@ -82,10 +82,10 @@ async def get_train_task(
     if not train_task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="训练任务不存在")
     # 验证当前用户是否有权限访问该任务
-    if train_task.user_id != current_user.id:
+    if train_task.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问该训练任务")
     
-    return await train_task_service.get_train_task_by_id(task_id, current_user.id)
+    return await train_task_service.get_train_task_by_id(task_id)
 
 @router.get("/{task_id}/download_model", summary="下载训练出的模型")
 async def download_model(
