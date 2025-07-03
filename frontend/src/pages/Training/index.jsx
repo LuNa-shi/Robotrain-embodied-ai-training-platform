@@ -186,12 +186,12 @@ const TrainingPage = () => {
       
       // 构建超参数对象
       const hyperparameter = {
-        epochs: values.epochs,
-        batch_size: values.batchSize,
-        learning_rate: values.learningRate,
-        validation_split: values.validationSplit,
-        max_length: values.maxLength,
-        temperature: values.temperature,
+          epochs: values.epochs,
+          batch_size: values.batchSize,
+          learning_rate: values.learningRate,
+          validation_split: values.validationSplit,
+          max_length: values.maxLength,
+          temperature: values.temperature,
       };
       
 
@@ -335,21 +335,21 @@ const TrainingPage = () => {
               </Text>
             </div>
           ) : (
-            <div className={styles.cardGrid}>
-              {availableModels.map(model => (
-                <Card 
-                  key={model.value} 
-                  className={styles.card}
-                  hoverable
-                  onClick={() => handleModelSelect(model.value)}
-                >
-                  <div className={styles.cardContent}>
-                    <Title level={5} className={styles.cardTitle}>{model.label}</Title>
-                    <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
-                  </div>
-                </Card>
-              ))}
-            </div>
+          <div className={styles.cardGrid}>
+            {availableModels.map(model => (
+              <Card 
+                key={model.value} 
+                className={styles.card}
+                hoverable
+                onClick={() => handleModelSelect(model.value)}
+              >
+                <div className={styles.cardContent}>
+                  <Title level={5} className={styles.cardTitle}>{model.label}</Title>
+                  <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
+                </div>
+              </Card>
+            ))}
+          </div>
           )}
         </div>
       )
@@ -496,7 +496,7 @@ const TrainingPage = () => {
               name="model"
               hidden
               rules={[{ required: true, message: '请选择模型' }]}
-            >
+                  >
               <Input />
             </Form.Item>
 
