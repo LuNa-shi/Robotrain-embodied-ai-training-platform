@@ -1,4 +1,14 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+    networks:
+      - app_network
+      
   backend:
     build:
       context: ./backend

@@ -1,0 +1,397 @@
+body {
+  background: url('../assets/images/bg.png') no-repeat center center fixed !important;
+  background-size: cover !important;
+}
+
+.transparentCard {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1.5px dashed #d9d9d9 !important;
+}
+
+.appLayout {
+  height: 100vh;
+  background-color: #f0f2f5;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent !important;
+  padding: 0 24px !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  height: 64px;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: auto;
+  overflow: visible;
+}
+
+.logoImage {
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  background: transparent;
+}
+
+.logo :global(.ant-typography) {
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  flex-shrink: 0;
+  line-height: 1 !important;
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  display: flex;
+  align-items: center;
+  height: 40px;
+}
+
+.headerMenu {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.sider {
+  background: #fff !important;
+  border-right: 1px solid #f0f0f0;
+  height: calc(100vh - 64px);
+  transition: all 0.2s;
+  position: relative;
+  min-width: 80px !important; /* 确保最小宽度 */
+}
+
+.siderMenu {
+  border-inline-end: none !important;
+  font-size: 16px;
+  padding-top: 8px;
+}
+
+.siderCollapseButton {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 12px 8px;
+  border-top: 1px solid #f0f0f0;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.65);
+  transition: color 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  font-size: 14px;
+  min-height: 48px;
+}
+
+.siderCollapseButton:hover {
+  color: #1677ff;
+}
+
+.pageContent {
+  position: relative;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: transparent !important;
+  z-index: 1;
+}
+
+/* 侧边栏菜单样式 */
+.siderMenu :global(.ant-menu:not(.ant-menu-inline-collapsed) .ant-menu-item) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 8px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.siderMenu :global(.ant-menu:not(.ant-menu-inline-collapsed) .ant-menu-title-content) {
+  flex: unset !important;
+  display: inline-block !important;
+  text-align: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.siderMenu :global(.ant-menu:not(.ant-menu-inline-collapsed) .ant-menu-item-icon) {
+  margin: 0 !important;
+  font-size: 20px !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+.siderMenu :global(.ant-menu-inline-collapsed > .ant-menu-item) {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding-inline: 0 !important;
+  margin: 4px 8px !important;
+  border-radius: 6px !important;
+}
+
+.siderMenu :global(.ant-menu-inline-collapsed > .ant-menu-item .ant-menu-item-icon) {
+  margin: 0 !important;
+  font-size: 18px !important;
+  display: block !important;
+}
+
+/* 折叠状态下的分隔线样式 */
+.siderMenu :global(.ant-menu-inline-collapsed .ant-menu-item-divider) {
+  margin: 8px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 分隔线样式 */
+.siderMenu :global(.ant-menu-item-divider) {
+  margin: 8px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Left Visual Panel */
+.leftPanel {
+  width: 35%; 
+  
+  background: linear-gradient(135deg, #1a2a45, #1f3864);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  transition: width 0.3s ease-in-out;
+}
+
+.logoContainer {
+  text-align: center;
+  z-index: 2;
+  padding: 20px;
+}
+
+.logo {
+  width: 120px;
+  height: 120px;
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Right Form Panel */
+.rightPanel {
+  width: 65%;
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  transition: width 0.3s ease-in-out;
+}
+
+.formContainer {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* 解决问题3：新增formHeader样式，使其居中 */
+.formHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.formHeader h3 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* Login Form Specifics */
+.loginForm {
+  margin-top: 0;
+}
+
+.formExtras {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.loginFormForgot {
+  color: #1677ff;
+}
+
+.loginFormButton {
+  width: 100%;
+}
+
+/* Animations and Background Effects (保持不变) */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.dots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.dot {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  animation: move 20s linear infinite;
+}
+
+.dot:nth-child(1) { width: 10px; height: 10px; left: 15%; animation-duration: 18s; }
+.dot:nth-child(2) { width: 15px; height: 15px; left: 30%; animation-duration: 22s; animation-delay: -5s; }
+.dot:nth-child(3) { width: 8px; height: 8px; left: 50%; animation-duration: 25s; }
+.dot:nth-child(4) { width: 12px; height: 12px; left: 75%; animation-duration: 15s; animation-delay: -10s; }
+.dot:nth-child(5) { width: 18px; height: 18px; left: 85%; animation-duration: 28s; }
+.dot:nth-child(6) { width: 7px; height: 7px; left: 5%; animation-duration: 16s; animation-delay: -3s; }
+.dot:nth-child(7) { width: 14px; height: 14px; left: 40%; animation-duration: 24s; }
+.dot:nth-child(8) { width: 11px; height: 11px; left: 60%; animation-duration: 19s; animation-delay: -8s; }
+.dot:nth-child(9) { width: 9px; height: 9px; left: 20%; animation-duration: 26s; }
+.dot:nth-child(10) { width: 16px; height: 16px; left: 90%; animation-duration: 21s; animation-delay: -12s; }
+
+
+@keyframes move {
+  from {
+    top: -5%;
+    transform: rotate(0deg);
+  }
+  to {
+    top: 105%;
+    transform: rotate(360deg);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 992px) {
+  .sider {
+    /* 移除 display: none，让侧边栏保持可见但自动折叠 */
+    width: 80px !important; /* 设置折叠后的宽度 */
+  }
+  
+  /* 在小屏幕上默认折叠侧边栏 */
+  .sider :global(.ant-layout-sider-children) {
+    width: 80px !important;
+  }
+  
+  .header {
+    padding: 0 16px !important;
+  }
+  
+  .logo {
+    gap: 8px;
+  }
+  
+  .logoImage {
+    height: 28px;
+    width: 28px;
+  }
+  .logo :global(.ant-typography) {
+    height: 28px;
+    font-size: 1.3rem !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .header {
+    padding: 0 12px !important;
+  }
+  
+  .headerMenu {
+    gap: 12px;
+  }
+  
+  .logo {
+    gap: 6px;
+  }
+  
+  .logoImage {
+    height: 24px;
+    width: 24px;
+  }
+  .logo :global(.ant-typography) {
+    height: 24px;
+    font-size: 1rem !important;
+  }
+  
+  /* 在超小屏幕上进一步优化侧边栏 */
+  .sider {
+    width: 60px !important;
+  }
+  
+  .siderCollapseButton {
+    padding: 8px 4px;
+    font-size: 12px;
+    min-height: 40px;
+  }
+}
+.logoBar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-start;
+  padding-left: 0;
+  position: relative;
+}
+
+/* 居中于侧边栏宽度 */
+@media (min-width: 993px) {
+  .logoBar {
+    left: 0;
+    width: 220px;
+    justify-content: center;
+    margin-left: 0;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 992px) {
+  .logoBar {
+    width: 80px;
+    justify-content: center;
+  }
+}
+
+.mainBg {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+  background: url('../assets/images/bg.png') no-repeat center center fixed;
+  background-size: cover;
+  pointer-events: none;
+}
+
+.pageContent > *:not(.mainBg) {
+  position: relative;
+  z-index: 1;
+}

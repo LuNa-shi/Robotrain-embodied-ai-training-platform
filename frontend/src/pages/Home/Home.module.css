@@ -1,0 +1,242 @@
+/* .homePageLayout 的改动实现了完美居中 */
+body, #root, .homePageLayout {
+  background: linear-gradient(135deg, #eaf3ff 0%, #b3d0f7 40%, #7fa7e6 100%) !important;
+}
+
+.homePageLayout {
+  height: 100%;
+  overflow: auto;
+  /* 只保留背景透明，去除原有背景色 */
+  background: transparent !important;
+  padding: 24px;
+  display: flex;
+  justify-content: center; /* 实现水平居中 */
+  align-items: center;     /* 实现垂直居中 */
+  padding: 15vh 24px 24px;  /* 增大顶部内边距，让所有内容下移 */
+}
+
+.centerStage {
+  max-width: 1200px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* 移除了 margin-top，让 flex 布局来处理垂直居中 */
+}
+
+.mainTitle {
+  font-family: 'Consolas', Arial, sans-serif;
+  font-size: 52px !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  letter-spacing: -1px;
+}
+
+.subTitle {
+  font-size: 18px !important;
+  margin-bottom: 48px !important;
+  color: #666 !important;
+}
+
+/* 三栏布局样式 */
+.threeColumnLayout {
+  margin-top: 24px;
+}
+
+/* 卡片通用样式 */
+.card {
+  height: 100%;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.3s ease !important;
+  border: 1px solid #e8e8e8 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(10px) !important;
+  cursor: pointer !important;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* 卡片内容样式 */
+.cardContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 24px;
+  height: 100%;
+  min-height: 280px;
+}
+
+/* 卡片标题样式 */
+.cardTitle {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #262626 !important;
+  margin-bottom: 16px !important;
+  text-align: center !important;
+}
+
+/* 卡片描述样式 */
+.cardDescription {
+  color: #666 !important;
+  font-size: 16px !important;
+  line-height: 1.6 !important;
+  margin-bottom: 32px !important;
+  text-align: center !important;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* 卡片按钮样式 */
+.cardButton {
+  min-width: 180px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2) !important;
+  transition: all 0.3s ease !important;
+}
+
+.cardButton:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(24, 144, 255, 0.3) !important;
+}
+
+/* 修复上传区域虚线溢出问题 */
+.ant-form-item {
+  padding: 0 !important;
+  background: none !important;
+}
+
+.modalDragger {
+  /* 移除 border 相关样式 */
+  /* border: 2px dashed #1890ff !important; */
+  /* border-radius: 8px !important; */
+  background: #fafafa !important;
+  margin: 0 auto !important;
+  padding: 32px 0 24px 0 !important;
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  display: block;
+  border-radius: 8px !important;
+}
+
+/* 覆盖 antd 默认虚线边框色和圆角 */
+.modalDragger .ant-upload.ant-upload-drag {
+  border-color: #1890ff !important;
+  border-radius: 8px !important;
+}
+
+.modalDraggerContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.modalDraggerText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modalDraggerText .ant-upload-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #262626;
+  margin: 0;
+}
+
+.modalDraggerText .ant-upload-hint {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.selectedFile {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 992px) {
+  .centerStage {
+    max-width: 100%;
+  }
+  
+  .threeColumnLayout {
+    margin-top: 16px;
+  }
+  
+  .card {
+    margin-bottom: 16px;
+  }
+  
+  .cardContent {
+    min-height: 240px;
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .homePageLayout {
+    padding: 10vh 16px 24px;
+  }
+  
+  .mainTitle {
+    font-size: 36px !important;
+  }
+  
+  .subTitle {
+    font-size: 16px !important;
+    margin-bottom: 32px !important;
+  }
+  
+  .cardTitle {
+    font-size: 20px !important;
+  }
+  
+  .cardDescription {
+    font-size: 14px !important;
+  }
+  
+  .cardContent {
+    min-height: 200px;
+    padding: 20px 16px;
+  }
+  
+  .cardButton {
+    min-width: 160px;
+    height: 44px;
+    font-size: 14px;
+  }
+  
+  .modalDragger {
+    padding: 20px 0 16px 0 !important;
+    max-width: 100%;
+  }
+  
+  .modalDraggerText .ant-upload-text {
+    font-size: 14px;
+  }
+  
+  .modalDraggerText .ant-upload-hint {
+    font-size: 12px;
+  }
+}

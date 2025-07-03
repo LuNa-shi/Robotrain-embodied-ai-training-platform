@@ -1,0 +1,163 @@
+/* 整体页面容器 */
+.helpContainer {
+  padding: 24px;
+  background-color: #f0f2f5;
+  min-height: 100%;
+}
+
+.backButton {
+  margin-bottom: 24px;
+}
+
+/* 页面头部 */
+.pageHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.pageHeader :global(.ant-typography) {
+  margin-bottom: 8px !important;
+}
+
+/* 搜索框 */
+.searchInput {
+  max-width: 700px;
+  margin: 0 auto 24px auto;
+  display: block;
+}
+
+/* 主要内容区域 */
+.mainContent {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mainContent :global(.ant-row) {
+  align-items: stretch;
+}
+
+/* 通用卡片样式 */
+.contentCard {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+  height: 100%;
+}
+
+.contentCard :global(.ant-card-body) {
+  padding: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  min-height: 40px;
+  position: relative;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.cardHeader .ant-tag {
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+/* 常见问题 (FAQ) */
+.faqCollapse {
+  border: none;
+  background: transparent;
+}
+
+.faqCollapse :global(.ant-collapse-item) {
+  margin-bottom: 12px;
+  border: none;
+  background-color: #fafafa;
+  border-radius: 6px;
+}
+
+.faqCollapse :global(.ant-collapse-content) {
+  background-color: #fff;
+}
+
+.faqCollapse :global(.ant-collapse-content-box) {
+  padding: 16px 20px !important;
+}
+
+.faqCollapse :global(.ant-collapse-header) {
+  padding: 16px 20px !important;
+}
+
+.noResults {
+  text-align: center;
+  color: #8c8c8c;
+  padding: 24px;
+}
+
+/* 使用指南 & 联系我们 */
+.guideItem,
+.contactItem {
+  padding: 16px 0 16px 24px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.guideItem:last-child,
+.contactItem:last-child {
+  border-bottom: none !important;
+}
+
+.guideIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* 底部统计信息 */
+.statsCard {
+  max-width: 1200px;
+  margin: 24px auto 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+}
+
+:global(.ant-statistic-title) {
+  font-size: 14px !important;
+}
+
+.statTitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+  letter-spacing: 1px;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.helpPage {
+  background: transparent !important;
+}
+ 
