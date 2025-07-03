@@ -261,9 +261,6 @@ const DatasetDetailPage = () => {
               <Button icon={<DownloadOutlined />} onClick={handleDownload} type="default">
                 下载
               </Button>
-              <Button icon={<EditOutlined />} onClick={handleEdit} type="primary">
-                编辑
-              </Button>
               <Button icon={<DeleteOutlined />} onClick={handleDelete} danger type="default" loading={deleting}>
                 删除
               </Button>
