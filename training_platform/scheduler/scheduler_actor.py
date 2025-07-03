@@ -6,7 +6,7 @@ from typing import Deque, Optional
 from training_platform.configs.settings import settings
 from training_platform.common.task_models import TrainingTask
 from training_platform.common.rabbitmq_utils import init_rabbitmq, send_status_message
-from training_platform.trainer.trainer_actor import TrainerActor
+from training_platform.trainer.lerobot_train_actor import TrainerActor
 
 @ray.remote
 class Scheduler:

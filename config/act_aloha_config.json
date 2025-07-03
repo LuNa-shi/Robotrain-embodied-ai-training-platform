@@ -21,7 +21,6 @@
         "n_action_steps": 100,
         "vision_backbone": "resnet18",
         "pretrained_backbone_weights": "ResNet18_Weights.IMAGENET1K_V1",
-        "replace_final_stride_with_dilation": "false",
         "pre_norm": "false",
         "dim_model": 512,
         "n_heads": 8,

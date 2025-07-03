@@ -8,6 +8,7 @@ from typing import Callable, Dict, Any, Tuple
 import torch
 from torch.amp import GradScaler
 import draccus
+import os
 
 # 导入所有 lerobot 的依赖
 from lerobot.common.datasets.factory import make_dataset
@@ -44,37 +45,57 @@ def prepare_config(
     logging.info(f"Loading base config from: {base_config_path}")
     logging.info(f"Applying user override config: {user_override_config}")
     
-    # 将用户覆盖字典转换为 draccus 能理解的命令行参数列表
+    # 构建命令行参数列表
     overrides = []
+    
+    # 添加resume参数（如果从checkpoint恢复）
+    if start_step > 0:
+        overrides.append("--resume=true")
+    
+    # 添加config_path参数，直接指向真实存在的配置文件
+    overrides.append(f"--config_path={base_config_path}")
+    
+    # 添加其他用户覆盖的配置
     for key, value in user_override_config.items():
+        if key == "resume":  # 跳过resume，因为我们已经处理了
+            continue
         if isinstance(value, dict):
-            for inner_key, inner_value in value.items():
-                overrides.append(f"--{key}.{inner_key}={inner_value}")
+            # 对于嵌套字典，我们只添加顶层键，让配置文件处理细节
+            logging.warning(f"Skipping nested config {key}={value} - use config file instead")
         else:
             overrides.append(f"--{key}={value}")
- 
-    # 直接调用 draccus.parse 来加载和合并
-    # !
-    cfg: TrainPipelineConfig = draccus.parse(
-        config_class=TrainPipelineConfig,
-        config_path=base_config_path,
-        args=overrides
-    )
-    
-    # 强制覆盖平台管理的参数
-    cfg.resume = start_step > 0
-    cfg.steps = user_override_config.get('steps', cfg.steps) # 任务总步数应来自用户配置
     
     # 如果数据集已经下载到本地，则覆盖 repo_id
     local_dataset_unpacked_path = Path(run_dir) / "dataset"
     if local_dataset_unpacked_path.exists():
-        # 我们不再直接用这个路径，而是把它当作 repo_id 传给 lerobot
-        # lerobot 的 make_dataset 会处理这个本地路径
-        cfg.dataset.repo_id = str(local_dataset_unpacked_path)
+        overrides.append(f"--dataset.repo_id={local_dataset_unpacked_path}")
     
-    # 手动触发 lerobot 的核心配置后处理逻辑
+    logging.info(f"Command line overrides: {overrides}")
     
-    cfg.validate()
+    # 使用draccus解析配置，直接传入命令行参数
+    cfg: TrainPipelineConfig = draccus.parse(
+        config_class=TrainPipelineConfig,
+        args=overrides,
+    )
+    
+    # 手动设置config_path属性，确保validate()方法能正确访问
+    if start_step > 0:
+        # 当resume=True时，手动设置config_path
+        # 我们需要修改validate()方法的逻辑，让它能正确获取config_path
+        import sys
+        # 临时修改sys.argv，让parser.parse_arg能正确工作
+        original_argv = sys.argv.copy()
+        sys.argv = [sys.argv[0]] + overrides
+        
+        try:
+            # 现在validate()应该能正确获取config_path
+            cfg.validate()
+        finally:
+            # 恢复原始的sys.argv
+            sys.argv = original_argv
+    else:
+        # 非恢复训练，直接调用validate
+        cfg.validate()
 
     logging.info("Successfully created final training configuration.")
     logging.info(pformat(cfg.to_dict()))
@@ -105,8 +126,9 @@ def initialize_training_objects(
         checkpoint_path = Path(cfg.output_dir) / "checkpoints" / "last"
         if checkpoint_path.is_symlink() or checkpoint_path.exists():
             logging.info(f"Resuming training from checkpoint: {checkpoint_path.resolve()}")
+            # 修复：移除不存在的参数
             loaded_step, optimizer, lr_scheduler = load_training_state(
-                checkpoint_path, optimizer, lr_scheduler, policy=policy, device=device
+                checkpoint_path, optimizer, lr_scheduler
             )
             logging.info(f"Checkpoint loaded, was at step {loaded_step}. Starting from {start_step}.")
         else:
@@ -220,6 +242,10 @@ def run_lerobot_training(
     # 阶段一：准备配置
     cfg = prepare_config(base_config_path, user_override_config, run_dir, start_step, end_step)
 
+    print(f"base_config_path: {base_config_path}")
+    print(f"user_override_config: {user_override_config}")
+    print(f"cfg: {cfg}")
+    print(f"run_dir: {run_dir}")
     # 设置设备
     device = get_safe_torch_device(cfg.policy.device, log=True)
     torch.backends.cudnn.benchmark = True
