@@ -31,6 +31,14 @@ async def get_user_by_id(db_session: AsyncSession, user_id: int) -> Optional[App
     """
     return await db_session.get(AppUser, user_id)
 
+async def get_all_users(db_session: AsyncSession) -> list[AppUser]:
+    """
+    获取所有用户信息。
+    """
+    statement = select(AppUser)
+    result = await db_session.exec(statement)
+    return result.all()
+
 async def update_user(db_session: AsyncSession, user_id: int, user_update_db: UserUpdate) -> Optional[AppUser]:
     """
     更新指定ID的用户信息。

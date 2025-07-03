@@ -7,6 +7,7 @@ from app.models.dataset import Dataset
 from app.schemas.train_task import TrainTaskCreate, TrainTaskCreateDB, TrainTaskUpdate
 from app.crud import crud_train_task, crud_dataset, crud_model_type
 from app.core.rabbitmq_utils import send_task_message
+from app.core.minio_utils import download_model_from_minio, get_minio_client
 from uuid import UUID
 from app.models.model_type import ModelType
 from datetime import datetime, timezone
@@ -141,3 +142,36 @@ class TrainTaskService:
         # 刷新训练任务对象以获取最新数据
     
         return updated_train_task
+
+    async def download_model(self, train_task_id: int) -> Optional[str]:
+        """
+        下载训练任务的模型文件。
+        - 检查训练任务是否存在
+        - 调用 CRUD 层获取模型文件路径
+        """
+        # 1. 检查训练任务是否存在 (业务逻辑)
+        train_task = await crud_train_task.get_train_task_by_id(self.db_session, train_task_id)
+        if not train_task:
+            print(f"训练任务 ID {train_task_id} 不存在，无法下载模型")
+            return None
+        
+        # 2. 获取模型文件路径
+        model_uuid_str = str(train_task.model_uuid) if train_task.model_uuid else None
+        if not model_uuid_str:
+            print(f"训练任务 ID {train_task_id} 没有模型文件，无法下载")
+            return None
+        
+        model_file_path = f"/tmp/model_{model_uuid_str}.zip"  # 假设下载到临时目录
+        
+        success, message = await download_model_from_minio(
+            client=await get_minio_client(),
+            local_path=model_file_path,
+            model_uuid_str=model_uuid_str
+        )
+        
+        if not success:
+            print(f"下载模型文件失败: {message}")
+            return None
+        
+        
+        return model_file_path

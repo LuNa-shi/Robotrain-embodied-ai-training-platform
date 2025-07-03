@@ -8,6 +8,7 @@ from app.core.config import settings
 import json
 from uuid import uuid4
 from app.core.websocket_utils import send_log_to_websockets
+from app.core.deps import AsyncSessionLocal
 rabbit_connection: Optional[Connection] = None
 rabbit_channel: Optional[Channel] = None
 rabbit_exchange: Optional[Exchange] = None
@@ -66,13 +67,12 @@ async def on_status_message(message: aio_pika.IncomingMessage):
     from app.service.train_log import TrainLogService
     from app.models.train_log import TrainLog
     from app.core.deps import get_db
-    # db = await get_db()  # 获取数据库会话
     async for session in get_db():
-        TrainTaskService = TrainTaskService(db_session=session)  # 确保 TrainTaskService 已经正确导入和初始化
+        train_task_service = TrainTaskService(db_session=session)
+        train_log_service = TrainLogService(db_session=session)
         try:
             # 打印接收到的消息内容
             print(f"[Status Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})")
-
             # 在这里添加处理状态消息的逻辑
             # 例如，解析消息内容并更新训练任务状态
             # 假设消息内容是 JSON 格式的字符串
@@ -94,8 +94,8 @@ async def on_status_message(message: aio_pika.IncomingMessage):
                     model_uuid=model_uuid_str,
                     log_uuid=uuid4() #之后应该从数据库中提取出所有的日志 UUID
                 )
-                await TrainTaskService.update_train_task(task_id, train_task_to_update)
-                all_train_logs: list[TrainLog] = await TrainLogService.get_train_logs_by_task_id(task_id)
+                await train_task_service.update_train_task(task_id, train_task_to_update)
+                all_train_logs: list[TrainLog] = await train_log_service.get_train_logs_by_task_id(train_task_id=task_id)
                 # 生成一个uuid，保存到minio中
                 log_uuid = str(uuid4())
                 # 更新数据库中的uuid字段
@@ -106,13 +106,11 @@ async def on_status_message(message: aio_pika.IncomingMessage):
                 train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
                     status=status
                 )
-                await TrainTaskService.update_train_task(task_id, train_task_to_update)
+                await train_task_service.update_train_task(task_id, train_task_to_update)
                 print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
-
             # 确认消息已被处理
             await message.ack()
             print(f"[Status Consumer] Message '{message.body.decode()}' processed and acknowledged.")
-
         except Exception as e:
             print(f"[Status Consumer] Error processing message '{message.body.decode()}': {e}")
             # 如果处理失败，将消息 NACK 并不重新入队，通常会进入死信队列
@@ -123,47 +121,44 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
     训练日志消息处理回调函数。
     """
     from app.core.websocket_utils import send_log_to_websockets
-    try:
-        # 打印接收到的消息内容
-        print(f"[Train Log Consumer] Received message: {message.body.decode()}", flush=True)
+    from app.core.deps import get_db
+    from app.service.train_log import TrainLogService
+    from app.service.user import UserService
+    from app.service.train_task import TrainTaskService
+    from app.schemas.train_log import TrainLogCreate
+    async for session in get_db():
+        train_log_service = TrainLogService(db_session=session)
+        user_service = UserService(db_session=session)
+        train_task_service = TrainTaskService(db_session=session)  # 确保 Train
+        try:
+            # 打印接收到的消息内容
+            print(f"[Train Log Consumer] Received message: {message.body.decode()}", flush=True)
 
-        # 在这里添加处理训练日志消息的逻辑
-        # 例如，解析消息内容并发送到 WebSocket 客户端
-        log_message = message.body.decode()
+            # 在这里添加处理训练日志消息的逻辑
+            # 例如，解析消息内容并发送到 WebSocket 客户端
+            log_message = message.body.decode()
+
+            # 假设消息内容是 JSON 格式的字符串
+            log_data = json.loads(log_message)
+            if not isinstance(log_data, dict):
+                print(f"[Train Log Consumer] Received invalid message format: {log_message}", flush=True)
+                return
+            task_id = log_data.get("task_id")
+            log_content = log_data.get("log_message")
+            # 记得还有 epoch, loss, accuracy 等字段，之后要加上
+            epoch = log_data.get("epoch", 0)
+            loss = log_data.get("loss", 0.0)
+            accuracy = log_data.get("accuracy", 0.0)
+
+            # 发送日志到 WebSocket 客户端
+            await send_log_to_websockets(task_id, log_content)
+
         
-        # 假设消息内容是 JSON 格式的字符串
-        log_data = json.loads(log_message)
-        if not isinstance(log_data, dict):
-            print(f"[Train Log Consumer] Received invalid message format: {log_message}", flush=True)
-            return
-        task_id = log_data.get("task_id")
-        log_content = log_data.get("log_message")
-        # 记得还有 epoch, loss, accuracy 等字段，之后要加上
-        epoch = log_data.get("epoch", 0)
-        loss = log_data.get("loss", 0.0)
-        accuracy = log_data.get("accuracy", 0.0)
-
-        # 发送日志到 WebSocket 客户端
-        await send_log_to_websockets(task_id, log_content)
-
-        from app.core.deps import get_db
-        from app.service.train_log import TrainLogService
-        from app.service.user import UserService
-        from app.service.train_task import TrainTaskService
-        from app.schemas.train_log import TrainLogCreate
-        async for session in get_db():
-            train_log_service = TrainLogService(db_session=session)
-            user_service = UserService(db_session=session)
-            train_task_service = TrainTaskService(db_session=session)
-            # 获取用户信息，假设 task_id 对应的任务有 owner_id 字段
-            # 这里需要根据实际情况获取用户 ID
-            # 假设 task_id 是训练任务的 ID，可以通过 TrainTaskService 获取
-            # 创建训练日志对象
             train_task = await train_task_service.get_train_task_by_id(task_id)
             if not train_task:
                 print(f"[Train Log Consumer] Task with ID {task_id} not found. Cannot create log.")
                 return
-            task_user = await user_service.get_user_by_username(train_task.owner.username)
+            task_user = await user_service.get_user_by_id(train_task.owner_id)
             if not task_user:
                 print(f"[Train Log Consumer] User with ID {train_task.owner_id} not found. Cannot create log.")
                 return
@@ -171,20 +166,19 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
                 train_task_id=task_id,
                 log_message=log_content,
             )
-            # 保存训练日志到数据库
-            
+
             await train_log_service.create_train_log_for_task(
                 user=task_user,
                 train_log_create=train_log_to_create
             )
 
-        # 确认消息已被处理
-        await message.ack()
-        print(f"[Train Log Consumer] Message '{message.body.decode()}' processed and acknowledged.", flush=True)
-    except Exception as e:
-        print(f"[Train Log Consumer] Error processing message '{message.body.decode()}': {e}", flush=True)
-        # 如果处理失败，将消息 NACK 并不重新入队，通常会进入死信队列
-        await message.nack(requeue=False)
+            # 确认消息已被处理
+            await message.ack()
+            print(f"[Train Log Consumer] Message '{message.body.decode()}' processed and acknowledged.", flush=True)
+        except Exception as e:
+            print(f"[Train Log Consumer] Error processing message '{message.body.decode()}': {e}", flush=True)
+            # 如果处理失败，将消息 NACK 并不重新入队，通常会进入死信队列
+            await message.nack(requeue=False)
 
 async def start_train_log_queue_consumer():
     """

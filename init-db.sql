@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS train_task(
     logs_uuid UUID, -- 训练日志的UUID，可为空
     model_uuid UUID, -- 训练生成的模型的UUID，可为空
 
-    CONSTRAINT chk_status CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+    CONSTRAINT chk_status CHECK (status IN ('pending', 'running', 'completed', 'failed'))
 
     -- CONSTRAINT chk_completed_fields CHECK (
         -- CASE

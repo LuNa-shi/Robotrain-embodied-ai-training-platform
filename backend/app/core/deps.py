@@ -2,18 +2,20 @@ from typing import AsyncGenerator
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, async_sessionmaker
 
 from app.core.config import settings # 从 config.py 导入设置对象
 
 # 如果想使用 AsyncEngine for async operations with FastAPI, you'd use create_async_engine
 # For simplicity, stick to sync engine for now if you haven't set up async DB operations
+
 async_engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.SQL_ECHO,
     pool_recycle=3600 # 可选：用于解决 PostgreSQL 长期连接中断问题
 )
 
+AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession)
 
 async def create_db_and_tables():
     """

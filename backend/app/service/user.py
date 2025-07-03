@@ -49,6 +49,20 @@ class UserService:
         直接调用 CRUD 层。
         """
         return await crud_user.get_user_by_username(self.db_session, username=username)
+    
+    async def get_user_by_id(self, user_id: int) -> Optional[AppUser]:
+        """
+        根据用户 ID 获取用户信息。
+        直接调用 CRUD 层。
+        """
+        return await crud_user.get_user_by_id(self.db_session, user_id=user_id)
+    
+    async def get_all_users(self) -> list[AppUser]:
+        """
+        获取所有用户信息。
+        直接调用 CRUD 层。
+        """
+        return await crud_user.get_all_users(self.db_session)
 
     async def datasets_owned_by_user(self, user_id: int):
         """
@@ -56,3 +70,15 @@ class UserService:
         直接调用 CRUD 层。
         """
         return await crud_user.get_datasets_owned_by_user(self.db_session, user_id=user_id)
+
+    async def delete_user_by_username(self, username: str) -> Optional[AppUser]:
+        """
+        根据用户名删除用户。
+        直接调用 CRUD 层。
+        """
+        user = await self.get_user_by_username(username)
+        if user:
+            await crud_user.delete_user(self.db_session, user.id)
+            await self.db_session.commit()
+            return user
+        return None    

@@ -6,6 +6,7 @@ from app.core.rabbitmq_utils import init_rabbitmq, start_status_queue_consumer, 
 from app.api.api import api_router
 from miniopy_async import Minio
 from typing import Optional
+import asyncio
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

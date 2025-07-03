@@ -99,6 +99,53 @@ async def delete_dataset_from_minio(
         object_dir=settings.MINIO_DATASET_DIR  # 使用配置文件中的数据集目录前缀
     )
   
+async def download_model_from_minio(
+    client: Minio,
+    local_path: str,
+    model_uuid_str: str
+) -> Tuple[bool, str]:
+    """
+    从 MinIO 中下载指定的模型文件。
+
+    Args:
+        client (Minio): 已连接的异步 Minio 客户端实例。
+        local_path (str): 本地保存模型文件的路径。
+        model_uuid_str (str): 模型的 UUID 字符串，用于构建对象名称。
+
+    Returns:
+        Tuple[bool, str]: 下载成功则返回 (True, 本地文件路径)，失败则返回 (False, 错误信息)。
+    """
+    try:
+        # 确保客户端已连接
+        if not isinstance(client, Minio):
+            return False, "传入的 MinIO 客户端无效或未初始化。"
+
+        # 构造对象名称
+        object_name = f"{model_uuid_str}.zip"  # 假设模型文件名为 UUID.zip
+        # 使用download_file_from_minio函数下载文件
+        success, message = await download_file_from_minio(
+            client=client,
+            local_path=local_path,
+            bucket_name=settings.MINIO_BUCKET,  # 使用配置文件中的桶名
+            object_name=object_name,
+            object_dir=settings.MINIO_MODEL_DIR  # 使用配置文件中的模型目录前缀
+        )
+        if success:
+            print(f"✅ 模型 '{model_uuid_str}' 已成功下载到本地: {local_path}")
+            return True, local_path
+        else:
+            print(f"❌ 下载模型 '{model_uuid_str}' 失败: {message}")
+            return False, message
+    except S3Error as e:
+        error_msg = f"MinIO 下载失败: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"下载模型时发生意外错误: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    
+    
 async def upload_file_to_minio(
     client: Minio,
     upload_file: UploadFile,
@@ -176,6 +223,51 @@ async def upload_file_to_minio(
         error_msg = f"文件上传时发生意外错误: {e}"
         print(f"❌ {error_msg},{bucket_name}")
         return False, error_msg
+    
+async def download_file_from_minio(
+    client: Minio,
+    local_path: str,
+    bucket_name: str,
+    object_name: str,
+    object_dir: str = ""  # 对象在桶内的前缀路径
+) -> Tuple[bool, str]:
+    """
+    从 MinIO 中下载指定的文件。
+
+    Args:
+        client (Minio): 已连接的异步 Minio 客户端实例。
+        local_path (str): 本地保存文件的路径。
+        bucket_name (str): 目标 MinIO 桶的名称。
+        object_name (str): 要下载的对象名称（包括前缀）。
+        object_dir (str): 对象在桶内的路径前缀。例如，如果设为 "docs/"，则 object_name 应为 "docs/your_file.txt"。
+
+    Returns:
+        Tuple[bool, str]: 下载成功则返回 (True, 本地文件路径)，失败则返回 (False, 错误信息)。
+    """
+    if not isinstance(client, Minio):
+        return False, "传入的 MinIO 客户端无效或未初始化。"
+
+    # 确保 object_name 包含前缀
+    full_object_name = f"{object_dir}/{object_name}" if object_dir else object_name
+
+    try:
+        response = await client.get_object(bucket_name, full_object_name)
+        
+        with open(local_path, 'wb') as file:
+            data = await response.read()
+            file.write(data)
+
+        print(f"✅ 文件 '{full_object_name}' 已成功下载到本地: {local_path}")
+        return True, local_path
+    except S3Error as e:
+        error_msg = f"MinIO 下载失败: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"下载文件时发生意外错误: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+
     
 async def delete_file_from_minio(
     client: Minio,

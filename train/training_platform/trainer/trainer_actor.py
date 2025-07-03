@@ -56,11 +56,6 @@ class TrainerActor:
             with open(local_model_path, "w") as f:
                 f.write("fake model data")
             
-            await upload_model_to_minio(
-                client=minio_client,
-                model_file_local_path=local_model_path,
-                filename=f"{self.task.model_uuid}.zip"
-            )
-            print(f"[{task_id}] Mock model {self.task.model_uuid} uploaded.")
+            
 
         return end_epoch

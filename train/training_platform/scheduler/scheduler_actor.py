@@ -1,5 +1,6 @@
 import ray
 import asyncio
+import os
 from collections import deque
 from typing import Deque, Optional
 
@@ -8,6 +9,7 @@ from training_platform.common.task_models import TrainingTask
 from training_platform.common.rabbitmq_utils import init_rabbitmq, send_status_message
 from training_platform.trainer.trainer_actor import TrainerActor
 from uuid import uuid4
+from training_platform.common.minio_utils import get_minio_client, upload_model_to_minio, download_dataset_from_minio
 
 @ray.remote
 class Scheduler:
@@ -45,15 +47,23 @@ class Scheduler:
                 start_epoch = self.running_task.current_step
                 end_epoch = min(start_epoch + self.steps_per_timeslice, total_epochs)
                 
-                # await send_status_message(task_id=self.running_task.task_id, status="running", model_uuid=None)
+                await send_status_message(task_id=self.running_task.task_id, status="running", model_uuid=None)
                 
                 try:
                     final_epoch = await self.trainer_actor.train.remote(start_epoch, end_epoch)
                     self.running_task.current_step = final_epoch
                     
                     if final_epoch >= total_epochs:
-                        model_uuid = str(uuid4())
-                        self.running_task.model_uuid = model_uuid
+                        run_dir:str = os.path.join(settings.RUN_DIR_BASE, str(self.running_task.task_id))
+                        local_model_path = os.path.join(run_dir, "model.zip")
+                        self.running_task.model_uuid = str(uuid4())
+                        minio_client = await get_minio_client()
+                        await upload_model_to_minio(
+                            client=minio_client,
+                            model_file_local_path=local_model_path,
+                            filename=f"{self.running_task.model_uuid}.zip"
+                        )
+                        print(f"[{self.running_task.task_id}] Mock model {self.running_task.model_uuid} uploaded.")
                         await send_status_message(task_id=int(self.running_task.task_id), status="completed", model_uuid=self.running_task.model_uuid)
                     else:
                         self.task_queue.append(self.running_task)

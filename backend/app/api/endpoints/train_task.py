@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, status
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import Annotated
 
@@ -7,9 +9,12 @@ from app.service.train_task import TrainTaskService
 from app.schemas.train_task import TrainTaskCreate, TrainTaskPublic
 from app.core.security import get_current_user
 from app.models.user import AppUser
-
+import os
 # 创建路由实例
 router = APIRouter()
+
+def remove_file(path: str):
+    os.remove(path)
 
 # 依赖注入 UserService
 async def get_train_task_service(db: Annotated[AsyncSession, Depends(get_db)]) -> TrainTaskService:
@@ -81,4 +86,42 @@ async def get_train_task(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问该训练任务")
     
     return await train_task_service.get_train_task_by_id(task_id, current_user.id)
+
+@router.get("/{task_id}/download_model", summary="下载训练出的模型")
+async def download_model(
+    task_id: int,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    train_task_service: Annotated[TrainTaskService, Depends(get_train_task_service)]
+):
+    """
+    **下载训练出的模型**
+
+    根据任务 ID 下载训练任务生成的模型文件。
+
+    **路径参数:**
+    - `task_id`: 训练任务的唯一标识符。
+
+    **响应:**
+    - `200 OK`: 成功下载模型文件。
+    - `403 Forbidden`: 当前用户无权访问该任务。
+    - `404 Not Found`: 任务不存在。
+    - `401 Unauthorized`: 用户未登录。
+    """
+    # 检查用户是否有权限下载模型
+    train_task = await train_task_service.get_train_task_by_id(task_id)
+    if not train_task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="训练任务不存在")
+    if train_task.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="该模型不属于您，无法下载")
+    
+    download_path: str = await train_task_service.download_model(task_id)
+    
+    if not download_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="模型文件不存在或下载失败")
+    
+    return FileResponse(download_path,
+                        media_type="application/octet-stream",
+                        filename=f"model_{task_id}.zip",
+                        background=BackgroundTask(remove_file, download_path))
+    
 
