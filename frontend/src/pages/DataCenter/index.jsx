@@ -97,8 +97,8 @@ const DataCenterPage = () => {
 
   // 处理发起训练 - 跳转到训练页面
   const handleStartTraining = (dataset) => {
-    // 跳转到训练页面，并传递选中的数据集信息
-    navigate(`/training?dataset=${dataset.id}`);
+    // 跳转到训练页面，并传递选中的数据集信息（通过URL参数datasetId）
+    navigate(`/training?datasetId=${dataset.id}`);
   };
 
   // 处理跳转到首页
@@ -131,9 +131,6 @@ const DataCenterPage = () => {
         break;
       case 'download':
         message.info('下载功能待实现');
-        break;
-      case 'edit':
-        message.info('编辑功能待实现');
         break;
       case 'delete':
         Modal.confirm({
@@ -173,9 +170,9 @@ const DataCenterPage = () => {
   };
 
   const getMenuItems = (record) => [
+    { key: 'details', label: '查看详情', icon: <InfoCircleOutlined /> },
     { key: 'visualization', label: '查看可视化', icon: <BarChartOutlined /> },
     { key: 'download', label: '下载', icon: <DownloadOutlined /> },
-    { key: 'edit', label: '编辑', icon: <EditOutlined /> },
     { type: 'divider' },
     { key: 'delete', label: '删除', danger: true, icon: <DeleteOutlined /> },
   ];
