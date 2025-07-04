@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -29,57 +29,16 @@ import {
   PauseCircleOutlined,
   StopOutlined,
   SettingOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  WifiOutlined,
+  DisconnectOutlined
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import styles from './ProjectProgress.module.css';
 import { trainTasksAPI, modelsAPI } from '@/utils/api';
+import trainingLogWebSocket from '@/utils/websocket';
 
 const { Title, Paragraph, Text } = Typography;
-
-// 模拟训练日志数据（用于WebSocket连接前的静态显示）
-const getMockTrainingLogs = (status) => {
-  const baseLogs = [
-    { time: '10:30:15', level: 'info', message: '开始训练项目' },
-    { time: '10:30:16', level: 'info', message: '加载数据集: 无人机航拍数据集' },
-    { time: '10:30:17', level: 'info', message: '数据集加载完成，共 50000 张图片' },
-    { time: '10:30:18', level: 'info', message: '初始化模型: ResNet-50' },
-    { time: '10:30:19', level: 'info', message: '模型初始化完成' },
-    { time: '10:30:20', level: 'info', message: '开始第 1 轮训练' },
-    { time: '10:30:21', level: 'info', message: '训练项目已创建，等待调度...' },
-    { time: '10:35:00', level: 'info', message: '第1轮完成，loss: 0.45' },
-    { time: '10:40:00', level: 'info', message: '第2轮完成，loss: 0.32' },
-    { time: '11:00:00', level: 'info', message: '第10轮完成，loss: 0.18' },
-    { time: '11:30:00', level: 'info', message: '第50轮完成，loss: 0.08' },
-    { time: '12:00:00', level: 'info', message: '第100轮完成，loss: 0.04' },
-  ];
-
-  if (status === 'completed') {
-    return [
-      ...baseLogs,
-      { time: '12:30:00', level: 'info', message: '第150轮完成，loss: 0.02' },
-      { time: '12:45:15', level: 'success', message: '训练完成！最终loss: 0.012' },
-    ];
-  } else if (status === 'running') {
-    return [
-      ...baseLogs,
-      { time: '12:30:00', level: 'info', message: '第150轮完成，loss: 0.02' },
-      { time: '12:45:00', level: 'info', message: '正在训练第156轮...' },
-    ];
-  } else if (status === 'failed') {
-    return [
-      ...baseLogs.slice(0, 5),
-      { time: '10:45:00', level: 'warning', message: '检测到过拟合现象，loss上升至0.5' },
-      { time: '10:50:00', level: 'error', message: '训练过程中出现内存不足错误' },
-      { time: '10:55:00', level: 'error', message: '尝试恢复训练失败' },
-      { time: '11:00:00', level: 'error', message: '训练失败，最终loss: 0.5' },
-    ];
-  } else {
-    return [
-      { time: '10:30:15', level: 'info', message: '训练项目已创建，等待调度...' },
-    ];
-  }
-};
 
 // 根据状态返回不同的Tag和Icon
 const StatusDisplay = ({ status }) => {
@@ -131,7 +90,6 @@ const getLossChartOption = (logs) => {
   }
 
   return {
-    title: { text: 'Loss趋势', left: 'center', textStyle: { fontSize: 14, fontWeight: 'normal' } },
     tooltip: { 
       trigger: 'axis',
       formatter: function(params) {
@@ -141,7 +99,9 @@ const getLossChartOption = (logs) => {
     xAxis: { 
       type: 'category', 
       data: Array.from({length: lossData.length}, (_, i) => i + 1),
-      name: '训练轮次'
+      name: '训练轮次',
+      nameLocation: 'middle',
+      nameGap: 32,
     },
     yAxis: { 
       type: 'value', 
@@ -172,7 +132,7 @@ const getLossChartOption = (logs) => {
         }
       }
     }],
-    grid: { top: 40, right: 20, bottom: 40, left: 50 },
+    grid: { top: 40, right: 40, bottom: 50, left: 24 },
   };
 };
 
@@ -183,6 +143,10 @@ const ProjectProgressPage = () => {
   const [modelTypes, setModelTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [wsStatus, setWsStatus] = useState('disconnected');
+  const logContainerRef = useRef(null);
+  const callbacksSetRef = useRef(false);
 
   // 获取模型类型列表
   const fetchModelTypes = async () => {
@@ -252,9 +216,6 @@ const ProjectProgressPage = () => {
       
       setProjectData(formattedData);
       
-      // 设置模拟日志
-      setLogs(getMockTrainingLogs(data.status));
-      
     } catch (err) {
       console.error('获取训练项目详情失败:', err);
       message.error('获取训练项目详情失败: ' + err.message);
@@ -273,6 +234,82 @@ const ProjectProgressPage = () => {
       fetchProjectData();
     }
   }, [modelTypes, trainingId]);
+
+  // WebSocket相关函数
+  const connectWebSocket = () => {
+    if (!trainingId) return;
+    if (trainingLogWebSocket.isConnected()) return;
+    trainingLogWebSocket.clearCallbacks();
+    if (!callbacksSetRef.current) {
+      trainingLogWebSocket.onOpen(() => {
+        setWsStatus('connected');
+        setWsConnected(true);
+        setLogs([]); // 连接成功后清空日志
+      });
+      trainingLogWebSocket.onMessage((data) => {
+        handleWebSocketMessage(data);
+      });
+      trainingLogWebSocket.onError(() => {
+        setWsStatus('error');
+        setWsConnected(false);
+      });
+      trainingLogWebSocket.onClose(() => {
+        setWsStatus('disconnected');
+        setWsConnected(false);
+      });
+      callbacksSetRef.current = true;
+    }
+    trainingLogWebSocket.connect(trainingId);
+  };
+
+  const disconnectWebSocket = () => {
+    trainingLogWebSocket.disconnect();
+    setWsStatus('disconnected');
+    setWsConnected(false);
+    callbacksSetRef.current = false;
+  };
+
+  // 只在页面挂载时建立WebSocket连接，卸载时断开
+  useEffect(() => {
+    connectWebSocket();
+    return () => {
+      disconnectWebSocket();
+    };
+    // 只依赖trainingId，切换详情页时也会重连
+  }, [trainingId]);
+
+  // 处理WebSocket消息（保持原有去重逻辑）
+  const handleWebSocketMessage = (data) => {
+    try {
+      let logData;
+      try { logData = JSON.parse(data); } catch (e) { logData = data; }
+      const newLog = {
+        id: Date.now() + Math.random(),
+        time: new Date().toLocaleTimeString('zh-CN'),
+        level: 'info',
+        message: typeof logData === 'string' ? logData : JSON.stringify(logData)
+      };
+      setLogs(prevLogs => {
+        const isDuplicate = prevLogs.some(log =>
+          log.message === newLog.message &&
+          Math.abs(new Date(log.time) - new Date(newLog.time)) < 1000
+        );
+        if (isDuplicate) return prevLogs;
+        const updatedLogs = [...prevLogs, newLog];
+        if (updatedLogs.length > 1000) return updatedLogs.slice(-500);
+        return updatedLogs;
+      });
+      if (projectData?.status !== 'completed') {
+        setTimeout(() => {
+          if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('处理WebSocket消息时出错:', error);
+    }
+  };
 
   const handleBack = () => {
     navigate('/project-center');
@@ -473,27 +510,44 @@ const ProjectProgressPage = () => {
                   <InfoCircleOutlined />
                   训练日志
                   <Badge count={logs.length} style={{ backgroundColor: '#52c41a' }} />
+                  {wsConnected ? (
+                    <Tag color="green" icon={<WifiOutlined />}>
+                      {projectData?.status === 'completed' ? '历史日志' : '实时连接'}
+                    </Tag>
+                  ) : (
+                    <Tag color="orange" icon={<DisconnectOutlined />}>
+                      连接中...
+                    </Tag>
+                  )}
                 </Space>
               } 
               className={styles.logCard}
             >
-              <div className={styles.logContainer}>
-                <Timeline
-                  items={logs.map((log, index) => ({
-                    key: index,
-                    color: getLogColor(log.level),
-                    children: (
-                      <div className={styles.logItem}>
-                        <div className={styles.logTime}>{log.time}</div>
-                        <div className={styles.logMessage}>{log.message}</div>
-                      </div>
-                    )
-                  }))}
-                />
+              <div className={styles.logContainer} ref={logContainerRef}>
+                {logs.length === 0 ? (
+                  <Text type="secondary">暂无日志</Text>
+                ) : (
+                  <Timeline
+                    items={logs.map((log, index) => ({
+                      key: log.id || index,
+                      color: getLogColor(log.level),
+                      children: (
+                        <div className={styles.logItem}>
+                          <div className={styles.logTime}>{log.time}</div>
+                          <div className={styles.logMessage}>{log.message}</div>
+                        </div>
+                      )
+                    }))}
+                  />
+                )}
               </div>
               <Divider />
               <Text type="secondary" style={{ fontSize: '12px' }}>
-                注：当前显示的是模拟日志数据，实际训练日志将通过WebSocket实时获取
+                {wsConnected 
+                  ? (projectData?.status === 'completed' 
+                      ? '正在通过WebSocket获取历史训练日志' 
+                      : '正在通过WebSocket接收实时训练日志')
+                  : '正在连接WebSocket获取训练日志...'}
               </Text>
             </Card>
           </Col>

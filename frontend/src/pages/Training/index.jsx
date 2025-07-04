@@ -557,7 +557,7 @@ const TrainingPage = () => {
                 创建新训练项目
               </Button>
               {createdProjectId && (
-                <Button type="primary" onClick={() => navigate(`/project-center/${createdProjectId}`)}>
+                <Button type="primary" onClick={() => navigate(`/project-center/${createdProjectId}/progress`)}>
                   查看项目详情
                 </Button>
               )}

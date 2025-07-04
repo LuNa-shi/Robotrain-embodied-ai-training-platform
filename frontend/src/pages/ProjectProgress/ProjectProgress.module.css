@@ -118,6 +118,13 @@
   max-height: 400px;
   overflow-y: auto;
   padding-right: 8px;
+  padding-top: 16px;
+  padding-bottom: 0;
+}
+
+/* 去除Ant Design Timeline组件底部的多余间距 */
+.logContainer :global(.ant-timeline) {
+  margin-bottom: 0 !important;
 }
 
 .logItem {
