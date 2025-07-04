@@ -88,8 +88,10 @@ services:
       SCHEDULER_STEPS_PER_TIMESLICE: ${SCHEDULER_STEPS_PER_TIMESLICE}
       SCHEDULER_GPUS_PER_TRAINER: ${SCHEDULER_GPUS_PER_TRAINER}
       RUN_DIR_BASE: ${RUN_DIR_BASE}
+      HF_HUB_OFFLINE: 1
     volumes:
       - ./train:/app 
+    shm_size: 20g # 增加共享内存大小，适用于大模型训练
     depends_on:
       rabbitmq_mq:
         condition: service_healthy
