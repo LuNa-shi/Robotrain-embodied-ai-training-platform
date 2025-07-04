@@ -17,7 +17,6 @@ import Help from '@/pages/Help/index.jsx'; // 引入帮助文档页面
 import NotFound from '@/pages/NotFound/index.jsx';
 import DataCenter from '@/pages/DataCenter/index.jsx'; // 数据中心页
 import ProjectCenter from '@/pages/ProjectCenter/index.jsx'; // 项目中心页
-import TrainingDetailPage from '@/pages/TrainingDetail/index.jsx';
 import ProjectProgressPage from '@/pages/ProjectProgress/index.jsx'; // 项目进度页
 import DatasetDetailPage from '@/pages/DatasetDetail/index.jsx'; // 数据集详情页
 import DatasetVisualizationPage from '@/pages/DatasetVisualization/index.jsx'; // 数据集可视化页
@@ -79,7 +78,6 @@ const routes = [
       { path: '/dataset/:datasetId', element: <DatasetDetailPage /> },
       { path: '/dataset/:datasetId/visualization', element: <DatasetVisualizationPage /> },
       { path: '/evaluation', element: <Evaluation /> },
-      { path: '/project-center/:trainingId', element: <TrainingDetailPage /> },
       { path: '/project-center/:trainingId/progress', element: <ProjectProgressPage /> },
       { path: '/profile', element: <Profile /> },
       { path: '/settings', element: <Settings /> },
