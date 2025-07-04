@@ -1,6 +1,9 @@
 .visualizationPage {
   min-height: 100vh;
-  background: transparent !important;
+  /* 设置背景图片，路径请根据实际情况调整 */
+  background: url('/background.jpg') no-repeat center center fixed;
+  background-size: cover;
+  background-color: transparent !important;
   padding: 20px;
 }
 
@@ -10,7 +13,7 @@
   background: transparent !important;
   border-radius: 0;
   box-shadow: none;
-  padding: 30px;
+  padding: 0; /* 移除内边距，让卡片自己控制 */
 }
 
 .pageHeader {
@@ -29,34 +32,14 @@
   padding: 0 20px;
   font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .backButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   color: #1677ff;
   border-color: #1677ff;
-}
-
-.titleContainer {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
-}
-
-.pageTitle {
-  margin: 0;
-  color: #222;
-  font-weight: 700;
-}
-
-.infoCard {
-  margin-bottom: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f0f0f0;
 }
 
 .videoSection {
@@ -64,6 +47,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  background: transparent !important;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: none !important;
 }
 
 .videoTitle {
@@ -77,23 +64,26 @@
   font-weight: 600;
 }
 
+/* [MODIFIED] 固定视频容器大小 */
 .videoContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   width: 100%;
   max-width: 800px;
+  aspect-ratio: 16 / 9;
+  background: transparent !important;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: none !important;
 }
 
+/* [MODIFIED] 视频播放器样式，确保它填充容器 */
 .videoPlayer {
   width: 100%;
-  height: auto;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  background: #000;
+  height: 100%;
+  object-fit: fill;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none !important;
 }
-
-
 
 .chartsContainer {
   margin-bottom: 24px;
@@ -104,42 +94,23 @@
 
 .chartCard {
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: none !important;
   border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+  background: transparent !important;
+}
+
+.chartCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .chart {
   border-radius: 8px;
   overflow: hidden;
-  background: #fff;
 }
 
-.statsContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.statsCard {
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f0f0f0;
-}
-
-.loadingContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  margin: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.errorContainer {
+.loadingContainer, .errorContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -150,82 +121,6 @@
   margin: 20px;
   padding: 40px;
   text-align: center;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .visualizationPage {
-    padding: 10px;
-  }
-  
-  .contentWrapper {
-    padding: 20px;
-  }
-  
-  .pageHeader {
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-  }
-  
-  .titleContainer {
-    position: static;
-    transform: none;
-    margin-top: 8px;
-  }
-  
-  .videoPlayer {
-    max-width: 100%;
-  }
-  
-
-}
-
-/* 图表容器样式 */
-.chartCard :global(.ant-tabs-content-holder) {
-  padding: 16px 0;
-}
-
-.chartCard :global(.ant-tabs-tab) {
-  border-radius: 6px 6px 0 0;
-  margin-right: 4px;
-}
-
-.chartCard :global(.ant-tabs-tab-active) {
-  background: #e6f4ff;
-  color: #1677ff;
-}
-
-/* 统计卡片样式 */
-.infoCard :global(.ant-statistic-title),
-.statsCard :global(.ant-statistic-title) {
-  color: #666;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.infoCard :global(.ant-statistic-content),
-.statsCard :global(.ant-statistic-content) {
-  color: #333;
-  font-weight: 600;
-}
-
-/* 卡片标题样式 */
-.chartCard :global(.ant-card-head-title),
-.statsCard :global(.ant-card-head-title) {
-  font-weight: 600;
-  color: #333;
-  font-size: 16px;
-}
-
-/* 视频播放器自定义样式 */
-.videoPlayer::-webkit-media-controls {
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 8px;
-}
-
-.videoPlayer::-webkit-media-controls-panel {
-  background: rgba(0, 0, 0, 0.8);
 }
 
 /* 动画效果 */
@@ -244,11 +139,12 @@
   }
 }
 
-/* 悬停效果 */
-.infoCard:hover,
-.chartCard:hover,
-.statsCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-} 
+@media (max-width: 768px) {
+  .visualizationPage {
+    padding: 10px;
+  }
+  
+  .contentWrapper {
+    padding: 10px;
+  }
+}
