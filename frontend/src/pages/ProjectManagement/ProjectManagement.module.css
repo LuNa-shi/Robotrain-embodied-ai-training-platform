@@ -1,5 +1,5 @@
 /* 整体页面容器 */
-.trainingManagementPage {
+.projectManagementPage {
   padding: 24px;
   background-color: #f0f2f5;
 }
@@ -176,7 +176,7 @@
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .trainingManagementPage {
+  .projectManagementPage {
     padding: 16px;
   }
   

@@ -40,10 +40,13 @@ const { Title, Paragraph, Text } = Typography;
 // 模拟训练日志数据（用于WebSocket连接前的静态显示）
 const getMockTrainingLogs = (status) => {
   const baseLogs = [
-    { time: '10:30:15', level: 'info', message: '开始训练任务' },
-    { time: '10:30:20', level: 'info', message: '加载数据集完成' },
-    { time: '10:30:25', level: 'info', message: '初始化模型完成' },
-    { time: '10:30:30', level: 'info', message: '开始第1轮训练' },
+    { time: '10:30:15', level: 'info', message: '开始训练项目' },
+    { time: '10:30:16', level: 'info', message: '加载数据集: 无人机航拍数据集' },
+    { time: '10:30:17', level: 'info', message: '数据集加载完成，共 50000 张图片' },
+    { time: '10:30:18', level: 'info', message: '初始化模型: ResNet-50' },
+    { time: '10:30:19', level: 'info', message: '模型初始化完成' },
+    { time: '10:30:20', level: 'info', message: '开始第 1 轮训练' },
+    { time: '10:30:21', level: 'info', message: '训练项目已创建，等待调度...' },
     { time: '10:35:00', level: 'info', message: '第1轮完成，loss: 0.45' },
     { time: '10:40:00', level: 'info', message: '第2轮完成，loss: 0.32' },
     { time: '11:00:00', level: 'info', message: '第10轮完成，loss: 0.18' },
@@ -73,7 +76,7 @@ const getMockTrainingLogs = (status) => {
     ];
   } else {
     return [
-      { time: '10:30:15', level: 'info', message: '训练任务已创建，等待调度...' },
+      { time: '10:30:15', level: 'info', message: '训练项目已创建，等待调度...' },
     ];
   }
 };
@@ -192,8 +195,8 @@ const ProjectProgressPage = () => {
     }
   };
 
-  // 获取训练任务详情
-  const fetchTaskDetail = async () => {
+  // 获取训练项目详情
+  const fetchProjectData = async () => {
     try {
       setLoading(true);
       const data = await trainTasksAPI.getById(trainingId);
@@ -253,8 +256,8 @@ const ProjectProgressPage = () => {
       setLogs(getMockTrainingLogs(data.status));
       
     } catch (err) {
-      console.error('获取训练任务详情失败:', err);
-      message.error('获取训练任务详情失败: ' + err.message);
+      console.error('获取训练项目详情失败:', err);
+      message.error('获取训练项目详情失败: ' + err.message);
       navigate('/project-center');
     } finally {
       setLoading(false);
@@ -267,7 +270,7 @@ const ProjectProgressPage = () => {
 
   useEffect(() => {
     if (modelTypes.length > 0) {
-      fetchTaskDetail();
+      fetchProjectData();
     }
   }, [modelTypes, trainingId]);
 
@@ -275,28 +278,16 @@ const ProjectProgressPage = () => {
     navigate('/project-center');
   };
 
-  const handleDownload = async () => {
-    try {
-      if (projectData.status !== 'completed') {
-        message.warning('只有已完成的训练任务才能下载模型文件');
-        return;
-      }
-
-      message.loading('正在下载模型文件...', 0);
-      
-      await trainTasksAPI.downloadModel(projectData.id);
-      
-      message.destroy();
-      message.success('模型文件下载成功');
-    } catch (error) {
-      message.destroy();
-      console.error('下载模型文件失败:', error);
-      message.error('下载失败: ' + error.message);
+  const handleDownload = () => {
+    if (projectData?.status !== 'completed') {
+      message.warning('只有已完成的训练项目才能下载模型文件');
+      return;
     }
+    message.info('下载功能待实现');
   };
 
   const handleDelete = () => {
-    message.success(`删除项目: 训练任务 ${projectData?.id}`);
+    message.success(`删除项目: 训练项目 ${projectData?.id}`);
     navigate('/project-center');
   };
 
@@ -331,7 +322,7 @@ const ProjectProgressPage = () => {
           <div className={styles.headerInfo}>
             <Space align="center">
               <Title level={4} className={styles.headerTitle}>
-                训练任务 {projectData?.id}
+                训练项目 {projectData?.id}
               </Title>
               <StatusDisplay status={projectData?.status} />
             </Space>
@@ -457,7 +448,7 @@ const ProjectProgressPage = () => {
               {projectData?.status === 'pending' && (
                 <Alert
                   message="等待调度"
-                  description="训练任务已创建，正在等待系统调度"
+                  description="训练项目已创建，正在等待系统调度"
                   type="info"
                   showIcon
                   className={styles.completionAlert}

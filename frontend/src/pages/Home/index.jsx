@@ -194,7 +194,7 @@ const HomePage = () => {
                 <div className={styles.cardContent}>
                   <Title level={3} className={styles.cardTitle}>项目中心</Title>
                   <Paragraph className={styles.cardDescription}>
-                    管理训练项目，创建新的训练任务，监控训练进度和结果。
+                    管理训练项目，创建新的训练项目，监控训练进度和结果。
                   </Paragraph>
                   <Button
                     type="primary"

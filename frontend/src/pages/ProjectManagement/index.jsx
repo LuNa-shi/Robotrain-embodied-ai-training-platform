@@ -31,7 +31,7 @@ import {
   CloseCircleOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
-import styles from './TrainingManagement.module.css';
+import styles from './ProjectManagement.module.css';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -156,7 +156,7 @@ const StatusDisplay = ({ status, progress }) => {
   );
 };
 
-const TrainingManagementPage = () => {
+const ProjectManagementPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -184,7 +184,7 @@ const TrainingManagementPage = () => {
   // 表格列定义
   const columns = [
     {
-      title: '训练任务信息',
+      title: '训练项目信息',
       key: 'training',
       render: (_, record) => (
         <div className={styles.trainingInfo}>
@@ -314,11 +314,11 @@ const TrainingManagementPage = () => {
   };
 
   return (
-    <div className={styles.trainingManagementPage}>
+    <div className={styles.projectManagementPage}>
       <div className={styles.contentWrapper}>
         <div className={styles.pageHeader}>
-          <Title level={1} className={styles.pageTitle}>训练管理</Title>
-          <Text type="secondary">管理员查看和管理所有用户的训练任务</Text>
+          <Title level={1} className={styles.pageTitle}>项目管理</Title>
+          <Text type="secondary">管理员查看和管理所有用户的训练项目</Text>
         </div>
 
         {/* 统计卡片 */}
@@ -329,7 +329,7 @@ const TrainingManagementPage = () => {
                 <div className={styles.statItem}>
                   <PlaySquareOutlined className={styles.statIcon} />
                   <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>总训练任务</div>
+                    <div className={styles.statLabel}>总训练项目</div>
                     <div className={styles.statValue}>{totalRecords} 个</div>
                   </div>
                 </div>
@@ -437,4 +437,4 @@ const TrainingManagementPage = () => {
   );
 };
 
-export default TrainingManagementPage; 
+export default ProjectManagementPage; 

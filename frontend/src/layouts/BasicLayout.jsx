@@ -62,7 +62,7 @@ const BasicLayout = () => {
     ...(userInfo?.isAdmin ? [
       { type: 'divider' },
       { key: '/data-management', icon: <ControlOutlined />, label: '数据管理' },
-      { key: '/training-management', icon: <AppstoreOutlined />, label: '训练管理' },
+      { key: '/project-management', icon: <AppstoreOutlined />, label: '项目管理' },
     ] : []),
     { type: 'divider' },
     { key: '/profile', icon: <UserOutlined />, label: '个人资料' },
