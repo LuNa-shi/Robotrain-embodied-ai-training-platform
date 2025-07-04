@@ -14,7 +14,8 @@ import {
   Avatar,
   Dropdown,
   Progress,
-  message
+  message,
+  Pagination
 } from 'antd';
 import {
   SearchOutlined,
@@ -161,6 +162,9 @@ const ProjectManagementPage = () => {
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [userFilter, setUserFilter] = useState('all');
+  // 分页相关状态
+  const [current, setCurrent] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // 统计数据
   const totalRecords = mockAllUserTrainingRecords.length;
@@ -180,6 +184,8 @@ const ProjectManagementPage = () => {
     
     return matchesSearch && matchesStatus && matchesUser;
   });
+  // 当前页数据
+  const pagedData = filteredData.slice((current - 1) * pageSize, current * pageSize);
 
   // 表格列定义
   const columns = [
@@ -321,44 +327,6 @@ const ProjectManagementPage = () => {
           <Text type="secondary">管理员查看和管理所有用户的训练项目</Text>
         </div>
 
-        {/* 统计卡片 */}
-        <Row gutter={16} className={styles.statsRow}>
-          <Col xs={24}>
-            <Card className={styles.statCard}>
-              <div className={styles.statsContainer}>
-                <div className={styles.statItem}>
-                  <PlaySquareOutlined className={styles.statIcon} />
-                  <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>总训练项目</div>
-                    <div className={styles.statValue}>{totalRecords} 个</div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <CheckCircleOutlined className={styles.statIcon} />
-                  <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>已完成</div>
-                    <div className={styles.statValue}>{completedRecords} 个</div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <SyncOutlined className={styles.statIcon} />
-                  <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>进行中</div>
-                    <div className={styles.statValue}>{runningRecords} 个</div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <UserOutlined className={styles.statIcon} />
-                  <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>活跃用户</div>
-                    <div className={styles.statValue}>{activeUsers} 人</div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </Col>
-        </Row>
-
         {/* 搜索和过滤 */}
         <Card className={styles.filterCard}>
           <Row gutter={16} align="middle" justify="center">
@@ -419,18 +387,27 @@ const ProjectManagementPage = () => {
         <Card className={styles.tableCard}>
           <Table
             columns={columns}
-            dataSource={filteredData}
+            dataSource={pagedData}
             rowKey="id"
             loading={loading}
-            pagination={{
-              total: filteredData.length,
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-            }}
+            pagination={false}
             scroll={{ x: 1400 }}
           />
+          <div className={styles.paginationWrapper}>
+            <Pagination
+              current={current}
+              pageSize={pageSize}
+              total={filteredData.length}
+              showSizeChanger
+              showQuickJumper
+              showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`}
+              onChange={(page, size) => {
+                setCurrent(page);
+                setPageSize(size);
+              }}
+              pageSizeOptions={["10", "20", "50", "100"]}
+            />
+          </div>
         </Card>
       </div>
     </div>

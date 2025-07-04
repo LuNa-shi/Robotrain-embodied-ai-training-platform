@@ -13,7 +13,8 @@ import {
   Col,
   Avatar,
   Dropdown,
-  message
+  message,
+  Pagination
 } from 'antd';
 import {
   SearchOutlined,
@@ -119,6 +120,8 @@ const DataManagementPage = () => {
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [userFilter, setUserFilter] = useState('all');
+  const [current, setCurrent] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // 统计数据
   const totalRecords = mockAllUserDataRecords.length;
@@ -138,6 +141,9 @@ const DataManagementPage = () => {
     
     return matchesSearch && matchesStatus && matchesUser;
   });
+
+  // 当前页数据
+  const pagedData = filteredData.slice((current - 1) * pageSize, current * pageSize);
 
   // 表格列定义
   const columns = [
@@ -250,37 +256,6 @@ const DataManagementPage = () => {
           <Text type="secondary">管理员查看和管理所有用户的数据集</Text>
         </div>
 
-        {/* 统计卡片 */}
-        <Row gutter={16} className={styles.statsRow}>
-          <Col xs={24}>
-            <Card className={styles.statCard}>
-              <div className={styles.statsContainer}>
-                <div className={styles.statItem}>
-                  <DatabaseOutlined className={styles.statIcon} />
-                  <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>总数据集</div>
-                    <div className={styles.statValue}>{totalRecords} 个</div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <DatabaseOutlined className={styles.statIcon} />
-                  <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>总存储量</div>
-                    <div className={styles.statValue}>{totalSize.toFixed(1)} GB</div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <UserOutlined className={styles.statIcon} />
-                  <div className={styles.statInfo}>
-                    <div className={styles.statLabel}>活跃用户</div>
-                    <div className={styles.statValue}>{activeUsers} 人</div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </Col>
-        </Row>
-
         {/* 搜索和过滤 */}
         <Card className={styles.filterCard}>
           <Row gutter={16} align="middle" justify="center">
@@ -342,18 +317,27 @@ const DataManagementPage = () => {
         <Card className={styles.tableCard}>
           <Table
             columns={columns}
-            dataSource={filteredData}
+            dataSource={pagedData}
             rowKey="id"
             loading={loading}
-            pagination={{
-              total: filteredData.length,
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-            }}
+            pagination={false}
             scroll={{ x: 1200 }}
           />
+          <div className={styles.paginationWrapper}>
+            <Pagination
+              current={current}
+              pageSize={pageSize}
+              total={filteredData.length}
+              showSizeChanger
+              showQuickJumper
+              showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`}
+              onChange={(page, size) => {
+                setCurrent(page);
+                setPageSize(size);
+              }}
+              pageSizeOptions={["10", "20", "50", "100"]}
+            />
+          </div>
         </Card>
       </div>
     </div>
