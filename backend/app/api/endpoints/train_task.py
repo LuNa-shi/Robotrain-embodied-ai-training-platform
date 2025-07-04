@@ -55,7 +55,11 @@ async def create_train_task(
     - `400 Bad Request`: 请求体不符合要求。
     - `401 Unauthorized`: 用户未登录。
     """
-    return await train_task_service.create_train_task_for_user(current_user, train_task_create)
+    # 验证当前用户是否存在
+    train_task = await train_task_service.create_train_task_for_user(current_user, train_task_create)
+    if not train_task:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="创建训练任务失败")
+    return train_task
 
 @router.get("/{task_id}", response_model=TrainTaskPublic, summary="获取训练任务详情")
 async def get_train_task(
