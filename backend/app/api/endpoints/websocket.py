@@ -20,15 +20,14 @@ async def send_log(websocket: WebSocket, task_id: int, db: Annotated[AsyncSessio
     **响应:**
     - `200 OK`: 成功建立 WebSocket 连接。
     """
-    async with websocket:
-        
-        await websocket.accept()
-        add_websocket_connection(task_id, websocket)
-    
-        try:
-            while True:
-                message = await websocket.receive_text()
-                print(f"Received message from task {task_id}: {message}")
-        except WebSocketDisconnect:
+    await websocket.accept()
+    await add_websocket_connection(task_id, websocket)
+
+    try:
+        while True:
+            message = await websocket.receive_text()
+            print(f"Received message from task {task_id}: {message}")
+    except WebSocketDisconnect:
             print(f"WebSocket connection closed for task {task_id}.")
-            remove_websocket_connection(task_id, websocket)
+    finally:
+            await remove_websocket_connection(task_id, websocket)

@@ -20,14 +20,17 @@ async def add_websocket_connection(task_id: int, websocket: WebSocket):
         active_ws_connections[task_id] = []
     active_ws_connections[task_id].append(websocket)
     # 先把数据库中所有已有的log给发到websocket上
-    train_log_service = TrainLogService(get_db())
-    logs = await train_log_service.get_train_logs_by_task_id(task_id)
-    for log in logs:
-        log_message = f"{log.log_time.isoformat()} - {log.log_message}"
-        try:
-            await websocket.send_text(log_message)
-        except Exception as e:
-            print(f"Error sending initial log message to WebSocket: {e}")
+    from app.core.deps import get_db
+    async for session in get_db():
+        train_log_service = TrainLogService(session)
+        logs = await train_log_service.get_train_logs_by_task_id(task_id)
+        for log in logs:
+            log_message = f"{log.log_time.isoformat()} - {log.log_message}"
+            try:
+                await websocket.send_text(log_message)
+                print(f"[Websocket] Send Log: {log_message}")
+            except Exception as e:
+                print(f"Error sending initial log message to WebSocket: {e}")
     
 
 async def remove_websocket_connection(task_id: int, websocket: WebSocket):
