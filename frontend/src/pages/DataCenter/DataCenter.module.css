@@ -5,7 +5,7 @@
 
 /* 内容区域包装器，用于居中和限制宽度 */
 .contentWrapper {
-  max-width: 800px;
+  max-width: 700px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -58,18 +58,20 @@
 
 .cardHeader {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  padding: 12px 24px;
+  padding: 8px 24px 4px 24px;
   border-bottom: 1px solid #f0f0f0;
 }
 
 .cardContent {
-  padding: 24px;
+  padding: 4px 24px 20px 24px;
 }
 
 .datasetName {
-  margin-bottom: 8px !important;
+  margin-bottom: 0 !important;
+  font-size: 26px !important;
+  font-weight: bold !important;
 }
 
 .cardActions {

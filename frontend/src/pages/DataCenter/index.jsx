@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Typography, 
   Card, 
-  Tag, 
   Button, 
   Tooltip, 
   Space, 
@@ -16,10 +15,8 @@ import {
   InfoCircleOutlined,
   PlayCircleOutlined,
   DownloadOutlined,
-  EditOutlined,
   DeleteOutlined,
   MoreOutlined,
-  SettingOutlined,
   UploadOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
@@ -27,26 +24,6 @@ import { datasetsAPI } from '@/utils/api';
 import styles from './DataCenter.module.css';
 
 const { Title, Text } = Typography;
-
-// 数据集状态映射
-const getDatasetStatus = (dataset) => {
-  // 这里可以根据数据集的实际状态字段来映射
-  // 暂时使用默认状态，实际项目中需要根据后端返回的状态字段调整
-  return 'unused';
-};
-
-// 根据状态返回不同的Tag样式
-const StatusTag = ({ status }) => {
-  const statusMap = {
-    unused: { color: 'green', text: '未使用' },
-    training: { color: 'blue', text: '训练中' },
-    archived: { color: 'purple', text: '已归档' },
-    error: { color: 'red', text: '校验失败' },
-  };
-  const { color, text } = statusMap[status] || { color: 'default', text: '未知' };
-  return <Tag color={color}>{text}</Tag>;
-};
-
 
 const DataCenterPage = () => {
   const navigate = useNavigate();
@@ -230,7 +207,6 @@ const DataCenterPage = () => {
               >
                 <div className={styles.cardHeader}>
                   <Text type="secondary">编号: {dataset.dataset_uuid}</Text>
-                  <StatusTag status={getDatasetStatus(dataset)} />
                 </div>
                 <div className={styles.cardContent}>
                   <Title level={5} className={styles.datasetName}>{dataset.dataset_name}</Title>
