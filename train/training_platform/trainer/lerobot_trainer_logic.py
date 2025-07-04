@@ -9,6 +9,7 @@ import torch
 from torch.amp.grad_scaler import GradScaler
 import draccus
 import os
+from training_platform.configs.settings import settings
 
 # 配置日志
 logging.basicConfig(
@@ -46,6 +47,7 @@ def prepare_config(
     base_config_path: str,
     user_override_config: Dict[str, Any],
     run_dir: str,
+    task_id: int, 
     start_step: int,
     end_step: int,
 ) -> TrainPipelineConfig:
@@ -77,8 +79,12 @@ def prepare_config(
     
     # 如果数据集已经下载到本地，则覆盖 repo_id
     local_dataset_unpacked_path = Path(run_dir) / "dataset"
+    local_dataset_repo_id = os.path.join(str(task_id), "dataset")
+    print(f"Local dataset path: {local_dataset_unpacked_path}")
     if local_dataset_unpacked_path.exists():
-        overrides.append(f"--dataset.repo_id={local_dataset_unpacked_path}")
+        print(f"Local dataset found at: {local_dataset_unpacked_path}")
+        overrides.append(f"--dataset.root={local_dataset_unpacked_path}")
+        overrides.append(f"--dataset.repo_id={local_dataset_repo_id}")
     
     logging.info(f"Command line overrides: {overrides}")
     
@@ -241,6 +247,7 @@ def run_lerobot_training(
     base_config_path: str,
     user_override_config: Dict[str, Any],
     run_dir: str,
+    task_id: int,
     start_step: int,
     end_step: int,
     log_callback: Callable,
@@ -251,7 +258,7 @@ def run_lerobot_training(
     """
     # 阶段一：准备配置
     
-    cfg = prepare_config(base_config_path, user_override_config, run_dir, start_step, end_step)
+    cfg = prepare_config(base_config_path, user_override_config, run_dir, task_id, start_step, end_step)
 
     print(f"base_config_path: {base_config_path}")
     print(f"user_override_config: {user_override_config}")

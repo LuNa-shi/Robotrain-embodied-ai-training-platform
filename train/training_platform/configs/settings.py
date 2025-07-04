@@ -11,34 +11,33 @@ class Settings:
     MINIO_PORT: int = int(os.getenv("MINIO_PORT", 9000))
     MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
     MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-    # 不同的存储桶
-    MINIO_DATASET_BUCKET: str = os.getenv("MINIO_DATASET_BUCKET", "datasets")
-    MINIO_CHECKPOINT_BUCKET: str = os.getenv("MINIO_CHECKPOINT_BUCKET", "checkpoints")
-    MINIO_MODEL_BUCKET: str = os.getenv("MINIO_MODEL_BUCKET", "models")
-
+    MINIO_BUCKET: str = os.getenv("MINIO_BUCKET", "robotrain")
+    MINIO_DATASET_DIR: str = os.getenv("MINIO_DATASET_DIR", "datasets")
+    MINIO_MODEL_DIR: str = os.getenv("MINIO_MODEL_DIR", "models")
+    MINIO_CKPT_DIR: str = os.getenv("MINIO_CKPT_DIR", "checkpoints")  # 新增检查点目录
 
     # --- RabbitMQ 消息队列相关 ---
     RABBITMQ_SERVER: str = os.getenv("RABBITMQ_SERVER", "localhost")
     RABBITMQ_PORT: int = int(os.getenv("RABBITMQ_PORT", 5672))
-    RABBITMQ_DEFAULT_USER: str = os.getenv("RABBITMQ_DEFAULT_USER", "guest")
-    RABBITMQ_DEFAULT_PASS: str = os.getenv("RABBITMQ_DEFAULT_PASS", "guest")
+    RABBITMQ_DEFAULT_USER: str = os.getenv("RABBITMQ_DEFAULT_USER", "rabbituser")
+    RABBITMQ_DEFAULT_PASS: str = os.getenv("RABBITMQ_DEFAULT_PASS", "12345678")
     # 交换机
-    RABBIT_EXCHANGE_NAME: str = os.getenv("RABBIT_EXCHANGE_NAME", "task_exchange")
+    RABBIT_EXCHANGE_NAME: str = os.getenv("RABBIT_EXCHANGE_NAME", "my_direct_exchange")
     # 队列和路由键
-    RABBIT_REQUEST_QUEUE_NAME: str = os.getenv("RABBIT_REQUEST_QUEUE_NAME", "task_request_queue")
-    RABBIT_REQUEST_BINDING_KEY: str = os.getenv("RABBIT_REQUEST_BINDING_KEY", "task.request")
-    RABBIT_STATUS_QUEUE_NAME: str = os.getenv("RABBIT_STATUS_QUEUE_NAME", "task_status_queue")
-    RABBIT_STATUS_BINDING_KEY: str = os.getenv("RABBIT_STATUS_BINDING_KEY", "task.status")
-    RABBIT_TRAIN_LOG_QUEUE_NAME: str = os.getenv("RABBIT_TRAIN_LOG_QUEUE_NAME", "train_log_queue")
-    RABBIT_TRAIN_LOG_BINDING_KEY: str = os.getenv("RABBIT_TRAIN_LOG_BINDING_KEY", "train.log")
+    RABBIT_REQUEST_QUEUE_NAME: str = os.getenv("RABBIT_REQUEST_QUEUE_NAME", "task_request")
+    RABBIT_REQUEST_BINDING_KEY: str = os.getenv("RABBIT_REQUEST_BINDING_KEY", "request_binding_key")
+    RABBIT_STATUS_QUEUE_NAME: str = os.getenv("RABBIT_STATUS_QUEUE_NAME", "train_status")
+    RABBIT_STATUS_BINDING_KEY: str = os.getenv("RABBIT_STATUS_BINDING_KEY", "status_binding_key")
+    RABBIT_TRAIN_LOG_QUEUE_NAME: str = os.getenv("RABBIT_TRAIN_LOG_QUEUE_NAME", "train_log")
+    RABBIT_TRAIN_LOG_BINDING_KEY: str = os.getenv("RABBIT_TRAIN_LOG_BINDING_KEY", "train_log_binding_key")
 
 
     # --- 数据库相关 (即使暂时不用，也保留结构) ---
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
     POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 5432))
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "user")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "pass")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "db")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "12345678")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "RoboTrain")
 
 
     # --- 平台自身配置 (新增加的部分) ---

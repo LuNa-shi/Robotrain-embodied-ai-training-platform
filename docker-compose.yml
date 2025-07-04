@@ -31,6 +31,7 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
       MINIO_DATASET_DIR: ${MINIO_DATASET_DIR} 
       MINIO_MODEL_DIR: ${MINIO_MODEL_DIR}
+      MINIO_CKPT_DIR: ${MINIO_CKPT_DIR}
       RABBITMQ_SERVER: rabbitmq_mq
       RABBITMQ_PORT: ${RABBITMQ_PORT}
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
@@ -97,13 +98,13 @@ services:
     networks:
       - app_network
     # 如果你的平台需要访问宿主机的 GPU，需要添加以下配置
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   
   # PostgreSQL 数据库服务

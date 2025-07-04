@@ -43,11 +43,6 @@ class _RabbitMQManager:
                 self.exchange = await self.channel.declare_exchange(
                     settings.RABBIT_EXCHANGE_NAME, aio_pika.ExchangeType.DIRECT, durable=True
                 )
-                self.fanout_exchange = await self.channel.declare_exchange(
-                    "platform.fanout.status", # 一个新的、专门用于测试广播的交换机
-                    aio_pika.ExchangeType.FANOUT,
-                    durable=True
-                )
 
                 queue_configs = {
                     settings.RABBIT_REQUEST_QUEUE_NAME: settings.RABBIT_REQUEST_BINDING_KEY,
@@ -101,25 +96,16 @@ async def _send_message(routing_key: str, message_body: dict):
     except Exception as e:
         print(f"发送消息到 {routing_key} 失败: {e}")
 
-async def send_status_message(task_id: int, status: str, uuid: Optional[str] = None):
+async def send_status_message(task_id: int, status: str, model_uuid: Optional[str] = None):
     manager = await _RabbitMQManager.get_instance()
     await manager.initialize_internal()
-    message_body = {"task_id": task_id, "status": status, "model_uuid": uuid}
-    if manager.fanout_exchange and manager.fanout_exchange.name == "platform.fanout.status":
-        try:
-            message = aio_pika.Message(
-                body=json.dumps(message_body).encode('utf-8')
-                # fanout exchange 的消息不需要持久化
-            )
-            # 发送到 fanout exchange, routing_key 为空
-            await manager.fanout_exchange.publish(message, routing_key="")
-        except Exception as e:
-            print(f"广播状态消息失败: {e}")
+    message_body = {"task_id": task_id, "status": status, "model_uuid": model_uuid}
+    await _send_message(settings.RABBIT_STATUS_BINDING_KEY, message_body)
 
 
 
-async def send_log_message(epoch: int, loss: float, accuracy: float, log_message: str):
-    message_body = {"epoch": epoch, "loss": loss, "accuracy": accuracy, "log_message": log_message}
+async def send_log_message(task_id:int, epoch: int, loss: float, accuracy: float, log_message: str):
+    message_body = {"task_id": task_id,"epoch": epoch, "loss": loss, "accuracy": accuracy, "log_message": log_message}
     await _send_message(settings.RABBIT_TRAIN_LOG_BINDING_KEY, message_body)
 
 async def start_task_queue_consumer(on_message_callback: Callable):

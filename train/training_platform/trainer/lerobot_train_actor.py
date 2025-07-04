@@ -13,7 +13,7 @@ import json
 from training_platform.configs.settings import settings
 from training_platform.common.task_models import TrainingTask
 from training_platform.common.rabbitmq_utils import init_rabbitmq, send_log_message
-from training_platform.common.minio_utils import get_minio_client, upload_file_to_minio, download_file_from_minio
+from training_platform.common.minio_utils import get_minio_client, upload_ckpt_to_minio, download_ckpt_from_minio, download_dataset_from_minio
 
 # 导入我们的新训练逻辑
 from training_platform.trainer.lerobot_trainer_logic import run_lerobot_training
@@ -23,7 +23,7 @@ from lerobot.common.utils.train_utils import TrainPipelineConfig
 class TrainerActor:
     def __init__(self, task: TrainingTask):
         self.task = task
-        self.run_dir = os.path.join(settings.RUN_DIR_BASE, self.task.uuid)
+        self.run_dir = os.path.join(settings.RUN_DIR_BASE, str(self.task.task_id))
         os.makedirs(self.run_dir, exist_ok=True)
         
         # 获取当前actor的事件循环，用于线程安全的回调
@@ -44,6 +44,7 @@ class TrainerActor:
         # 你可以添加任何你想从 lerobot tracker 中记录的指标
         log_msg = f"Step {step}: loss={loss:.4f}, lr={metrics.get('lr', 0.0):.1e}"
         await send_log_message(
+            task_id=self.task.task_id,
             epoch=step, # 在我们的平台中，step 等同于 epoch
             loss=loss,
             accuracy=-1.0, # lerobot 通常不直接报告 accuracy，设为-1
@@ -60,13 +61,12 @@ class TrainerActor:
             
             # 上传到 MinIO
             minio_client = await get_minio_client()
-            object_name = f"checkpoints/{self.task.uuid}/checkpoint_step_{step}.zip"
+            object_name = f"{self.task.task_id}/checkpoint_step_{step}.zip"
             print(f"[{self.task.task_id}] upload checkpoint_object_name: {object_name}")
-            await upload_file_to_minio(
+            await upload_ckpt_to_minio(
                 client=minio_client,
-                upload_file_local_path=zip_path,
+                ckpt_file_local_path=zip_path,
                 filename=object_name,
-                bucket_name=settings.MINIO_CHECKPOINT_BUCKET,
             )
             print(f"[{self.task.task_id}] Checkpoint for step {step} uploaded to MinIO.")
             # 清理本地的 zip 文件
@@ -136,26 +136,26 @@ class TrainerActor:
             
             # 准备：下载数据集（如果第一次运行）和 checkpoint (如果断点续练)
             # 1. 下载数据集
-            local_dataset_dir = os.path.join(self.run_dir, self.task.uuid, "dataset")
+            local_dataset_dir = os.path.join(self.run_dir, "dataset")
+            print(f"[{task_id}] Checking local dataset directory: {local_dataset_dir}")
             if not os.path.exists(local_dataset_dir) and start_step == 0:
                 print(f"[{task_id}] Downloading dataset...")
                 dataset_zip_path = os.path.join(self.run_dir, "dataset.zip")
                 
                 # 从嵌套的 config 中获取 repo_id
                 dataset_conf = self.task.config.get("dataset", {})
-                repo_id = dataset_conf.get("repo_id")
-                if not repo_id:
-                    raise ValueError("dataset.repo_id not found in task config.")
+                # repo_id = dataset_conf.get("repo_id")
+                # if not repo_id:
+                    # raise ValueError("dataset.repo_id not found in task config.")
                 
                 # 在 MinIO 中，路径通常不带组织名，例如 'aloha_sim_insertion_human.zip'
-                minio_object_name = f"{repo_id.split('/')[-1]}.zip"
-                dataset_object_name = f"datasets/{minio_object_name}"
+                # minio_object_name = f"{repo_id.split('/')[-1]}.zip"
+                dataset_object_name = f"{self.task.dataset_uuid}.zip"
                 
-                success, _ = await download_file_from_minio(
+                success, _ = await download_dataset_from_minio(
                     client=minio_client,
-                    bucket_name=settings.MINIO_DATASET_BUCKET,
-                    object_name=dataset_object_name,
-                    local_file_path=dataset_zip_path,
+                    download_local_path=dataset_zip_path,
+                    dataset_name=dataset_object_name,
                 )
                 if not success: raise RuntimeError("Failed to download dataset.")
                 
@@ -185,14 +185,13 @@ class TrainerActor:
                 prev_save_step = (start_step // self.task.config.get("save_freq", 1000)) * self.task.config.get("save_freq", 1000)
                 if prev_save_step > 0:
                     checkpoint_zip_path = os.path.join(self.run_dir, f"checkpoint_step_{prev_save_step}.zip")
-                    checkpoint_object_name = f"checkpoints/{self.task.uuid}/checkpoint_step_{prev_save_step}.zip"
+                    checkpoint_object_name = f"{self.task.task_id}/checkpoint_step_{prev_save_step}.zip"
                     print(f"[{task_id}] download checkpoint_object_name: {checkpoint_object_name}")
                     
-                    success, _ = await download_file_from_minio(
+                    success, _ = await download_ckpt_from_minio(
                         client=minio_client,
-                        bucket_name=settings.MINIO_CHECKPOINT_BUCKET,
-                        object_name=checkpoint_object_name,
-                        local_file_path=checkpoint_zip_path
+                        download_local_path=checkpoint_zip_path,
+                        ckpt_name=checkpoint_object_name,
                     )
                     if not success: raise RuntimeError(f"Failed to download checkpoint for step {prev_save_step}.")
                     
@@ -251,6 +250,7 @@ class TrainerActor:
                 base_config_path,
                 training_config,  # 使用确定的配置
                 self.run_dir,
+                self.task.task_id,
                 start_step,
                 end_step,
                 sync_log_callback,

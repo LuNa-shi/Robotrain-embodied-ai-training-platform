@@ -34,7 +34,6 @@ class Scheduler:
     async def add_task(self, task_data: dict):
         task = TrainingTask(**task_data)
         self.task_queue.append(task)
-        await send_status_message(task_id=int(task.task_id), status="queued", uuid=task.uuid)
         print(f"[Scheduler] Task {task.task_id} added to queue.")
 
     async def run(self):
@@ -55,7 +54,7 @@ class Scheduler:
                 start_step = self.running_task.current_step
                 end_step = min(start_step + self.steps_per_timeslice, total_steps)
                 
-                await send_status_message(task_id=int(self.running_task.task_id), status="training", uuid=self.running_task.uuid)
+                await send_status_message(task_id=int(self.running_task.task_id), status="running", model_uuid=None)
                 
                 try:
                     final_step = await self.trainer_actor.train.remote(start_step, end_step) #method
@@ -63,13 +62,13 @@ class Scheduler:
                     self.running_task.current_step = final_step
                     
                     if final_step >= total_steps:
-                        await send_status_message(task_id=int(self.running_task.task_id), status="completed", uuid=self.running_task.uuid)
+                        await send_status_message(task_id=int(self.running_task.task_id), status="completed", model_uuid=self.running_task.model_uuid)
                     else:
                         self.task_queue.append(self.running_task)
-                        await send_status_message(task_id=int(self.running_task.task_id), status="paused", uuid=self.running_task.uuid)
+                        # await send_status_message(task_id=int(self.running_task.task_id), status="paused", uuid=self.running_task.uuid)
                 except Exception as e:
                     print(f"❌ [Scheduler] Training failed for task {self.running_task.task_id}: {e}")
-                    await send_status_message(task_id=int(self.running_task.task_id), status="failed", uuid=self.running_task.uuid)
+                    await send_status_message(task_id=int(self.running_task.task_id), status="failed", model_uuid=None)
                 finally:
                     if self.trainer_actor: ray.kill(self.trainer_actor)
                     self.trainer_actor, self.running_task = None, None
