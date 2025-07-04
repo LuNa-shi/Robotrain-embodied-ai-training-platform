@@ -56,5 +56,6 @@ async def send_log_to_websockets(task_id: int, log_message: str):
         for websocket in active_ws_connections[task_id]:
             try:
                 await websocket.send_text(log_message)
+                print(f"Sent message to WebSocket for task {task_id}: {log_message}")
             except Exception as e:
                 print(f"Error sending message to WebSocket: {e}")
