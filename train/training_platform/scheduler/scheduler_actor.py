@@ -1,15 +1,13 @@
 import ray
 import asyncio
-import os
 from collections import deque
 from typing import Deque, Optional
 
 from training_platform.configs.settings import settings
 from training_platform.common.task_models import TrainingTask
 from training_platform.common.rabbitmq_utils import init_rabbitmq, send_status_message
-from training_platform.trainer.trainer_actor import TrainerActor
-from uuid import uuid4
-from training_platform.common.minio_utils import get_minio_client, upload_model_to_minio, download_dataset_from_minio
+from training_platform.trainer.lerobot_train_actor import TrainerActor
+import torch.cuda
 
 @ray.remote
 class Scheduler:
@@ -26,10 +24,17 @@ class Scheduler:
         asyncio.create_task(init_rabbitmq())
         
         print("[Scheduler] Actor initialized.")
+        
+        # Test CUDA
+        if torch.cuda.is_available():
+            print(f"✅ CUDA OK: {torch.cuda.device_count()} GPUs available")
+        else:
+            print("❌ CUDA not available")
 
     async def add_task(self, task_data: dict):
         task = TrainingTask(**task_data)
         self.task_queue.append(task)
+        await send_status_message(task_id=int(task.task_id), status="queued", uuid=task.uuid)
         print(f"[Scheduler] Task {task.task_id} added to queue.")
 
     async def run(self):
@@ -41,36 +46,30 @@ class Scheduler:
                 print(f"[Scheduler] Starting training for task: {self.running_task.task_id}")
                 
                 trainer_options = {"num_gpus": self.num_gpus_per_trainer}
-                self.trainer_actor = TrainerActor.options(**trainer_options).remote(self.running_task)
+                print(f"[Scheduler] Trainer options: {trainer_options}")
                 
-                total_epochs = self.running_task.config.get('epochs', 10)
-                start_epoch = self.running_task.current_step
-                end_epoch = min(start_epoch + self.steps_per_timeslice, total_epochs)
+                self.trainer_actor = TrainerActor.options(**trainer_options).remote(self.running_task) #constructor
+                # self.trainer_actor = TrainerActor(self.running_task)
                 
-                await send_status_message(task_id=self.running_task.task_id, status="running", model_uuid=None)
+                total_steps = self.running_task.config.get('steps', 10)
+                start_step = self.running_task.current_step
+                end_step = min(start_step + self.steps_per_timeslice, total_steps)
+                
+                await send_status_message(task_id=int(self.running_task.task_id), status="training", uuid=self.running_task.uuid)
                 
                 try:
-                    final_epoch = await self.trainer_actor.train.remote(start_epoch, end_epoch)
-                    self.running_task.current_step = final_epoch
+                    final_step = await self.trainer_actor.train.remote(start_step, end_step) #method
+                    # final_step = await self.trainer_actor.train(start_step, end_step)
+                    self.running_task.current_step = final_step
                     
-                    if final_epoch >= total_epochs:
-                        run_dir:str = os.path.join(settings.RUN_DIR_BASE, str(self.running_task.task_id))
-                        local_model_path = os.path.join(run_dir, "model.zip")
-                        self.running_task.model_uuid = str(uuid4())
-                        minio_client = await get_minio_client()
-                        await upload_model_to_minio(
-                            client=minio_client,
-                            model_file_local_path=local_model_path,
-                            filename=f"{self.running_task.model_uuid}.zip"
-                        )
-                        print(f"[{self.running_task.task_id}] Mock model {self.running_task.model_uuid} uploaded.")
-                        await send_status_message(task_id=int(self.running_task.task_id), status="completed", model_uuid=self.running_task.model_uuid)
+                    if final_step >= total_steps:
+                        await send_status_message(task_id=int(self.running_task.task_id), status="completed", uuid=self.running_task.uuid)
                     else:
                         self.task_queue.append(self.running_task)
-                        # await send_status_message(task_id=int(self.running_task.task_id), status="paused", uuid=self.running_task.uuid)
+                        await send_status_message(task_id=int(self.running_task.task_id), status="paused", uuid=self.running_task.uuid)
                 except Exception as e:
                     print(f"❌ [Scheduler] Training failed for task {self.running_task.task_id}: {e}")
-                    await send_status_message(task_id=int(self.running_task.task_id), status="failed", model_uuid=None)
+                    await send_status_message(task_id=int(self.running_task.task_id), status="failed", uuid=self.running_task.uuid)
                 finally:
                     if self.trainer_actor: ray.kill(self.trainer_actor)
                     self.trainer_actor, self.running_task = None, None

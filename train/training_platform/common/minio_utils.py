@@ -9,10 +9,6 @@ from miniopy_async.error import S3Error
 from training_platform.configs.settings import settings
 
 class _MinIOManager:
-    """
-    一个内部单例类，用于管理 MinIO 客户端的生命周期。
-    对外部调用者透明。
-    """
     _instance: Optional['_MinIOManager'] = None
     _lock = asyncio.Lock()
 
@@ -22,6 +18,7 @@ class _MinIOManager:
 
     @classmethod
     async def get_instance(cls) -> '_MinIOManager':
+        # (这个方法保持不变)
         if cls._instance is None:
             async with cls._lock:
                 if cls._instance is None:
@@ -29,13 +26,29 @@ class _MinIOManager:
         return cls._instance
 
     async def get_client_internal(self) -> Minio:
-        if self.client is None:
+        # 检查连接是否已关闭或不存在
+        client_is_invalid = self.client is None
+        if self.client and hasattr(self.client, '_http') and self.client._http:
+             client_is_invalid = self.client._http.is_closed()
+        
+        if client_is_invalid:
             async with self._lock:
-                if self.client is None:
+                # 再次检查，防止在等待锁时连接已被其他协程建立
+                client_is_invalid_again = self.client is None
+                if self.client and hasattr(self.client, '_http') and self.client._http:
+                    client_is_invalid_again = self.client._http.is_closed()
+                
+                if client_is_invalid_again:
                     if self._is_connecting:
                         while self._is_connecting:
                             await asyncio.sleep(0.1)
-                        return self.client
+                        # 在等待后，另一个协程可能已经成功连接，直接返回
+                        if self.client and not self.client._http.is_closed():
+                            return self.client
+                        else:
+                            # 如果等待后仍然连接失败，则抛出异常
+                            raise ConnectionError("另一个协程尝试连接失败。")
+
                     self._is_connecting = True
                     try:
                         print(f"💡 正在连接到 MinIO 服务器: {settings.MINIO_URL} ...")
@@ -45,69 +58,59 @@ class _MinIOManager:
                             secret_key=settings.MINIO_SECRET_KEY,
                             secure=False
                         )
-                        await client.list_buckets()
+                        # 使用一个轻量级的操作作为健康检查
+                        await client.bucket_exists("health-check-bucket-that-may-not-exist")
                         self.client = client
                         print("✅ 成功连接到 MinIO 服务器！")
                     except Exception as e:
-                        print(f"❌ 连接 MinIO 失败: {e}")
+                        print(f"❌ 连接 MinIO 失败。原始错误: {e}")
                         self.client = None
-                        raise
+                        # --- 关键修改：直接抛出异常 ---
+                        raise ConnectionError(f"无法连接到 MinIO 服务器 at {settings.MINIO_URL}") from e
                     finally:
                         self._is_connecting = False
         
-        if not self.client:
-            raise ConnectionError("无法建立 MinIO 连接")
+        # 能走到这里，self.client 一定是一个有效的对象
         return self.client
 
-# --- 以下是你原有的函数，我们保持接口不变，但内部实现调用Manager ---
+# --- 函数接口 ---
 
-# 包装 connect_minio 和 get_minio_client
-async def connect_minio() -> Optional[Minio]:
-    try:
-        manager = await _MinIOManager.get_instance()
-        return await manager.get_client_internal()
-    except Exception as e:
-        print(f"connect_minio 最终失败: {e}")
-        return None
+# --- 关键修改：让函数在失败时抛出异常，而不是返回 None ---
+async def get_minio_client() -> Minio:
+    """
+    获取一个保证可用的 MinIO 客户端。如果无法连接，则抛出 ConnectionError。
+    """
+    manager = await _MinIOManager.get_instance()
+    return await manager.get_client_internal()
 
-async def get_minio_client() -> Optional[Minio]:
-    return await connect_minio()
+async def connect_minio() -> Minio:
+    """
+    连接到 MinIO。这是 get_minio_client 的别名。
+    """
+    return await get_minio_client()
+
+
 
 # 其他函数保持完全不变，因为它们依赖传入的 client 对象
 async def upload_model_to_minio(
     client: Minio,
-    model_file_local_path: str,
+    dataset_file_local_path: str,
     filename: str,
 ) -> Tuple[bool, str]:
     from training_platform.configs.settings import settings # 在函数内导入以避免循环依赖
     return await upload_file_to_minio(
         client=client,
-        upload_file_local_path=model_file_local_path,
+        upload_file_local_path=dataset_file_local_path,
         filename=filename,
-        bucket_name=settings.MINIO_BUCKET,
-        object_dir=settings.MINIO_MODEL_DIR
-    )
-    
-async def download_dataset_from_minio(
-    client: Minio,
-    download_local_path: str,
-    dataset_name: str
-) -> Tuple[bool, str]:
-    from training_platform.configs.settings import settings # 在函数内导入以避免循环依赖
-    return await download_file_from_minio(
-        client=client,
-        local_file_path=download_local_path,
-        object_name=dataset_name,
-        bucket_name=settings.MINIO_BUCKET,
-        object_dir=settings.MINIO_DATASET_DIR
+        bucket_name=settings.MINIO_MODEL_BUCKET,
+        object_prefix="models/"
     )
 
 async def download_file_from_minio(
     client: Minio,
-    local_file_path: str,
-    object_name: str,
     bucket_name: str,
-    object_dir: str = "",
+    object_name: str,
+    local_file_path: str
 ) -> Tuple[bool, str]:
     if not isinstance(client, Minio):
         return False, "传入的 MinIO 客户端无效或未初始化。"
@@ -115,9 +118,8 @@ async def download_file_from_minio(
         found = await client.bucket_exists(bucket_name)
         if not found:
             return False, f"桶 '{bucket_name}' 不存在。"
-        full_object_name = f"{object_dir}/{object_name}"
-        await client.fget_object(bucket_name, full_object_name, local_file_path)
-        print(f"⬇️ 文件 '{full_object_name}' 已成功下载到 '{local_file_path}'。")
+        await client.fget_object(bucket_name, object_name, local_file_path)
+        print(f"⬇️ 文件 '{object_name}' 已成功下载到 '{local_file_path}'。")
         return True, local_file_path
     except S3Error as e:
         error_msg = f"MinIO 下载失败: {e}"
@@ -133,7 +135,7 @@ async def upload_file_to_minio(
     upload_file_local_path: str,
     filename: str,
     bucket_name: str,
-    object_dir: str = "",
+    object_prefix: str = "",
 ) -> Tuple[bool, str]:
     if not isinstance(client, Minio):
         return False, "传入的 MinIO 客户端无效或未初始化。"
@@ -143,7 +145,7 @@ async def upload_file_to_minio(
             await client.make_bucket(bucket_name)
             print(f"Bucket '{bucket_name}' 不存在，已自动创建。")
 
-        object_name = f"{object_dir}/{filename}"
+        object_name = f"{object_prefix}{filename}"
         content_type, _ = mimetypes.guess_type(upload_file_local_path)
         content_type = content_type or 'application/octet-stream'
 

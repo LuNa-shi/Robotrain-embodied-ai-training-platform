@@ -23,7 +23,6 @@ async def on_task_message(message: aio_pika.IncomingMessage):
         try:
             task_data = json.loads(message.body.decode('utf-8'))
             await scheduler_actor_handle.add_task.remote(task_data)
-            print(f"✅ [Consumer] Received task message: {task_data}")
         except Exception as e:
             print(f"❌ [Consumer] Error processing message: {e}")
 
