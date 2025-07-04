@@ -1,1 +1,0 @@
-{"batch_size": 8, "steps": 100000, "log_freq": 200, "env": {"type": "aloha", "task": "AlohaInsertion-v0"}, "policy": {"type": "act", "optimizer_lr": 1e-05}}
