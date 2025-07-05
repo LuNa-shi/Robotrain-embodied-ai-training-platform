@@ -140,9 +140,6 @@ const ProjectCenterPage = () => {
     // 这里可以添加实际的删除逻辑
   };
 
-
-
-
   
   return (
     <div className={styles.projectCenterPage}>
@@ -205,12 +202,7 @@ const ProjectCenterPage = () => {
                   </Text>
                   <Text>{record.duration}</Text>
                 </Col>
-                {record.status === 'completed' && record.modelUuid && (
-                  <Col span={24}>
-                    <Text type="secondary">模型ID:</Text>
-                    <Text code style={{ fontSize: '12px' }}>{record.modelUuid}</Text>
-                  </Col>
-                )}
+                {record.status === 'completed'}
               </Row>
             </div>
 
