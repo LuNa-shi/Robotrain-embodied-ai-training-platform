@@ -301,17 +301,18 @@ const TrainingPage = () => {
               {datasets.map(dataset => (
                 <Card 
                   key={dataset.id} 
-                  className={styles.card}
+                  className={
+                    selectedDataset && selectedDataset.id === dataset.id
+                      ? `${styles.datasetCard} ${styles.datasetCardSelected}`
+                      : styles.datasetCard
+                  }
                   hoverable
                   onClick={() => handleDatasetSelect(dataset)}
                 >
                   <div className={styles.cardContent}>
-                    <Title level={5} className={styles.cardTitle}>{dataset.dataset_name}</Title>
+                    <Title level={3} className={styles.cardTitle}>{dataset.dataset_name}</Title>
                     <Text type="secondary" className={styles.cardDescription}>{dataset.description}</Text>
                     <div className={styles.cardMeta}>
-                      <Tag color="blue">ID: {dataset.dataset_uuid}</Tag>
-                      <Tag color="green">{dataset.size}</Tag>
-                      <Tag color="orange">{dataset.samples} 样本</Tag>
                     </div>
                     <Text type="secondary" style={{ fontSize: '12px' }}>
                       上传于: {new Date(dataset.uploaded_at).toLocaleString('zh-CN')}
@@ -335,10 +336,10 @@ const TrainingPage = () => {
           {selectedDataset && (
             <Alert
               message={`已选择数据集: ${selectedDataset.dataset_name}`}
-              description={`UUID: ${selectedDataset.dataset_uuid} | 描述: ${selectedDataset.description}`}
+              description={`描述: ${selectedDataset.description}`}
               type="info"
               showIcon
-              style={{ marginBottom: '16px' }}
+              style={{ marginBottom: '16px', width: '540px', maxWidth: '100%' }}
             />
           )}
           
@@ -356,21 +357,36 @@ const TrainingPage = () => {
               </Text>
             </div>
           ) : (
-          <div className={styles.cardGrid}>
-            {availableModels.map(model => (
-              <Card 
-                key={model.value} 
-                className={styles.card}
-                hoverable
-                onClick={() => handleModelSelect(model.value)}
-              >
-                <div className={styles.cardContent}>
-                  <Title level={5} className={styles.cardTitle}>{model.label}</Title>
-                  <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <>
+            <div className={styles.cardGrid}>
+              {availableModels.map(model => (
+                <Card 
+                  key={model.value} 
+                  className={
+                    selectedModel && selectedModel.value === model.value
+                      ? `${styles.modelCard} ${styles.modelCardSelected}`
+                      : styles.modelCard
+                  }
+                  hoverable
+                  onClick={() => handleModelSelect(model.value)}
+                >
+                  <div className={styles.cardContent}>
+                    <Title level={5} className={styles.cardTitle}>{model.label}</Title>
+                    <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: 32 }}>
+              <Button onClick={() => {
+                setCurrentStep(0);
+                setSelectedModel(null);
+                setSelectedDataset(null);
+              }}>
+                返回上一步
+              </Button>
+            </div>
+          </>
           )}
         </div>
       )
@@ -386,7 +402,6 @@ const TrainingPage = () => {
           {selectedDataset && selectedModel && (
             <Alert
               message={`数据集: ${selectedDataset.dataset_name} | 模型: ${selectedModel.label}`}
-              description={`UUID: ${selectedDataset.dataset_uuid}`}
               type="info"
               showIcon
               style={{ marginBottom: '16px' }}
@@ -504,14 +519,6 @@ const TrainingPage = () => {
               </Col>
             </Row>
 
-            <Form.Item
-              label="机器人训练项目描述"
-              name="description"
-              rules={[{ required: false, message: '请输入机器人训练项目描述' }]}
-            >
-              <Input placeholder="机器人训练项目描述（可选）" />
-            </Form.Item>
-
             {/* 隐藏的模型字段，确保模型值被正确传递 */}
             <Form.Item
               name="model"
@@ -525,9 +532,15 @@ const TrainingPage = () => {
 
             <Divider />
 
-            <div className={styles.actionButtonsFixed}>
-              <Button onClick={handleReset} style={{ marginRight: 24 }}>
+            <div className={styles.actionButtonsFixed} style={{ marginTop: '12px' }}>
+              <Button onClick={handleReset} style={{ marginRight: 16 }}>
                 重新开始
+              </Button>
+              <Button onClick={() => {
+                setCurrentStep(1);
+                setSelectedModel(null);
+              }} style={{ marginRight: 16 }}>
+                返回上一步
               </Button>
               <Button 
                 type="primary" 
@@ -535,7 +548,7 @@ const TrainingPage = () => {
                 loading={trainingLoading}
                 icon={<PlayCircleOutlined />}
               >
-                开始机器人训练
+                开始训练
               </Button>
             </div>
           </Form>
@@ -603,11 +616,11 @@ const TrainingPage = () => {
         </div>
 
         <Card className={styles.mainCard}>
-          <div style={{display:'flex',alignItems:'center',minHeight:900}}>
-            <div style={{marginRight:56}}>
+          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'center',height:'600px'}}>
+            <div style={{marginRight:48, display:'flex', alignItems:'center', height:'100%'}}>
               <VerticalTimeline steps={timelineSteps} currentStep={currentStep} />
             </div>
-            <div style={{flex:1}}>
+            <div style={{minWidth: 800, maxWidth: 800, marginLeft: 0, marginRight: 'auto', display:'flex', justifyContent:'center'}}>
               <div className={styles.stepContentContainer}>
                 <div className={styles.stepContent}>
                   {steps[currentStep].content}
