@@ -7,20 +7,23 @@ import {
   Spin,
   Row,
   Col,
-  Checkbox
+  Checkbox,
+  Divider,
+  Alert
 } from 'antd';
 import {
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import styles from './DatasetVisualization.module.css';
-// 导入您的本地视频文件
-// 请确保路径 '@/' 指向您的 'src' 目录，或者使用相对路径
 import exampleVideo from '@/assets/videos/example.mp4';
+import RobotSimulation from '@/components/RobotSimulation';
+import RobotController from '@/components/RobotController';
+import { loadMotionDataFromJson } from '@/utils/motionDataLoader';
 
 const { Title } = Typography;
 
-// 图表分组配置
+// ... (chartGroups 和 generateMockJointDataV2 函数保持不变)
 const chartGroups = [
   {
     title: '左侧关节',
@@ -39,12 +42,6 @@ const chartGroups = [
     ],
   },
 ];
-
-/**
- * 根据视频时长动态生成模拟数据
- * @param {number} duration - 视频的总时长（秒）
- * @returns {Array} 生成的图表数据
- */
 const generateMockJointDataV2 = (duration) => {
   if (!duration) return [];
   const data = [];
@@ -70,6 +67,7 @@ const generateMockJointDataV2 = (duration) => {
   return data;
 };
 
+
 const DatasetVisualizationPage = () => {
   const navigate = useNavigate();
   const [videoUrl] = useState(exampleVideo);
@@ -80,167 +78,202 @@ const DatasetVisualizationPage = () => {
   const videoRef = useRef(null);
   const chartRefs = useRef([]);
   const [showMarkLine, setShowMarkLine] = useState(true);
+  
+  // 机器人仿真相关状态
+  const robotRef = useRef(null);
+  const [motionData, setMotionData] = useState([]);
+  const [isRobotSimulationVisible, setIsRobotSimulationVisible] = useState(false);
+  const [isRobotLoaded, setIsRobotLoaded] = useState(false);
+  const [isMotionDataLoaded, setIsMotionDataLoaded] = useState(false);
 
-  // 处理勾选框状态变更
-  const handleLineCheck = (groupIdx, lineKey, checked) => {
-    setCheckedLines(prev => ({
-      ...prev,
-      [groupIdx]: {
-        ...prev[groupIdx],
-        [lineKey]: checked,
-      },
-    }));
-  };
+  const urdfUrl = '/bimanual_robot.urdf';
 
-  // 生成 ECharts 配置
-  const getChartOption = (group, groupIdx) => {
-    const series = [];
-    const legendData = [];
-    const currentGroupChecks = checkedLines[groupIdx] || {};
-    let markLineAdded = false; // 只添加一次markLine
-    group.joints.forEach(joint => {
-      if (currentGroupChecks[`${joint.key}_observation`]) {
-        series.push({
-          name: `${joint.label} observation.state`,
-          type: 'line',
-          data: jointData.map(item => [item.time, item[`${joint.key}_observation`]]),
-          lineStyle: { color: joint.color, width: 2, type: 'solid' },
-          color: joint.color,
-          symbol: 'none',
-          icon: 'path://M2,8 L22,8',
-          markLine: showMarkLine && !markLineAdded ? {
-            symbol: 'none',
-            data: [
-              {
-                xAxis: typeof currentTime === 'number' ? currentTime : 0,
-                lineStyle: {
-                  color: '#bfbfbf',
-                  width: 1,
-                  type: 'dashed',
-                },
-                label: { show: false },
-              },
-            ],
-            animation: false,
-          } : undefined,
+  // ... (handleLineCheck, getChartOption, useEffect for checkedLines, handleBack, etc. remain the same)
+    // 处理勾选框状态变更
+    const handleLineCheck = (groupIdx, lineKey, checked) => {
+        setCheckedLines(prev => ({
+          ...prev,
+          [groupIdx]: {
+            ...prev[groupIdx],
+            [lineKey]: checked,
+          },
+        }));
+      };
+    
+      // 生成 ECharts 配置
+      const getChartOption = (group, groupIdx) => {
+        const series = [];
+        const legendData = [];
+        const currentGroupChecks = checkedLines[groupIdx] || {};
+        let markLineAdded = false; // 只添加一次markLine
+        group.joints.forEach(joint => {
+          if (currentGroupChecks[`${joint.key}_observation`]) {
+            series.push({
+              name: `${joint.label} observation.state`,
+              type: 'line',
+              data: jointData.map(item => [item.time, item[`${joint.key}_observation`]]),
+              lineStyle: { color: joint.color, width: 2, type: 'solid' },
+              color: joint.color,
+              symbol: 'none',
+              icon: 'path://M2,8 L22,8',
+              markLine: showMarkLine && !markLineAdded ? {
+                symbol: 'none',
+                data: [
+                  {
+                    xAxis: typeof currentTime === 'number' ? currentTime : 0,
+                    lineStyle: {
+                      color: '#bfbfbf',
+                      width: 1,
+                      type: 'dashed',
+                    },
+                    label: { show: false },
+                  },
+                ],
+                animation: false,
+              } : undefined,
+            });
+            if (!markLineAdded) markLineAdded = true;
+            legendData.push(`${joint.label} observation.state`);
+          }
+          if (currentGroupChecks[`${joint.key}_action`]) {
+            series.push({
+              name: `${joint.label} action`,
+              type: 'line',
+              data: jointData.map(item => [item.time, item[`${joint.key}_action`]]),
+              lineStyle: { color: joint.color, width: 2, type: 'dashed' },
+              color: joint.color,
+              symbol: 'none',
+              icon: 'path://M2,8 L7,8 M10,8 L15,8 M18,8 L22,8',
+              markLine: showMarkLine && !markLineAdded ? {
+                symbol: 'none',
+                data: [
+                  {
+                    xAxis: typeof currentTime === 'number' ? currentTime : 0,
+                    lineStyle: {
+                      color: '#bfbfbf',
+                      width: 1,
+                      type: 'dashed',
+                    },
+                    label: { show: false },
+                  },
+                ],
+                animation: false,
+              } : undefined,
+            });
+            if (!markLineAdded) markLineAdded = true;
+            legendData.push(`${joint.label} action`);
+          }
         });
-        if (!markLineAdded) markLineAdded = true;
-        legendData.push(`${joint.label} observation.state`);
-      }
-      if (currentGroupChecks[`${joint.key}_action`]) {
-        series.push({
-          name: `${joint.label} action`,
-          type: 'line',
-          data: jointData.map(item => [item.time, item[`${joint.key}_action`]]),
-          lineStyle: { color: joint.color, width: 2, type: 'dashed' },
-          color: joint.color,
-          symbol: 'none',
-          icon: 'path://M2,8 L7,8 M10,8 L15,8 M18,8 L22,8',
-          markLine: showMarkLine && !markLineAdded ? {
-            symbol: 'none',
-            data: [
-              {
-                xAxis: typeof currentTime === 'number' ? currentTime : 0,
-                lineStyle: {
-                  color: '#bfbfbf',
-                  width: 1,
-                  type: 'dashed',
-                },
-                label: { show: false },
-              },
-            ],
-            animation: false,
-          } : undefined,
+    
+        return {
+          grid: { left: 50, right: 20, top: 40, bottom: 40 },
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'line' },
+            formatter: params => {
+              if (!params || !params.length) return '';
+              let html = `<div style='font-weight:600;margin-bottom:4px;'>Time: ${params[0].value[0].toFixed(2)}s</div>`;
+              params.forEach(param => {
+                html += `<div><span style='display:inline-block;margin-right:6px;border-radius:50%;width:10px;height:10px;background:${param.color}'></span>${param.seriesName}: <b>${param.value[1].toFixed(6)}</b></div>`;
+              });
+              return html;
+            }
+          },
+          legend: {
+            data: legendData,
+            type: 'scroll',
+            top: 0,
+            selectedMode: false,
+          },
+          xAxis: {
+            type: 'value',
+            name: 'Time (s)',
+            min: 0,
+            max: videoDuration,
+            splitLine: { show: true, lineStyle: { color: '#f0f0f0' } }
+          },
+          yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#f0f0f0' } } },
+          series,
+        };
+      };
+    
+      // 初始化勾选状态为空
+      useEffect(() => {
+        const defaultChecked = {};
+        chartGroups.forEach((_, idx) => {
+          defaultChecked[idx] = {};
         });
-        if (!markLineAdded) markLineAdded = true;
-        legendData.push(`${joint.label} action`);
-      }
-    });
-
-    return {
-      grid: { left: 50, right: 20, top: 40, bottom: 40 },
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'line' },
-        formatter: params => {
-          if (!params || !params.length) return '';
-          let html = `<div style='font-weight:600;margin-bottom:4px;'>Time: ${params[0].value[0].toFixed(2)}s</div>`;
-          params.forEach(param => {
-            html += `<div><span style='display:inline-block;margin-right:6px;border-radius:50%;width:10px;height:10px;background:${param.color}'></span>${param.seriesName}: <b>${param.value[1].toFixed(6)}</b></div>`;
-          });
-          return html;
+        setCheckedLines(defaultChecked);
+      }, []);
+    
+      const handleBack = () => navigate('/data-center');
+      const handleTimeUpdate = (e) => setCurrentTime(e.target.currentTime);
+    
+      // 当视频元数据加载完成时，获取时长并生成图表数据
+      const handleLoadedMetadata = (e) => {
+        const duration = e.target.duration;
+        if (duration) {
+            setVideoDuration(duration);
+            setJointData(generateMockJointDataV2(duration));
         }
-      },
-      legend: {
-        data: legendData,
-        type: 'scroll',
-        top: 0,
-        selectedMode: false,
-      },
-      xAxis: {
-        type: 'value',
-        name: 'Time (s)',
-        min: 0,
-        max: videoDuration,
-        splitLine: { show: true, lineStyle: { color: '#f0f0f0' } }
-      },
-      yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#f0f0f0' } } },
-      series,
-    };
-  };
+      };
+    
+      // 视频暂停/播放时自动显示/隐藏tooltip
+      const handlePause = () => {
+        setShowMarkLine(false);
+        chartRefs.current.forEach((chartRef, idx) => {
+          if (chartRef && chartRef.getEchartsInstance) {
+            const instance = chartRef.getEchartsInstance();
+            const dataIndex = jointData.findIndex(item => item.time >= currentTime);
+            instance.dispatchAction({
+              type: 'showTip',
+              seriesIndex: 0,
+              dataIndex: dataIndex === -1 ? jointData.length - 1 : dataIndex,
+            });
+          }
+        });
+      };
+      const handlePlay = () => {
+        setShowMarkLine(true);
+        chartRefs.current.forEach((chartRef) => {
+          if (chartRef && chartRef.getEchartsInstance) {
+            const instance = chartRef.getEchartsInstance();
+            instance.dispatchAction({ type: 'hideTip' });
+            instance.dispatchAction({
+              type: 'updateAxisPointer',
+              xAxisIndex: 0,
+              value: null
+            });
+          }
+        });
+      };
 
-  // 初始化勾选状态为空
-  useEffect(() => {
-    const defaultChecked = {};
-    chartGroups.forEach((_, idx) => {
-      defaultChecked[idx] = {};
-    });
-    setCheckedLines(defaultChecked);
-  }, []);
-
-  const handleBack = () => navigate('/data-center');
-  const handleTimeUpdate = (e) => setCurrentTime(e.target.currentTime);
-
-  // 当视频元数据加载完成时，获取时长并生成图表数据
-  const handleLoadedMetadata = (e) => {
-    const duration = e.target.duration;
-    if (duration) {
-        setVideoDuration(duration);
-        setJointData(generateMockJointDataV2(duration));
+  const toggleRobotSimulation = () => {
+    setIsRobotSimulationVisible(prev => !prev);
+    if (isRobotSimulationVisible) {
+        setIsRobotLoaded(false);
+        setIsMotionDataLoaded(false);
     }
   };
 
-  // 视频暂停/播放时自动显示/隐藏tooltip
-  const handlePause = () => {
-    setShowMarkLine(false);
-    chartRefs.current.forEach((chartRef, idx) => {
-      if (chartRef && chartRef.getEchartsInstance) {
-        const instance = chartRef.getEchartsInstance();
-        const dataIndex = jointData.findIndex(item => item.time >= currentTime);
-        instance.dispatchAction({
-          type: 'showTip',
-          seriesIndex: 0,
-          dataIndex: dataIndex === -1 ? jointData.length - 1 : dataIndex,
-        });
+  useEffect(() => {
+    const loadMotionData = async () => {
+      try {
+        const data = await loadMotionDataFromJson('/data/motion_data.json');
+        console.log('设置 motionData，包含', data.length, '个数据点');
+        setMotionData(data);
+        setIsMotionDataLoaded(true);
+      } catch (error) {
+        console.error('加载运动数据失败:', error);
+        setMotionData([]);
+        setIsMotionDataLoaded(false);
       }
-    });
-  };
-  const handlePlay = () => {
-    setShowMarkLine(true);
-    chartRefs.current.forEach((chartRef) => {
-      if (chartRef && chartRef.getEchartsInstance) {
-        const instance = chartRef.getEchartsInstance();
-        instance.dispatchAction({ type: 'hideTip' });
-        instance.dispatchAction({
-          type: 'updateAxisPointer',
-          xAxisIndex: 0,
-          value: null
-        });
-      }
-    });
-  };
+    };
+    if (isRobotSimulationVisible) {
+      loadMotionData();
+    }
+  }, [isRobotSimulationVisible]);
 
-  // 初始加载界面，直到图表数据生成完毕
   if (jointData.length === 0) {
     return (
         <div className={styles.visualizationPage}>
@@ -250,7 +283,6 @@ const DatasetVisualizationPage = () => {
                 </div>
                 <div className={styles.videoSection}>
                     <div className={styles.videoTitle}><Title level={3}>机器人动作视频</Title></div>
-                    {/* 视频容器，在加载时也显示 */}
                     <div className={styles.videoContainer}>
                         <video
                             ref={videoRef}
@@ -366,6 +398,60 @@ const DatasetVisualizationPage = () => {
               </Col>
             ))}
           </Row>
+        </div>
+
+        {/* 机器人动态运动轨迹仿真区域 */}
+        <div style={{ marginTop: 32 }}>
+          <Card 
+            title={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Title level={4} style={{ margin: 0 }}>机器人动态运动轨迹仿真</Title>
+                <Button 
+                  type={isRobotSimulationVisible ? "default" : "primary"}
+                  onClick={toggleRobotSimulation}
+                >
+                  {isRobotSimulationVisible ? '隐藏仿真' : '显示仿真'}
+                </Button>
+              </div>
+            }
+          >
+            {isRobotSimulationVisible && (
+              <Row gutter={[24, 24]}>
+                {/* 3D仿真视图 */}
+                <Col xs={24} lg={16}>
+                  <Card 
+                    title="3D机器人仿真" 
+                    style={{ height: '600px' }}
+                    // [MODIFIED] 修正Ant Design的警告
+                    styles={{ body: { padding: 0, height: 'calc(100% - 56px)' } }}
+                  >
+                    <RobotSimulation 
+                      ref={robotRef}
+                      urdfUrl={urdfUrl}
+                      onLoad={() => setIsRobotLoaded(true)}
+                    />
+                  </Card>
+                </Col>
+
+                {/* 控制面板 */}
+                <Col xs={24} lg={8}>
+                  {isRobotLoaded && isMotionDataLoaded ? (
+                    <RobotController 
+                      robotRef={robotRef}
+                      motionData={motionData}
+                    />
+                  ) : (
+                    <Card title="机器人控制面板" style={{height: '600px'}}>
+                        <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%'}}>
+                           <Spin />
+                           <p style={{marginTop: '16px'}}>正在加载资源...</p>
+                        </div>
+                    </Card>
+                  )}
+                </Col>
+              </Row>
+            )}
+          </Card>
         </div>
       </div>
     </div>
