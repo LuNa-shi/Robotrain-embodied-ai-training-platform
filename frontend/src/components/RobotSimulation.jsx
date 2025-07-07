@@ -1,6 +1,12 @@
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
 import URDFLoader from 'urdf-loader';
 
 const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
@@ -8,7 +14,7 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
   const robotInstanceRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [loadingProgress, setLoadingProgress] = useState(0); // 新增状态来显示进度
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   useImperativeHandle(ref, () => ({
     setJointAngle: (jointName, angle) => {
@@ -38,30 +44,116 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
     let animationFrameId;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x282c34);
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
 
     const camera = new THREE.PerspectiveCamera(60, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
-    camera.position.set(1.5, 1.5, 1.5);
+    camera.position.set(2, 2, 2);
     camera.lookAt(0, 0.5, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance"
+    });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    
     currentMount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0.5, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
     controls.update();
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(5, 10, 7.5);
-    directionalLight.castShadow = true;
-    scene.add(directionalLight);
+    // 创建光照系统
+    const createLightingSystem = () => {
+      // 环境光 - 提供基础照明
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+      scene.add(ambientLight);
 
-    const gridHelper = new THREE.GridHelper(10, 20, 0x555555, 0x444444);
-    scene.add(gridHelper);
+      // 主方向光 - 从正上方照射
+      const mainDirectionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      mainDirectionalLight.position.set(0, 10, 0); // 正上方
+      mainDirectionalLight.target.position.set(0, 0, 0); // 指向底座中心
+      mainDirectionalLight.castShadow = true;
+
+      // 优化阴影设置
+      mainDirectionalLight.shadow.mapSize.width = 4096;
+      mainDirectionalLight.shadow.mapSize.height = 4096;
+      mainDirectionalLight.shadow.camera.near = 0.5;
+      mainDirectionalLight.shadow.camera.far = 20;
+      mainDirectionalLight.shadow.camera.left = -5;
+      mainDirectionalLight.shadow.camera.right = 5;
+      mainDirectionalLight.shadow.camera.top = 5;
+      mainDirectionalLight.shadow.camera.bottom = -5;
+      mainDirectionalLight.shadow.bias = -0.0001;
+      mainDirectionalLight.shadow.normalBias = 0.05;
+
+      scene.add(mainDirectionalLight);
+      scene.add(mainDirectionalLight.target);
+
+      return { mainDirectionalLight };
+    };
+
+    const lights = createLightingSystem();
+
+    // 创建地面和网格
+    const createGround = () => {
+      const groundGeometry = new THREE.PlaneGeometry(20, 20);
+      const groundMaterial = new THREE.MeshLambertMaterial({ 
+        color: 0x2c3e50,
+        transparent: true,
+        opacity: 0.8
+      });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -0.1;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      const gridHelper = new THREE.GridHelper(20, 40, 0x444444, 0x333333);
+      gridHelper.position.y = 0;
+      scene.add(gridHelper);
+    };
+
+    createGround();
+
+    // 创建后处理效果
+    const createPostProcessing = () => {
+      const composer = new EffectComposer(renderer);
+      
+      const renderPass = new RenderPass(scene, camera);
+      composer.addPass(renderPass);
+
+      const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.3,
+        0.4,
+        0.85
+      );
+      composer.addPass(bloomPass);
+
+      const outputPass = new OutputPass();
+      composer.addPass(outputPass);
+
+      const fxaaPass = new ShaderPass(FXAAShader);
+      fxaaPass.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * renderer.getPixelRatio());
+      fxaaPass.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * renderer.getPixelRatio());
+      composer.addPass(fxaaPass);
+
+      return composer;
+    };
+
+    const composer = createPostProcessing();
 
     const loader = new URDFLoader();
     loader.load(
@@ -73,6 +165,25 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
               if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
+                
+                if (child.material) {
+                  if (child.material.type === 'MeshBasicMaterial') {
+                    child.material = new THREE.MeshPhongMaterial({
+                      color: child.material.color,
+                      shininess: 50,
+                      specular: 0x555555
+                    });
+                  } else if (child.material.type === 'MeshLambertMaterial') {
+                    child.material = new THREE.MeshPhongMaterial({
+                      color: child.material.color,
+                      shininess: 50,
+                      specular: 0x555555
+                    });
+                  }
+                  
+                  child.material.envMapIntensity = 0.5;
+                  child.material.needsUpdate = true;
+                }
               }
             });
 
@@ -87,11 +198,7 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
             
             setIsLoading(false);
         }, 
-        // =================================================================
-        // [MODIFIED] 这是本次修正的核心：增加对progress对象的空值检查
-        // =================================================================
         (progress) => {
-            // 只有当progress对象有效时，才更新进度
             if (progress && progress.total > 0) {
                 const percent = (progress.loaded / progress.total * 100);
                 setLoadingProgress(percent);
@@ -100,7 +207,6 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
         }, 
         (err) => {
             console.error('URDF加载错误:', err);
-            // 提供更友好的错误信息
             const errorMessage = err.message || (err.target && err.target.src ? `无法加载文件: ${err.target.src}` : '未知错误');
             setError(`加载机器人模型失败: ${errorMessage}`);
             setIsLoading(false);
@@ -110,7 +216,7 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       controls.update();
-      renderer.render(scene, camera);
+      composer.render();
     };
     animate();
 
@@ -118,9 +224,18 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
       if (currentMount) {
         const width = currentMount.clientWidth;
         const height = currentMount.clientHeight;
+        
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
+        
         renderer.setSize(width, height);
+        composer.setSize(width, height);
+        
+        const fxaaPass = composer.passes.find(pass => pass.material && pass.material.uniforms && pass.material.uniforms.resolution);
+        if (fxaaPass) {
+          fxaaPass.material.uniforms['resolution'].value.x = 1 / (width * renderer.getPixelRatio());
+          fxaaPass.material.uniforms['resolution'].value.y = 1 / (height * renderer.getPixelRatio());
+        }
       }
     };
     window.addEventListener('resize', handleResize);
@@ -132,10 +247,10 @@ const RobotSimulation = forwardRef(({ urdfUrl, onLoad }, ref) => {
         currentMount.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      composer.dispose();
     };
   }, [urdfUrl]);
 
-  // 使用新的 state 来显示更详细的加载信息
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
