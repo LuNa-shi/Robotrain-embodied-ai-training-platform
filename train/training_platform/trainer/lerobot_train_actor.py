@@ -264,11 +264,11 @@ class TrainerActor:
             print(f"[{task_id}] All uploads completed.")
 
             # 检查是否训练完成，并上传最终模型
-            total_steps = training_config.get('steps', 100000)  # 使用确定的配置
-            if final_step >= total_steps:
-                 print(f"[{task_id}] Final step reached. Uploading final model.")
-                 await self._save_checkpoint_callback(final_step, 
-                    os.path.join(self.run_dir, "checkpoints", f"{final_step:06d}"))
+            # total_steps = training_config.get('steps', 100000)  # 使用确定的配置
+            # if final_step >= total_steps:
+            #      print(f"[{task_id}] Final step reached. Uploading final model.")
+            #      await self._save_checkpoint_callback(final_step, 
+            #         os.path.join(self.run_dir, "checkpoints", f"{final_step:06d}"))
 
             return final_step
 

@@ -224,21 +224,45 @@ def execute_training_loop(
         current_step = step + 1
 
         is_log_step = cfg.log_freq > 0 and current_step % cfg.log_freq == 0
-        is_saving_step = current_step % cfg.save_freq == 0 or current_step == cfg.steps
+        is_periodic_saving_step = current_step % cfg.save_freq == 0
 
         if is_log_step:
             log_callback(current_step, train_tracker.to_dict())
             train_tracker.reset_averages() 
 
-        if cfg.save_checkpoint and is_saving_step:
-            logging.info(f"Saving checkpoint at step {current_step}")
-            checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, current_step)
-            logging.info(f"Saving checkpoint to: {checkpoint_dir}")
-            save_checkpoint(checkpoint_dir, current_step, cfg, policy, optimizer, lr_scheduler)
-            update_last_checkpoint(checkpoint_dir)
-            
-            save_callback(current_step, str(checkpoint_dir))
+        try:
+            if cfg.save_checkpoint and is_periodic_saving_step:
+                logging.info(f"Saving checkpoint at step {current_step}")
+                checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, current_step)
+                logging.info(f"Saving checkpoint to: {checkpoint_dir}")
+                save_checkpoint(checkpoint_dir, current_step, cfg, policy, optimizer, lr_scheduler)
+                update_last_checkpoint(checkpoint_dir)
+                
+                save_callback(current_step, str(checkpoint_dir))
+        except Exception as e:
+            logging.error(f"CRITICAL: `save_checkpoint` failed at step {current_step} with error: {e}", exc_info=True)
+            raise e
     
+    # ----- 循环结束后，强制保存当前分片的最终状态 -----
+    logging.info(f"Finished training slice loop at step {end_step}. Performing final save for this slice.")
+    
+    # 检查这一步是否已经在循环的最后一次迭代中保存过了
+    last_step_already_saved = (end_step % cfg.save_freq == 0)
+
+    try:
+        if cfg.save_checkpoint and not last_step_already_saved:
+            logging.info(f"Saving final state of the slice at step {end_step}")
+            checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, end_step)
+            logging.info(f"Saving final checkpoint to: {checkpoint_dir}")
+            save_checkpoint(checkpoint_dir, end_step, cfg, policy, optimizer, lr_scheduler)
+            update_last_checkpoint(checkpoint_dir)
+            save_callback(end_step, str(checkpoint_dir))
+        elif last_step_already_saved:
+            logging.info(f"Step {end_step} was already saved as a periodic checkpoint. Skipping duplicate save.")
+    except Exception as e:
+        logging.error(f"CRITICAL: `save_checkpoint` failed at step {end_step} with error: {e}", exc_info=True)
+        raise e
+
     logging.info(f"Finished training slice. Final step for this slice: {end_step}")
     return end_step
 
@@ -262,7 +286,7 @@ def run_lerobot_training(
 
     print(f"base_config_path: {base_config_path}")
     print(f"user_override_config: {user_override_config}")
-    print(f"cfg: {cfg}")
+    # print(f"cfg: {cfg}")
     print(f"run_dir: {run_dir}")
     # 设置设备
     device = get_safe_torch_device(cfg.policy.device, log=True)
