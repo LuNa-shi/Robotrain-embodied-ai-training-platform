@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography,
@@ -8,8 +8,6 @@ import {
   Row,
   Col,
   Checkbox,
-  Divider,
-  Alert
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -23,61 +21,88 @@ import { loadMotionDataFromJson } from '@/utils/motionDataLoader';
 
 const { Title } = Typography;
 
+// --- Chart and Data Mapping Configuration ---
 const chartGroups = [
   {
-    title: '左侧关节',
+    title: '左侧关节数据',
     joints: [
-      { key: 'left_waist', color: '#ff4d4f', label: 'left_waist' },
-      { key: 'left_forearm_roll', color: '#52c41a', label: 'left_forearm_roll' },
-      { key: 'left_wrist_rotate', color: '#1890ff', label: 'left_wrist_rotate' },
+      { key: 'left_waist', color: '#ff4d4f', label: 'Waist' },
+      { key: 'left_shoulder', color: '#ff7a45', label: 'Shoulder' },
+      { key: 'left_elbow', color: '#ffa940', label: 'Elbow' },
+      { key: 'left_forearm_roll', color: '#52c41a', label: 'Forearm Roll' },
+      { key: 'left_wrist_angle', color: '#40a9ff', label: 'Wrist Angle' },
+      { key: 'left_wrist_rotate', color: '#1890ff', label: 'Wrist Rotate' },
     ],
   },
   {
-    title: '右侧关节',
+    title: '右侧关节数据',
     joints: [
-      { key: 'right_waist', color: '#ff4d4f', label: 'right_waist' },
-      { key: 'right_forearm_roll', color: '#52c41a', label: 'right_forearm_roll' },
-      { key: 'right_wrist_angle', color: '#1890ff', label: 'right_wrist_angle' },
+      { key: 'right_waist', color: '#ff4d4f', label: 'Waist' },
+      { key: 'right_shoulder', color: '#ff7a45', label: 'Shoulder' },
+      { key: 'right_elbow', color: '#ffa940', label: 'Elbow' },
+      { key: 'right_forearm_roll', color: '#52c41a', label: 'Forearm Roll' },
+      { key: 'right_wrist_angle', color: '#40a9ff', label: 'Wrist Angle' },
+      { key: 'right_wrist_rotate', color: '#1890ff', label: 'Wrist Rotate' },
     ],
   },
 ];
 
-// 字段映射表
 const jointFieldMap = {
-  // 左侧
+  // Left Arm
   left_waist: 'vx300s_left/waist',
+  left_shoulder: 'vx300s_left/shoulder',
+  left_elbow: 'vx300s_left/elbow',
   left_forearm_roll: 'vx300s_left/forearm_roll',
+  left_wrist_angle: 'vx300s_left/wrist_angle',
   left_wrist_rotate: 'vx300s_left/wrist_rotate',
-  // 右侧
+  // Right Arm
   right_waist: 'vx300s_right/waist',
+  right_shoulder: 'vx300s_right/shoulder',
+  right_elbow: 'vx300s_right/elbow',
   right_forearm_roll: 'vx300s_right/forearm_roll',
   right_wrist_angle: 'vx300s_right/wrist_angle',
+  right_wrist_rotate: 'vx300s_right/wrist_rotate',
 };
+
 
 const DatasetVisualizationPage = () => {
   const navigate = useNavigate();
+  // Page state
   const [videoUrl] = useState(exampleVideo);
-  const [jointData, setJointData] = useState([]); // 当前分组用于图表
-  const [motionData, setMotionData] = useState([]); // 当前分组用于仿真
-  const [allGroups, setAllGroups] = useState([]); // 所有分组
-  const [currentGroupIndex, setCurrentGroupIndex] = useState(0); // 当前分组索引
+  const [jointData, setJointData] = useState([]);
+  const [motionData, setMotionData] = useState([]);
+  const [allGroups, setAllGroups] = useState([]);
+  const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
+  const [isMotionDataLoaded, setIsMotionDataLoaded] = useState(false);
+  const [autoPlaySimulation, setAutoPlaySimulation] = useState(false);
+
+  // Chart-related state
   const [currentTime, setCurrentTime] = useState(0);
-  const [videoDuration, setVideoDuration] = useState(0);
   const [checkedLines, setCheckedLines] = useState({});
-  const videoRef = useRef(null);
-  const chartRefs = useRef([]);
   const [showMarkLine, setShowMarkLine] = useState(true);
   
-  // 机器人仿真相关状态
+  // Refs
   const robotRef = useRef(null);
-  const [isRobotLoaded, setIsRobotLoaded] = useState(false);
-  const [isMotionDataLoaded, setIsMotionDataLoaded] = useState(false);
-  const [autoPlaySimulation, setAutoPlaySimulation] = useState(false); // 控制仿真自动播放
-
+  const videoRef = useRef(null);
+  const chartRefs = useRef([]);
+  
+  // Animation Logic Centralization
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [currentFrame, setCurrentFrame] = useState(0);
+  
+  const animationFrameId = useRef(null);
+  const animationState = useRef({
+    startTime: 0,
+    elapsedTimeAtPause: 0,
+  });
+  const motionDataRef = useRef(motionData); 
+  useEffect(() => {
+    motionDataRef.current = motionData;
+  }, [motionData]);
+  
   const urdfUrl = '/bimanual_robot.urdf';
 
-  // 分组函数：遇到time为0.0时分组
-  function splitDataByTimeZero(data) {
+  const splitDataByTimeZero = (data) => {
     const groups = [];
     let current = [];
     for (let i = 0; i < data.length; i++) {
@@ -89,180 +114,182 @@ const DatasetVisualizationPage = () => {
     }
     if (current.length > 0) groups.push(current);
     return groups;
-  }
+  };
 
-  // 加载并分组数据
   useEffect(() => {
-    const loadMotionData = async () => {
+    const loadData = async () => {
       try {
-        const data = await loadMotionDataFromJson('/data/motion_data.json');
+        const data = await loadMotionDataFromJson('/data/motion_data3.json');
         const groups = splitDataByTimeZero(data);
         setAllGroups(groups);
-        setCurrentGroupIndex(0);
-        setMotionData(groups[0] || []);
-        // 图表数据
-        const chartData = (groups[0] || []).map((item, index) => ({
-          time: item.time,
-          ...item
-        }));
-        setJointData(chartData);
+        const firstGroup = groups[0] || [];
+        setMotionData(firstGroup);
+        setJointData(firstGroup);
         setIsMotionDataLoaded(true);
+        setAutoPlaySimulation(true);
       } catch (error) {
-        setAllGroups([]);
-        setMotionData([]);
-        setJointData([]);
-        setIsMotionDataLoaded(false);
+        console.error("Failed to load motion data:", error);
       }
     };
-    loadMotionData();
+    loadData();
   }, []);
 
-  // 切换分组时，仿真和图表数据同步切换，并自动播放仿真
-  useEffect(() => {
+  const handleGroupEnd = useCallback(() => {
     if (allGroups.length > 0) {
-      setMotionData(allGroups[currentGroupIndex] || []);
-      const chartData = (allGroups[currentGroupIndex] || []).map((item, index) => ({
-        time: item.time,
-        ...item
-      }));
-      setJointData(chartData);
-      setAutoPlaySimulation(true); // 切换分组时自动播放仿真
+      const nextIndex = (currentGroupIndex + 1) % allGroups.length;
+      setCurrentGroupIndex(nextIndex);
+    }
+  }, [currentGroupIndex, allGroups.length]);
+
+  useEffect(() => {
+    if (allGroups.length > 0 && currentGroupIndex < allGroups.length) {
+      const newGroup = allGroups[currentGroupIndex];
+      setMotionData(newGroup);
+      setJointData(newGroup);
+      setIsAnimating(false);
+      setCurrentFrame(0);
+      animationState.current = { startTime: 0, elapsedTimeAtPause: 0 };
+      setAutoPlaySimulation(true);
     }
   }, [currentGroupIndex, allGroups]);
 
-  // 修改gotoNextGroup，切换分组时自动播放
-  const gotoNextGroup = () => {
-    if (allGroups.length > 0) {
-      setCurrentGroupIndex((prev) => (prev + 1) % allGroups.length);
-      setAutoPlaySimulation(true);
+  useEffect(() => {
+    if (autoPlaySimulation && !isAnimating) {
+      setIsAnimating(true);
+      setAutoPlaySimulation(false);
     }
+  }, [autoPlaySimulation, isAnimating]);
+
+  useEffect(() => {
+    const animate = () => {
+      const data = motionDataRef.current;
+      if (!data || data.length === 0 || !robotRef.current) {
+        setIsAnimating(false);
+        return;
+      }
+      const totalPoints = data.length;
+      const totalDuration = (data[totalPoints - 1]?.time || 10) * 1000;
+      const now = performance.now();
+      let totalElapsedTime = animationState.current.elapsedTimeAtPause + (now - animationState.current.startTime);
+      if (totalElapsedTime >= totalDuration) {
+        handleGroupEnd();
+        return;
+      }
+      const progress = totalElapsedTime / totalDuration;
+      const targetIndex = Math.floor(progress * totalPoints);
+      const clampedIndex = Math.min(targetIndex, totalPoints - 1);
+      setCurrentFrame(clampedIndex);
+      const currentDataPoint = data[clampedIndex];
+      if (currentDataPoint) {
+        for (const jointName in currentDataPoint) {
+          if (jointName !== 'time' && robotRef.current.setJointAngle) {
+            robotRef.current.setJointAngle(jointName, currentDataPoint[jointName]);
+          }
+        }
+      }
+      animationFrameId.current = requestAnimationFrame(animate);
+    };
+    if (isAnimating) {
+      animationState.current.startTime = performance.now();
+      animationFrameId.current = requestAnimationFrame(animate);
+    } else {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationState.current.elapsedTimeAtPause += performance.now() - animationState.current.startTime;
+      }
+    }
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, [isAnimating, handleGroupEnd]);
+
+  const handleToggleAnimation = () => {
+    setIsAnimating(prev => !prev);
   };
-  const gotoPrevGroup = () => {
-    if (allGroups.length > 0) {
-      setCurrentGroupIndex((prev) => (prev - 1 + allGroups.length) % allGroups.length);
-      setAutoPlaySimulation(true);
+
+  const handleResetAnimation = () => {
+    setIsAnimating(false);
+    setCurrentFrame(0);
+    animationState.current = { startTime: 0, elapsedTimeAtPause: 0 };
+    if (robotRef.current && motionData.length > 0) {
+      const initialDataPoint = motionData[0];
+      for (const jointName in initialDataPoint) {
+        if (jointName !== 'time' && robotRef.current.setJointAngle) {
+          robotRef.current.setJointAngle(jointName, initialDataPoint[jointName]);
+        }
+      }
     }
   };
 
-  // 处理勾选框状态变更
   const handleLineCheck = (groupIdx, lineKey, checked) => {
     setCheckedLines(prev => ({
       ...prev,
-      [groupIdx]: {
-        ...prev[groupIdx],
-        [lineKey]: checked,
-      },
+      [groupIdx]: { ...prev[groupIdx], [lineKey]: checked },
     }));
   };
 
-  // 生成 ECharts 配置
   const getChartOption = (group, groupIdx) => {
     const series = [];
     const legendData = [];
     const currentGroupChecks = checkedLines[groupIdx] || {};
-    let markLineAdded = false; // 只添加一次markLine
+    let markLineAdded = false;
     
     group.joints.forEach(joint => {
-      // observation
-      if (currentGroupChecks[`${joint.key}_observation`]) {
+      const dataKey = jointFieldMap[joint.key];
+      if (!dataKey) return;
+
+      if (currentGroupChecks[joint.key]) {
         series.push({
-          name: `${joint.label} observation`,
+          name: joint.label,
           type: 'line',
-          data: jointData.map(item => [item.time, item[jointFieldMap[joint.key]]]),
-          lineStyle: { color: joint.color, width: 2, type: 'solid' },
+          data: jointData.map(item => [item.time, item[dataKey]]),
+          lineStyle: { color: joint.color, width: 2 },
           color: joint.color,
           symbol: 'none',
-          icon: 'path://M2,8 L22,8',
           markLine: showMarkLine && !markLineAdded ? {
             symbol: 'none',
-            data: [
-              {
-                xAxis: typeof currentTime === 'number' ? currentTime : 0,
-                lineStyle: {
-                  color: '#bfbfbf',
-                  width: 1,
-                  type: 'dashed',
-                },
-                label: { show: false },
-              },
-            ],
+            data: [{ xAxis: jointData[currentFrame]?.time || 0, lineStyle: { color: '#bfbfbf', width: 1, type: 'dashed' }, label: { show: false } }],
             animation: false,
           } : undefined,
         });
         if (!markLineAdded) markLineAdded = true;
-        legendData.push(`${joint.label} observation`);
-      }
-      // action（同样映射到同一个字段）
-      if (currentGroupChecks[`${joint.key}_action`]) {
-        series.push({
-          name: `${joint.label} action`,
-          type: 'line',
-          data: jointData.map(item => [item.time, item[jointFieldMap[joint.key]]]),
-          lineStyle: { color: joint.color, width: 2, type: 'dashed' },
-          color: joint.color,
-          symbol: 'none',
-          icon: 'path://M2,8 L7,8 M10,8 L15,8 M18,8 L22,8',
-          markLine: showMarkLine && !markLineAdded ? {
-            symbol: 'none',
-            data: [
-              {
-                xAxis: typeof currentTime === 'number' ? currentTime : 0,
-                lineStyle: {
-                  color: '#bfbfbf',
-                  width: 1,
-                  type: 'dashed',
-                },
-                label: { show: false },
-              },
-            ],
-            animation: false,
-          } : undefined,
-        });
-        if (!markLineAdded) markLineAdded = true;
-        legendData.push(`${joint.label} action`);
+        legendData.push(joint.label);
       }
     });
 
     return {
-      grid: { left: 50, right: 20, top: 40, bottom: 40 },
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'line' },
-        formatter: params => {
-          if (!params || !params.length) return '';
-          let html = `<div style='font-weight:600;margin-bottom:4px;'>Time: ${params[0].value[0].toFixed(2)}s</div>`;
-          params.forEach(param => {
-            html += `<div><span style='display:inline-block;margin-right:6px;border-radius:50%;width:10px;height:10px;background:${param.color}'></span>${param.seriesName}: <b>${param.value[1].toFixed(6)}</b></div>`;
-          });
-          return html;
-        }
+      grid: { left: 60, right: 30, top: 50, bottom: 50 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'line' }, formatter: params => {
+        if (!params || !params.length) return '';
+        let html = `<div style='font-weight:600;margin-bottom:4px;'>Time: ${params[0].value[0].toFixed(3)}s</div>`;
+        params.forEach(param => {
+          html += `<div><span style='display:inline-block;margin-right:6px;border-radius:50%;width:10px;height:10px;background:${param.color}'></span>${param.seriesName}: <b>${param.value[1].toFixed(4)}</b></div>`;
+        });
+        return html;
+      }},
+      legend: { data: legendData, type: 'scroll', top: 5, textStyle: { color: '#333' } },
+      xAxis: { 
+        type: 'value', 
+        name: 'Time (s)', 
+        min: 0, 
+        max: 10, 
+        splitLine: { show: true, lineStyle: { color: '#f0f0f0' } },
+        nameLocation: 'center',
+        nameGap: 30,
       },
-      legend: {
-        data: legendData,
-        type: 'scroll',
-        top: 0,
-        selectedMode: false,
-      },
-      xAxis: {
-        type: 'value',
-        name: 'Time (s)',
-        min: 0,
-        max: jointData.length > 0 ? jointData[jointData.length - 1].time : 10,
-        splitLine: { show: true, lineStyle: { color: '#f0f0f0' } }
-      },
-      yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#f0f0f0' } } },
+      yAxis: { type: 'value', name: 'Angle (rad)', splitLine: { show: true, lineStyle: { color: '#f0f0f0' } } },
       series,
     };
   };
 
-  // 初始化勾选状态
   useEffect(() => {
     const defaultChecked = {};
     chartGroups.forEach((group, idx) => {
       defaultChecked[idx] = {};
       group.joints.forEach(joint => {
-        defaultChecked[idx][`${joint.key}_observation`] = true;
-        defaultChecked[idx][`${joint.key}_action`] = false; // 默认不显示action
+        defaultChecked[idx][joint.key] = true;
       });
     });
     setCheckedLines(defaultChecked);
@@ -270,75 +297,22 @@ const DatasetVisualizationPage = () => {
 
   const handleBack = () => navigate('/data-center');
   const handleTimeUpdate = (e) => setCurrentTime(e.target.currentTime);
+  const handlePause = () => setShowMarkLine(false);
+  const handlePlay = () => setShowMarkLine(true);
 
-  // 当视频元数据加载完成时，获取时长并设置图表数据
-  const handleLoadedMetadata = (e) => {
-    const duration = e.target.duration;
-    if (duration) {
-        setVideoDuration(duration);
-        // 不再生成模拟数据，等待真实数据加载
-    }
-  };
-
-  // 视频暂停/播放时自动显示/隐藏tooltip
-  const handlePause = () => {
-    setShowMarkLine(false);
-    chartRefs.current.forEach((chartRef, idx) => {
-      if (chartRef && chartRef.getEchartsInstance) {
-        const instance = chartRef.getEchartsInstance();
-        const dataIndex = jointData.findIndex(item => item.time >= currentTime);
-        instance.dispatchAction({
-          type: 'showTip',
-          seriesIndex: 0,
-          dataIndex: dataIndex === -1 ? jointData.length - 1 : dataIndex,
-        });
-      }
-    });
-  };
-  const handlePlay = () => {
-    setShowMarkLine(true);
-    chartRefs.current.forEach((chartRef) => {
-      if (chartRef && chartRef.getEchartsInstance) {
-        const instance = chartRef.getEchartsInstance();
-        instance.dispatchAction({ type: 'hideTip' });
-        instance.dispatchAction({
-          type: 'updateAxisPointer',
-          xAxisIndex: 0,
-          value: null
-        });
-      }
-    });
-  };
-
-  if (jointData.length === 0) {
+  if (!isMotionDataLoaded) {
     return (
-        <div className={styles.visualizationPage}>
-             <div className={styles.contentWrapper}>
-                <div className={styles.pageHeader}>
-                    <Button icon={<ArrowLeftOutlined />} onClick={handleBack} className={styles.backButton}>返回</Button>
-                </div>
-                <div className={styles.videoSection}>
-                    <div className={styles.videoTitle}><Title level={3}>机器人动作视频</Title></div>
-                    <div className={styles.videoContainer}>
-                        <video
-                            ref={videoRef}
-                            src={videoUrl}
-                            controls
-                            className={styles.videoPlayer}
-                            onLoadedMetadata={handleLoadedMetadata}
-                            onPause={handlePause}
-                            onPlay={handlePlay}
-                        >
-                            您的浏览器不支持视频播放。
-                        </video>
-                    </div>
-                </div>
-                <div className={styles.loadingContainer}>
-                    <Spin size="large" />
-                    <div style={{ marginTop: '16px' }}>等待视频加载中...</div>
-                </div>
-            </div>
+      <div className={styles.visualizationPage}>
+        <div className={styles.contentWrapper}>
+          <div className={styles.pageHeader}>
+            <Button icon={<ArrowLeftOutlined />} onClick={handleBack} className={styles.backButton}>返回</Button>
+          </div>
+          <div className={styles.loadingContainer} style={{ textAlign: 'center', padding: '50px 0' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: '16px' }}>正在加载运动数据...</div>
+          </div>
         </div>
+      </div>
     );
   }
 
@@ -350,20 +324,9 @@ const DatasetVisualizationPage = () => {
         </div>
 
         <div className={styles.videoSection}>
-          <div className={styles.videoTitle}>
-            <Title level={3}>机器人动作视频</Title>
-          </div>
+          <div className={styles.videoTitle}><Title level={3}>机器人动作视频</Title></div>
           <div className={styles.videoContainer}>
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              controls
-              className={styles.videoPlayer}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onPause={handlePause}
-              onPlay={handlePlay}
-            >
+            <video ref={videoRef} src={videoUrl} controls className={styles.videoPlayer} onTimeUpdate={handleTimeUpdate} onPause={handlePause} onPlay={handlePlay}>
               您的浏览器不支持视频播放。
             </video>
           </div>
@@ -371,117 +334,99 @@ const DatasetVisualizationPage = () => {
 
         <div style={{ marginTop: 32 }}>
           <Row gutter={[32, 32]} justify="center">
-            {chartGroups.map((group, idx) => (
-              <Col xs={24} lg={12} key={group.title} style={{ display: 'flex' }}>
-                <Card className={styles.chartCard} style={{ width: '100%', padding: '16px 24px' }}>
-                  <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 18 }}>{group.title}</div>
-                  <div style={{ marginBottom: 8 }}>
+            {chartGroups.map((group, idx) => {
+              const currentGroupChecks = checkedLines[idx] || {};
+              const isAllChecked = group.joints.every(joint => currentGroupChecks[joint.key]);
+
+              return (
+                <Col xs={24} lg={12} key={group.title} style={{ display: 'flex' }}>
+                  <Card
+                    style={{
+                      width: '100%',
+                      padding: '16px 24px',
+                      border: 'none',
+                      borderRadius: '12px',
+                      background: 'transparent',
+                      boxShadow: 'none',
+                    }}
+                  >
+                    <div style={{ textAlign: 'center', marginBottom: 12, fontWeight: 600, fontSize: 18 }}>{group.title}</div>
                     <div style={{ marginBottom: 8 }}>
                       <Button
-                        size="small"
                         type="link"
-                        style={{ paddingLeft: 0 }}
+                        style={{ padding: 0, marginBottom: 8 }}
                         onClick={() => {
-                          const currentGroupChecks = checkedLines[idx] || {};
-                          const allChecked = group.joints.every(joint =>
-                            currentGroupChecks[`${joint.key}_observation`] && currentGroupChecks[`${joint.key}_action`]
-                          );
-                          const newState = { ...currentGroupChecks };
+                          const newGroupChecks = { ...currentGroupChecks };
                           group.joints.forEach(joint => {
-                            newState[`${joint.key}_observation`] = !allChecked;
-                            newState[`${joint.key}_action`] = !allChecked;
+                            newGroupChecks[joint.key] = !isAllChecked;
                           });
-                          setCheckedLines(prev => ({ ...prev, [idx]: newState }));
+                          setCheckedLines(prev => ({ ...prev, [idx]: newGroupChecks }));
                         }}
                       >
-                        全选/取消全选
+                        {isAllChecked ? '全部取消' : '全部选择'}
                       </Button>
-                    </div>
-                    <Row gutter={[16, 8]}>
-                      {group.joints.map(joint => (
-                        <React.Fragment key={joint.key}>
-                          <Col span={12}>
+                      <Row gutter={[16, 8]}>
+                        {group.joints.map(joint => (
+                          <Col xs={12} sm={8} key={joint.key}>
                             <Checkbox
-                              checked={!!(checkedLines[idx] && checkedLines[idx][`${joint.key}_observation`])}
-                              onChange={e => handleLineCheck(idx, `${joint.key}_observation`, e.target.checked)}
+                              checked={!!currentGroupChecks[joint.key]}
+                              onChange={e => handleLineCheck(idx, joint.key, e.target.checked)}
                               style={{ color: joint.color }}
                             >
-                              {joint.label} obs.
+                              {joint.label}
                             </Checkbox>
                           </Col>
-                          <Col span={12}>
-                            <Checkbox
-                              checked={!!(checkedLines[idx] && checkedLines[idx][`${joint.key}_action`])}
-                              onChange={e => handleLineCheck(idx, `${joint.key}_action`, e.target.checked)}
-                              style={{ color: joint.color, fontStyle: 'italic' }}
-                            >
-                              {joint.label} act.
-                            </Checkbox>
-                          </Col>
-                        </React.Fragment>
-                      ))}
-                    </Row>
-                  </div>
-                  <div style={{ background: '#fff', borderRadius: 8, padding: '8px 0' }}>
-                    <ReactECharts
-                      ref={el => (chartRefs.current[idx] = el)}
-                      option={getChartOption(group, idx)}
-                      style={{ height: 340 }}
-                      className={styles.chart}
-                    />
-                  </div>
-                </Card>
-              </Col>
-            ))}
+                        ))}
+                      </Row>
+                    </div>
+                    <div style={{ background: '#fff', borderRadius: 8, padding: '8px 0' }}>
+                      <ReactECharts
+                        ref={el => (chartRefs.current[idx] = el)}
+                        option={getChartOption(group, idx)}
+                        style={{ height: 340 }}
+                        notMerge={true}
+                        lazyUpdate={true}
+                      />
+                    </div>
+                  </Card>
+                </Col>
+              );
+            })}
           </Row>
         </div>
 
-        {/* 仿真演示区域整体卡片化，顶部为表格式控制栏，下方为3D仿真 */}
         <div style={{ marginTop: 32 }}>
-          <Card style={{ padding: 0 }} bodyStyle={{ padding: 0 }}>
-            {/* 控制栏 */}
+          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <Title level={3} style={{ color: '#333', fontWeight: 600 }}>仿真动画演示</Title>
+          </div>
+          <Card style={{ padding: 0 }} styles={{ body: { padding: 0 } }}>
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #e6e6e6', padding: '16px 24px', background: '#f7faff' }}>
-              {/* 左侧文本 */}
-              <div style={{ flex: 1, textAlign: 'left', color: '#888', fontSize: 14 }}>
-                <RobotController 
-                  robotRef={robotRef}
-                  motionData={motionData}
+              <div style={{ flex: 1 }}>
+                <RobotController
+                  renderTextOnly
+                  isAnimating={isAnimating}
+                  currentFrame={currentFrame}
+                  motionDataLength={motionData.length}
                   currentGroupIndex={currentGroupIndex}
                   totalGroups={allGroups.length}
-                  onGroupEnd={gotoNextGroup}
-                  autoPlay={autoPlaySimulation}
-                  setAutoPlay={setAutoPlaySimulation}
-                  renderTextOnly
                 />
               </div>
-              {/* 右侧按钮 */}
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                <RobotController 
-                  robotRef={robotRef}
-                  motionData={motionData}
-                  currentGroupIndex={currentGroupIndex}
-                  totalGroups={allGroups.length}
-                  onGroupEnd={gotoNextGroup}
-                  autoPlay={autoPlaySimulation}
-                  setAutoPlay={setAutoPlaySimulation}
+              <div>
+                <RobotController
                   renderButtonsOnly
+                  isAnimating={isAnimating}
+                  onToggleAnimation={handleToggleAnimation}
+                  onReset={handleResetAnimation}
+                  motionDataLength={motionData.length}
                 />
               </div>
             </div>
-            {/* 3D仿真部分 */}
             <div style={{ background: '#eaf2fb', minHeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ width: '100%', height: 600 }}>
-                <Card 
-                  title={null}
-                  style={{ height: '100%', margin: 0, boxShadow: 'none', background: 'transparent' }}
-                  bodyStyle={{ padding: 0, height: '100%', background: 'transparent' }}
-                >
-                  <RobotSimulation 
-                    ref={robotRef}
-                    urdfUrl={urdfUrl}
-                    onLoad={() => setIsRobotLoaded(true)}
-                  />
-                </Card>
+                <RobotSimulation
+                  ref={robotRef}
+                  urdfUrl={urdfUrl}
+                />
               </div>
             </div>
           </Card>
