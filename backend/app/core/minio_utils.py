@@ -1,5 +1,6 @@
 from typing import Optional, Tuple
 from fastapi import UploadFile
+from fastapi.responses import FileResponse
 from miniopy_async import Minio
 from miniopy_async.error import S3Error
 import mimetypes
@@ -67,14 +68,20 @@ async def upload_dataset_to_minio(
     Returns:
         Tuple[bool, str]: 上传成功则返回 (True, MinIO 中的对象完整路径)，失败则返回 (False, 错误信息)。
     """
-
-    return await upload_file_to_minio(
+    
+    success, result = await upload_file_to_minio(
         client=client,
         upload_file=dataset_file,
         filename=filename,
         bucket_name=settings.MINIO_BUCKET, # 使用配置文件中的桶名
         object_dir=settings.MINIO_DATASET_DIR # 可以根据需要调整前缀
     )
+    if success:
+        print(f"✅ 数据集 '{filename}' 已成功上传到 MinIO: {result}")
+        return True, result
+    else:
+        print(f"❌ 上传数据集 '{filename}' 失败: {result}")
+        return False, result
 
 async def delete_dataset_from_minio(
     client: Minio,
@@ -145,6 +152,109 @@ async def download_model_from_minio(
         print(f"❌ {error_msg}")
         return False, error_msg
     
+async def download_dataset_file_from_zip_on_minio(
+    client: Minio,
+    dataset_uuid_str: str,
+    file_path_in_zip: str
+) -> Tuple[bool, str]:
+    """
+    从 MinIO 中下载指定数据集的 ZIP 文件中的某个文件。
+    Args:
+        client (Minio): 已连接的异步 Minio 客户端实例。
+        dataset_uuid_str (str): 数据集的 UUID 字符串，用于构建对象名称。
+        file_path_in_zip (str): ZIP 文件中要下载的文件路径。
+    Returns:
+        Tuple[bool, str]: 下载成功则返回 (True, 本地文件路径)，
+                          失败则返回 (False, 错误信息)。
+    """
+    zip_tmp_path = f"{settings.BACKEND_TMP_BASE_DIR}/dataset_zip/{dataset_uuid_str}.zip"
+    # 保证存在文件夹
+    import os
+    os.makedirs(os.path.dirname(zip_tmp_path), exist_ok=True)
+    
+    # 把zip下载下来
+    success, message = await download_dataset_from_minio(
+        client=client,
+        local_path=zip_tmp_path,
+        dataset_uuid_str=dataset_uuid_str
+    )
+    if not success:
+        return False, message
+    # 解压 ZIP 文件并获取指定文件
+    try:
+        import zipfile
+        with zipfile.ZipFile(zip_tmp_path, 'r') as zip_ref:
+            # 检查文件是否在 ZIP 中
+            if file_path_in_zip not in zip_ref.namelist():
+                error_msg = f"文件 '{file_path_in_zip}' 不存在于 ZIP 文件 '{zip_tmp_path}' 中。"
+                print(f"❌ {error_msg}")
+                return False, error_msg
+            
+            # 解压指定文件到本地路径
+            zip_ref.extract(file_path_in_zip, path=settings.BACKEND_TMP_BASE_DIR)
+            extracted_file_path = f"{settings.BACKEND_TMP_BASE_DIR}/{file_path_in_zip}"
+            print(f"✅ 文件 '{file_path_in_zip}' 已成功从 ZIP 文件 '{zip_tmp_path}' 解压到: {extracted_file_path}")
+            return True, extracted_file_path
+    except zipfile.BadZipFile as e:
+        error_msg = f"ZIP 文件 '{zip_tmp_path}' 无效: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    # 清理临时 ZIP 文件
+    finally:
+        import os
+        if os.path.exists(zip_tmp_path):
+            os.remove(zip_tmp_path)
+            print(f"🗑️ 已删除临时 ZIP 文件: {zip_tmp_path}")
+        else:
+            print(f"⚠️ 临时 ZIP 文件不存在: {zip_tmp_path}")
+            
+    
+    
+async def download_dataset_from_minio(
+    client: Minio,
+    local_path: str,
+    dataset_uuid_str: str
+) -> Tuple[bool, str]:
+    """
+    从 MinIO 中下载指定的数据集 ZIP 文件。
+
+    Args:
+        client (Minio): 已连接的异步 Minio 客户端实例。
+        local_path (str): 本地保存数据集 ZIP 文件的路径。
+        dataset_uuid_str (str): 数据集的 UUID 字符串，用于构建对象名称。
+
+    Returns:
+        Tuple[bool, str]: 下载成功则返回 (True, 本地文件路径)，失败则返回 (False, 错误信息)。
+    """
+    try:
+        # 确保客户端已连接
+        if not isinstance(client, Minio):
+            return False, "传入的 MinIO 客户端无效或未初始化。"
+
+        # 构造对象名称
+        object_name = f"{dataset_uuid_str}.zip"  # 假设数据集文件名为 UUID.zip
+        # 使用download_file_from_minio函数下载文件
+        success, message = await download_file_from_minio(
+            client=client,
+            local_path=local_path,
+            bucket_name=settings.MINIO_BUCKET,  # 使用配置文件中的桶名
+            object_name=object_name,
+            object_dir=settings.MINIO_DATASET_DIR  # 使用配置文件中的数据集目录前缀
+        )
+        if success:
+            print(f"✅ 数据集 '{dataset_uuid_str}' 已成功下载到本地: {local_path}")
+            return True, local_path
+        else:
+            print(f"❌ 下载数据集 '{dataset_uuid_str}' 失败: {message}")
+            return False, message
+    except S3Error as e:
+        error_msg = f"MinIO 下载失败: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"下载数据集时发生意外错误: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
     
 async def upload_file_to_minio(
     client: Minio,
@@ -268,7 +378,6 @@ async def download_file_from_minio(
         print(f"❌ {error_msg}")
         return False, error_msg
 
-    
 async def delete_file_from_minio(
     client: Minio,
     bucket_name: str,

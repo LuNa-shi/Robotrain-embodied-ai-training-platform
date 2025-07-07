@@ -43,7 +43,6 @@ class TrainTask(TrainTaskBase, table=True):
         sa_type=DateTime(timezone=True)
     )
     logs_uuid: Optional[UUID] = Field(default=None)
-    model_uuid: Optional[UUID] = Field(default=None)
 
     owner: "AppUser" = Relationship(
         back_populates="train_tasks",
