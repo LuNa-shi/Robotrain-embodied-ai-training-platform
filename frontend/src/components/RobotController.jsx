@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Slider, Button, Card, Row, Col, Typography, Space } from 'antd';
+import { Button, Card, Row, Col, Typography, Space } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
-const RobotController = ({ robotRef, motionData = [] }) => {
-  const [jointAngles, setJointAngles] = useState({});
-  const [jointNames, setJointNames] = useState([]);
+const RobotController = ({ robotRef, motionData = [], currentGroupIndex = 0, totalGroups = 1, onGroupEnd, autoPlay = false, setAutoPlay, renderButtonsOnly, renderTextOnly }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentFrame, setCurrentFrame] = useState(0);
 
@@ -16,47 +14,20 @@ const RobotController = ({ robotRef, motionData = [] }) => {
     elapsedTimeAtPause: 0,
   });
   const motionDataRef = useRef(motionData);
-  const prevAnglesRef = useRef({});
-  const prevFrameRef = useRef(0);
 
   useEffect(() => {
     motionDataRef.current = motionData;
   }, [motionData]);
 
+  // 自动播放仿真
   useEffect(() => {
-    const initializeJoints = () => {
-      if (robotRef.current?.getJoints) {
-        const joints = robotRef.current.getJoints();
-        if (joints) {
-          const names = Object.keys(joints).filter(name => {
-            const joint = joints[name];
-            return joint && joint.jointType && joint.jointType !== 'fixed';
-          });
-          const initialAngles = {};
-          names.forEach(name => {
-            const joint = joints[name];
-            initialAngles[name] = joint.angle || 0;
-          });
-          setJointNames(names);
-          setJointAngles(initialAngles);
-        }
-      }
-    };
-    const timeoutId = setTimeout(initializeJoints, 0);
-    return () => clearTimeout(timeoutId);
-  }, []);
+    if (autoPlay && !isAnimating) {
+      setIsAnimating(true);
+      if (typeof setAutoPlay === 'function') setAutoPlay(false);
+    }
+  }, [autoPlay, isAnimating, setAutoPlay]);
 
   const isMotionDataAvailable = motionDataRef.current.length > 0;
-
-  const handleJointAngleChange = useCallback((jointName, value) => {
-    if (isAnimating) return;
-    setJointAngles(prev => ({ ...prev, [jointName]: value }));
-    try {
-      robotRef.current?.setJointAngle(jointName, value);
-    } catch (error) {
-      console.warn(`设置关节 ${jointName} 角度失败:`, error);
-    }
-  }, [robotRef, isAnimating]);
 
   useEffect(() => {
     let lastUpdateTime = 0;
@@ -92,17 +63,17 @@ const RobotController = ({ robotRef, motionData = [] }) => {
 
       // Throttle UI updates
       if (now - lastUpdateTime > updateInterval) {
-        if (currentDataPoint) {
-          const newAngles = {};
-          for (const jointName in currentDataPoint) {
-            if (jointName !== 'time') {
-              newAngles[jointName] = currentDataPoint[jointName];
-            }
-          }
-          setJointAngles(newAngles);
-        }
         setCurrentFrame(clampedIndex);
         lastUpdateTime = now;
+      }
+
+      // 检查是否到达最后一帧
+      if (clampedIndex === totalPoints - 1 && typeof onGroupEnd === 'function') {
+        setTimeout(() => {
+          setIsAnimating(false); // 停止当前动画
+          onGroupEnd(); // 通知父组件切换到下一组
+        }, 300); // 稍作延迟，避免UI闪烁
+        return; // 不再请求下一帧
       }
 
       animationFrameId.current = requestAnimationFrame(animate);
@@ -122,7 +93,7 @@ const RobotController = ({ robotRef, motionData = [] }) => {
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, [isAnimating, motionData]);
+  }, [isAnimating, motionData, onGroupEnd]);
 
   const toggleAnimation = () => {
     if (!isAnimating) {
@@ -137,18 +108,54 @@ const RobotController = ({ robotRef, motionData = [] }) => {
     setIsAnimating(false);
     animationState.current.elapsedTimeAtPause = 0;
     setCurrentFrame(0);
-    const resetAngles = {};
-    jointNames.forEach(name => {
-      resetAngles[name] = 0;
-      try {
-        robotRef.current?.setJointAngle(name, 0);
-      } catch (error) {
-        console.warn(`重置关节 ${name} 失败:`, error);
+    
+    // 重置所有关节到初始位置
+    if (robotRef.current) {
+      const data = motionDataRef.current;
+      if (data && data.length > 0) {
+        const initialDataPoint = data[0];
+        for (const jointName in initialDataPoint) {
+          if (jointName !== 'time') {
+            try {
+              robotRef.current.setJointAngle(jointName, initialDataPoint[jointName]);
+            } catch (error) {
+              console.warn(`重置关节 ${jointName} 失败:`, error);
+            }
+          }
+        }
       }
-    });
-    setJointAngles(resetAngles);
-  }, [jointNames, robotRef]);
+    }
+  }, [robotRef]);
 
+  // 只渲染文本（表格控制栏左侧用）
+  if (renderTextOnly) {
+    return (
+      <span style={{ color: '#888', fontSize: 14 }}>
+        帧数: {currentFrame + 1} / {motionData.length} &nbsp;|&nbsp; 组数: {currentGroupIndex + 1} / {totalGroups}
+      </span>
+    );
+  }
+
+  // 只渲染按钮和文本（表格控制栏右侧用）
+  if (renderButtonsOnly) {
+    return (
+      <Space align="center" size={16}>
+        <Button
+          type="primary"
+          icon={isAnimating ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+          onClick={toggleAnimation}
+          disabled={!isMotionDataAvailable}
+        >
+          {isAnimating ? '暂停动画' : '开始动画'}
+        </Button>
+        <Button icon={<ReloadOutlined />} onClick={resetAllJoints}>
+          重置关节
+        </Button>
+      </Space>
+    );
+  }
+
+  // 默认完整卡片模式
   return (
     <Card title="机器人控制面板">
       <Space direction="vertical" style={{ width: '100%' }}>
@@ -179,28 +186,18 @@ const RobotController = ({ robotRef, motionData = [] }) => {
               <Text type="secondary">
                 当前帧: {currentFrame + 1} / {motionData.length}
               </Text>
+              <br />
+              <Text type="secondary">
+                当前组: {currentGroupIndex + 1} / {totalGroups}
+              </Text>
             </div>
           )}
         </div>
-        {jointNames.map((jointName) => (
-          <div key={jointName}>
-            <Text strong>{jointName}</Text>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Slider
-                min={-Math.PI}
-                max={Math.PI}
-                step={0.01}
-                value={jointAngles[jointName] || 0}
-                onChange={(value) => handleJointAngleChange(jointName, value)}
-                style={{ flex: 1 }}
-                disabled={isAnimating}
-              />
-              <Text style={{ minWidth: 60, textAlign: 'right' }}>
-                {((jointAngles[jointName] || 0) * 180 / Math.PI).toFixed(1)}°
-              </Text>
-            </div>
-          </div>
-        ))}
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <Text type="secondary">
+            关节角度数据已移至上方图表显示
+          </Text>
+        </div>
       </Space>
     </Card>
   );
