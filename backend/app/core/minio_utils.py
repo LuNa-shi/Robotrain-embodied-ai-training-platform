@@ -108,49 +108,84 @@ async def delete_dataset_from_minio(
   
 async def download_model_from_minio(
     client: Minio,
-    local_path: str,
-    model_uuid_str: str
+    task_id: int
 ) -> Tuple[bool, str]:
     """
     从 MinIO 中下载指定的模型文件。
-
     Args:
         client (Minio): 已连接的异步 Minio 客户端实例。
         local_path (str): 本地保存模型文件的路径。
-        model_uuid_str (str): 模型的 UUID 字符串，用于构建对象名称。
-
+        task_id (int): 任务 ID，用于获取模型
     Returns:
-        Tuple[bool, str]: 下载成功则返回 (True, 本地文件路径)，失败则返回 (False, 错误信息)。
+        Tuple[bool, str]: 下载成功则返回 (True, 本地文件路径)，
+                          失败则返回 (False, 错误信息)。
     """
+    ckpt_dir_path = f"checkpoints/{task_id}"
+    # 需要下载minio这个文件夹下的所有文件，暂时不知道文件夹下的文件名
     try:
         # 确保客户端已连接
         if not isinstance(client, Minio):
             return False, "传入的 MinIO 客户端无效或未初始化。"
 
-        # 构造对象名称
-        object_name = f"{model_uuid_str}.zip"  # 假设模型文件名为 UUID.zip
-        # 使用download_file_from_minio函数下载文件
-        success, message = await download_file_from_minio(
-            client=client,
-            local_path=local_path,
-            bucket_name=settings.MINIO_BUCKET,  # 使用配置文件中的桶名
-            object_name=object_name,
-            object_dir=settings.MINIO_MODEL_DIR  # 使用配置文件中的模型目录前缀
+        # 使用 list_objects 获取所有对象
+        objects = client.list_objects(
+            bucket_name=settings.MINIO_BUCKET,
+            prefix=ckpt_dir_path,
+            recursive=True
         )
-        if success:
-            print(f"✅ 模型 '{model_uuid_str}' 已成功下载到本地: {local_path}")
-            return True, local_path
-        else:
-            print(f"❌ 下载模型 '{model_uuid_str}' 失败: {message}")
-            return False, message
-    except S3Error as e:
+        print(f"正在下载任务 {task_id} 的模型文件...")
+        # 把对象列表转换为列表
+        objects = [obj async for obj in objects]
+
+        # 下载每个对象到本地路径
+        for obj in objects:
+            if obj.object_name == ckpt_dir_path:
+                continue
+            object_name = obj.object_name
+            
+            tmp_ckpt_path = f"{settings.BACKEND_TMP_BASE_DIR}/ckpts/{task_id}/{object_name.split('/')[-1]}"  # 保留文件名
+            # 确保存在这个文件夹
+            import os
+            os.makedirs(os.path.dirname(tmp_ckpt_path), exist_ok=True)
+            success, message = await download_file_from_minio(
+                client=client,
+                local_path=tmp_ckpt_path,
+                bucket_name=settings.MINIO_BUCKET,
+                object_name=object_name,
+                object_dir=""
+            )
+            if not success:
+                return False, message
+        
+        # 把这些文件打包成一个 zip 文件
+        import zipfile
+        import os
+        zip_file_path = f"{settings.BACKEND_TMP_BASE_DIR}/ckpts/{task_id}.zip"
+        os.makedirs(os.path.dirname(zip_file_path), exist_ok=True)
+        with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+            # 遍历临时目录下的所有文件，添加到 ZIP 中
+            tmp_ckpt_dir = f"{settings.BACKEND_TMP_BASE_DIR}/ckpts/{task_id}"
+            for root, _, files in os.walk(tmp_ckpt_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    # 添加到 ZIP 文件中，保持相对路径
+                    zipf.write(file_path, arcname=os.path.relpath(file_path, tmp_ckpt_dir))
+        # 返回打包后的 zip 文件路径
+        zip_local_path = f"{settings.BACKEND_TMP_BASE_DIR}/ckpts/{task_id}.zip"
+        print(f"✅ 模型文件已成功下载到本地目录: {zip_local_path}")
+        # 删除临时的单个模型文件
+        tmp_ckpt_dir = f"{settings.BACKEND_TMP_BASE_DIR}/ckpts/{task_id}"
+        if os.path.exists(tmp_ckpt_dir):
+            import shutil
+            shutil.rmtree(tmp_ckpt_dir)
+            print(f"🗑️ 已删除临时模型文件夹: {tmp_ckpt_dir}")
+        return True, zip_local_path
+    except Exception as e:
         error_msg = f"MinIO 下载失败: {e}"
         print(f"❌ {error_msg}")
         return False, error_msg
-    except Exception as e:
-        error_msg = f"下载模型时发生意外错误: {e}"
-        print(f"❌ {error_msg}")
-        return False, error_msg
+        
+    
     
 async def download_dataset_file_from_zip_on_minio(
     client: Minio,
