@@ -28,7 +28,7 @@
     "react-router-dom": "^7.6.2",
     "socket.io-client": "^4.8.1",
     "three": "^0.178.0",
-    "urdf-loader": "^0.12.6"
+    "urdf-loader": "^0.12.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
