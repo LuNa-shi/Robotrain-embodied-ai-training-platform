@@ -127,12 +127,25 @@ const ProjectCenterPage = () => {
     navigate(`/project-center/${trainingId}/progress`);
   };
 
-  const handleDownload = (record) => {
+  const handleDownload = async (record) => {
     if (record.status !== 'completed') {
       message.warning('只有已完成的训练项目才能下载模型文件');
       return;
     }
-    message.info('下载功能待实现');
+    try {
+      const blob = await trainTasksAPI.downloadModel(record.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `model_task_${record.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('模型文件下载成功');
+    } catch (err) {
+      message.error('下载失败: ' + (err.message || '未知错误'));
+    }
   };
 
   const handleDelete = (record) => {
