@@ -8,3 +8,4 @@ public/
 conversion_project/
 
 *.py
+/output
