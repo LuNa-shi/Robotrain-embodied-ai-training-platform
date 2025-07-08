@@ -25,11 +25,11 @@ class Scheduler:
         
         print("[Scheduler] Actor initialized.")
         
-        # Test CUDA
-        if torch.cuda.is_available():
-            print(f"✅ CUDA OK: {torch.cuda.device_count()} GPUs available")
-        else:
-            print("❌ CUDA not available")
+        # # Test CUDA
+        # if torch.cuda.is_available():
+        #     print(f"✅ CUDA OK: {torch.cuda.device_count()} GPUs available")
+        # else:
+        #     print("❌ CUDA not available")
 
     async def add_task(self, task_data: dict):
         task = TrainingTask(**task_data)
