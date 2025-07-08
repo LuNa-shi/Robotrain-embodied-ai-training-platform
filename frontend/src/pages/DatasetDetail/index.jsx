@@ -236,8 +236,10 @@ const DatasetDetailPage = () => {
           <Descriptions 
             column={1} 
             bordered
-            labelStyle={{ fontWeight: 'bold', fontSize: 17 }}
-            contentStyle={{ fontSize: 16 }}
+            styles={{ 
+              label: { fontWeight: 'bold', fontSize: 17 },
+              content: { fontSize: 16 }
+            }}
           >
             <Descriptions.Item label="数据集名称">
               {dataset.dataset_name}
