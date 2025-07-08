@@ -245,16 +245,26 @@ class TrainerActor:
                 asyncio.run_coroutine_threadsafe(self._save_checkpoint_callback(step, ckpt_dir), self.loop)
 
             # 在一个单独的线程中运行同步的训练代码，防止阻塞 Actor
-            final_step = await asyncio.to_thread(
-                run_lerobot_training,
-                base_config_path,
-                training_config,  # 使用确定的配置
-                self.run_dir,
-                self.task.task_id,
-                start_step,
-                end_step,
-                sync_log_callback,
-                sync_save_callback,
+            # final_step = await asyncio.to_thread(
+                # run_lerobot_training,
+                # base_config_path,
+                # training_config,  # 使用确定的配置
+                # self.run_dir,
+                # self.task.task_id,
+                # start_step,
+                # end_step,
+                # sync_log_callback,
+                # sync_save_callback,
+            # )
+            final_step = await run_lerobot_training(
+                base_config_path=base_config_path,
+                user_override_config=training_config,  # 使用确定的配置
+                run_dir=self.run_dir,
+                task_id=self.task.task_id,
+                start_step=start_step,
+                end_step=end_step,
+                log_callback=sync_log_callback,
+                save_callback=sync_save_callback,
             )
 
             # 等待所有异步上传任务完成
