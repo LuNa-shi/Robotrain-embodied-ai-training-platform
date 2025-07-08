@@ -191,12 +191,10 @@ const TrainingPage = () => {
     // 设置表单默认值
     trainingForm.setFieldsValue({
       model: modelValue,
-      epochs: 10,
-      batchSize: 32,
-      learningRate: 0.001,
-      validationSplit: 0.2,
-      maxLength: 512,
-      temperature: 0.7,
+      env: 'aloha',
+      log_freq: 25,
+      steps: 100,
+      batch_size: 8,
     });
   };
 
@@ -205,19 +203,19 @@ const TrainingPage = () => {
     try {
       setTrainingLoading(true);
 
-      // 固定超参数格式
-      const hyperparameter = {
-        policy: { type: 'act' }, // 目前写死为act，后续可扩展为可选项
-        env: { type: 'aloha' },  // 目前写死为aloha，后续可扩展为可选项
-        log_freq: 25,
-        steps: 100,
-        batch_size: 8
-      };
-
       // 验证model值
       if (!values.model || values.model === 'undefined' || values.model === 'null') {
         throw new Error('请先选择模型');
       }
+
+      // 使用用户选择的超参数
+      const hyperparameter = {
+        policy: { type: selectedModel.label.toLowerCase() }, // 使用选择的模型的type_name，转换为小写
+        env: { type: values.env },
+        log_freq: values.log_freq,
+        steps: values.steps,
+        batch_size: values.batch_size
+      };
 
       // 构建训练项目创建请求体
       const trainTaskData = {
@@ -388,6 +386,7 @@ const TrainingPage = () => {
           {selectedDataset && selectedModel && (
             <Alert
               message={`数据集: ${selectedDataset.dataset_name} | 模型: ${selectedModel.label}`}
+              description={`策略类型 (Policy): ${selectedModel.label} (由选择的模型决定)`}
               type="info"
               showIcon
               style={{ marginBottom: '16px' }}
@@ -401,105 +400,67 @@ const TrainingPage = () => {
             className={styles.formContainer}
             initialValues={{
               model: selectedModel?.value || undefined,
-              epochs: 10,
-              batchSize: 32,
-              learningRate: 0.001,
-              validationSplit: 0.2,
-              maxLength: 512,
-              temperature: 0.7,
+              env: 'aloha',
+              log_freq: 25,
+              steps: 100,
+              batch_size: 8,
             }}
           >
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
-                  label="训练轮数 (Epochs)"
-                  name="epochs"
-                  rules={[{ required: true, message: '请输入训练轮数' }]}
+                  label="环境类型 (Environment)"
+                  name="env"
+                  rules={[{ required: true, message: '请选择环境类型' }]}
+                >
+                  <Select placeholder="选择环境类型">
+                    <Option value="aloha">Aloha</Option>
+                    <Option value="pusht">Pusht</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="训练步数 (Steps)"
+                  name="steps"
+                  rules={[{ required: true, message: '请输入训练步数' }]}
                 >
                   <InputNumber
                     min={1}
+                    max={1000000}
+                    style={{ width: '100%' }}
+                    placeholder="训练步数"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="日志频率 (Log Frequency)"
+                  name="log_freq"
+                  rules={[{ required: true, message: '请输入日志频率' }]}
+                >
+                  <InputNumber
+                    min={10}
                     max={1000}
                     style={{ width: '100%' }}
-                    placeholder="训练轮数"
+                    placeholder="日志频率"
                   />
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item
                   label="批次大小 (Batch Size)"
-                  name="batchSize"
+                  name="batch_size"
                   rules={[{ required: true, message: '请输入批次大小' }]}
                 >
                   <InputNumber
                     min={1}
-                    max={512}
+                    max={16}
                     style={{ width: '100%' }}
                     placeholder="批次大小"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="学习率 (Learning Rate)"
-                  name="learningRate"
-                  rules={[{ required: true, message: '请输入学习率' }]}
-                >
-                  <InputNumber
-                    min={0.0001}
-                    max={1}
-                    step={0.0001}
-                    style={{ width: '100%' }}
-                    placeholder="学习率"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="验证集比例"
-                  name="validationSplit"
-                  rules={[{ required: true, message: '请输入验证集比例' }]}
-                >
-                  <InputNumber
-                    min={0.1}
-                    max={0.5}
-                    step={0.05}
-                    style={{ width: '100%' }}
-                    placeholder="验证集比例"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="最大序列长度"
-                  name="maxLength"
-                  rules={[{ required: true, message: '请输入最大序列长度' }]}
-                >
-                  <InputNumber
-                    min={64}
-                    max={4096}
-                    style={{ width: '100%' }}
-                    placeholder="最大序列长度"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="温度参数 (Temperature)"
-                  name="temperature"
-                  rules={[{ required: true, message: '请输入温度参数' }]}
-                >
-                  <InputNumber
-                    min={0.1}
-                    max={2.0}
-                    step={0.1}
-                    style={{ width: '100%' }}
-                    placeholder="温度参数"
                   />
                 </Form.Item>
               </Col>
