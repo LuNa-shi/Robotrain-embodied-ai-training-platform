@@ -148,3 +148,5 @@ dmypy.json
 cython_debug/
 
 outputs/
+
+conversion_project/
