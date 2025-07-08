@@ -106,7 +106,7 @@ class TrainPipelineConfig(HubMixin):
         elif not self.output_dir:
             now = dt.datetime.now()
             train_dir = f"{now:%Y-%m-%d}/{now:%H-%M-%S}_{self.job_name}"
-            self.output_dir = Path("outputs/train") / train_dir
+            self.output_dir = Path("/tmp/outputs/train") / train_dir
 
         if isinstance(self.dataset.repo_id, list):
             raise NotImplementedError("LeRobotMultiDataset is not currently implemented.")

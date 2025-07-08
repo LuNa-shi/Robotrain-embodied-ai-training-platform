@@ -224,7 +224,7 @@ class TrainerActor:
                 training_config = {
                     "resume": True,  # 关键：设置resume=true
                     "steps": self.task.config.get("steps", 100000),  # 保持总步数
-                    "save_freq": self.task.config.get("save_freq", 1000),  # 保持保存频率
+                    "save_freq": self.task.config.get("save_freq", 25000),  # 保持保存频率
                     "log_freq": self.task.config.get("log_freq", 100),  # 保持日志频率
                     "batch_size": self.task.config.get("batch_size", 8),  # 保持batch size
                 }

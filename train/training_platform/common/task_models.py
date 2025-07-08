@@ -13,3 +13,8 @@ class TrainingTask(BaseModel):
     current_step: int = 0
     status: str = "pending" # pending, running, paused, completed, failed
     model_uuid: Optional[str] = None  # 训练完成后生成的模型 UUID
+
+    # set save_freq manually
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.config["save_freq"] = int(self.config["steps"] / 4)
