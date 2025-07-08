@@ -192,8 +192,9 @@ const EvaluationPage = () => {
         .filter(task => task.status === 'completed')
         .map(task => ({
           id: task.id.toString(),
-          name: `训练任务 ${task.id}`,
-          dataset: `数据集 ${task.dataset_id}`,
+          name: `训练项目 ${task.id}`,
+          modelType: task.model_type,
+          dataset: task.dataset_id ? `数据集 ${task.dataset_id}` : '未指定数据集',
           startTime: new Date(task.create_time).toLocaleString('zh-CN'),
           status: task.status,
           originalData: task
@@ -287,7 +288,7 @@ const EvaluationPage = () => {
         <div className={styles.projectInfo}>
           <div className={styles.projectName}>{record.name}</div>
           <div className={styles.projectMeta}>
-            <Text type="secondary">{record.model}</Text>
+            <Text type="secondary">{record.modelType}</Text>
             <StatusDisplay status={record.status} />
           </div>
           <div className={styles.projectStats}>
@@ -308,7 +309,7 @@ const EvaluationPage = () => {
     >
       <div className={styles.projectName}>{record.name}</div>
       <div className={styles.projectMeta}>
-        <Text type="secondary">{record.model}</Text>
+        <Text type="secondary">{record.modelType}</Text>
         <StatusDisplay status={record.status} />
       </div>
     </div>
@@ -556,7 +557,7 @@ const EvaluationPage = () => {
             <Descriptions title="基本信息" bordered column={2}>
               <Descriptions.Item label="测试ID">{selectedRecordDetails.id}</Descriptions.Item>
               <Descriptions.Item label="测试名称">{selectedRecordDetails.name}</Descriptions.Item>
-              <Descriptions.Item label="模型">{selectedRecordDetails.model}</Descriptions.Item>
+              <Descriptions.Item label="模型">{selectedRecordDetails.modelType}</Descriptions.Item>
               <Descriptions.Item label="数据集">{selectedRecordDetails.dataset}</Descriptions.Item>
               <Descriptions.Item label="开始时间">{selectedRecordDetails.startTime}</Descriptions.Item>
               <Descriptions.Item label="持续时间">{selectedRecordDetails.duration}</Descriptions.Item>

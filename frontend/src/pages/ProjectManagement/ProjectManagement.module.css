@@ -1,7 +1,7 @@
 /* 整体页面容器 */
-.trainingManagementPage {
+.projectManagementPage {
   padding: 24px;
-  background-color: #f0f2f5;
+  background-color: transparent;
 }
 
 /* 内容区域包装器，用于居中和限制宽度 */
@@ -97,6 +97,9 @@
 /* 表格卡片 */
 .tableCard {
   margin-bottom: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 /* 表格表头居中 */
@@ -176,7 +179,7 @@
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .trainingManagementPage {
+  .projectManagementPage {
     padding: 16px;
   }
   
@@ -204,4 +207,11 @@
     width: 100%;
     justify-content: flex-start;
   }
+}
+
+/* 分页条居中样式 */
+.paginationWrapper {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0 0 0;
 } 

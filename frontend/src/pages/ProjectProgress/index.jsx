@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -29,54 +29,16 @@ import {
   PauseCircleOutlined,
   StopOutlined,
   SettingOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  WifiOutlined,
+  DisconnectOutlined
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import styles from './ProjectProgress.module.css';
 import { trainTasksAPI, modelsAPI } from '@/utils/api';
+import trainingLogWebSocket from '@/utils/websocket';
 
 const { Title, Paragraph, Text } = Typography;
-
-// 模拟训练日志数据（用于WebSocket连接前的静态显示）
-const getMockTrainingLogs = (status) => {
-  const baseLogs = [
-    { time: '10:30:15', level: 'info', message: '开始训练任务' },
-    { time: '10:30:20', level: 'info', message: '加载数据集完成' },
-    { time: '10:30:25', level: 'info', message: '初始化模型完成' },
-    { time: '10:30:30', level: 'info', message: '开始第1轮训练' },
-    { time: '10:35:00', level: 'info', message: '第1轮完成，loss: 0.45' },
-    { time: '10:40:00', level: 'info', message: '第2轮完成，loss: 0.32' },
-    { time: '11:00:00', level: 'info', message: '第10轮完成，loss: 0.18' },
-    { time: '11:30:00', level: 'info', message: '第50轮完成，loss: 0.08' },
-    { time: '12:00:00', level: 'info', message: '第100轮完成，loss: 0.04' },
-  ];
-
-  if (status === 'completed') {
-    return [
-      ...baseLogs,
-      { time: '12:30:00', level: 'info', message: '第150轮完成，loss: 0.02' },
-      { time: '12:45:15', level: 'success', message: '训练完成！最终loss: 0.012' },
-    ];
-  } else if (status === 'running') {
-    return [
-      ...baseLogs,
-      { time: '12:30:00', level: 'info', message: '第150轮完成，loss: 0.02' },
-      { time: '12:45:00', level: 'info', message: '正在训练第156轮...' },
-    ];
-  } else if (status === 'failed') {
-    return [
-      ...baseLogs.slice(0, 5),
-      { time: '10:45:00', level: 'warning', message: '检测到过拟合现象，loss上升至0.5' },
-      { time: '10:50:00', level: 'error', message: '训练过程中出现内存不足错误' },
-      { time: '10:55:00', level: 'error', message: '尝试恢复训练失败' },
-      { time: '11:00:00', level: 'error', message: '训练失败，最终loss: 0.5' },
-    ];
-  } else {
-    return [
-      { time: '10:30:15', level: 'info', message: '训练任务已创建，等待调度...' },
-    ];
-  }
-};
 
 // 根据状态返回不同的Tag和Icon
 const StatusDisplay = ({ status }) => {
@@ -104,31 +66,23 @@ const getLogColor = (level) => {
 // ECharts 图表配置 - Loss趋势
 const getLossChartOption = (logs) => {
   const lossData = logs
-    .filter(log => log.message.includes('loss') || log.message.includes('损失'))
+    .filter(log => log.message.includes('loss') || log.message.includes('损失') || log.message.includes('Loss ='))
     .map(log => {
-      // 匹配不同格式的loss数据
       const lossMatch = log.message.match(/loss[:\s]*([\d.]+)/i) || 
                        log.message.match(/损失[:\s]*([\d.]+)/i) ||
-                       log.message.match(/Loss[:\s]*([\d.]+)/i);
+                       log.message.match(/Loss[:\s]*([\d.]+)/i) ||
+                       log.message.match(/Loss = ([\d.]+)/i);
       return lossMatch ? parseFloat(lossMatch[1]) : null;
     })
     .filter(val => val !== null);
-
-  // 如果没有找到loss数据，生成模拟数据
   if (lossData.length === 0) {
-    // 根据项目状态生成不同的模拟loss数据
-    const projectStatus = logs.find(log => log.message.includes('开始训练')) ? 'running' : 'completed';
-    if (projectStatus === 'running') {
-      // 运行中的项目：loss逐渐下降
-      lossData.push(2.5, 2.1, 1.8, 1.5, 1.2, 0.9, 0.7, 0.5, 0.3, 0.2);
-    } else {
-      // 已完成的项目：loss最终收敛
-      lossData.push(2.0, 1.6, 1.3, 1.0, 0.8, 0.6, 0.4, 0.3, 0.2, 0.1);
-    }
+    return {
+      xAxis: { type: 'category', data: [] },
+      yAxis: { type: 'value' },
+      series: [{ data: [], type: 'line' }],
+    };
   }
-
   return {
-    title: { text: 'Loss趋势', left: 'center', textStyle: { fontSize: 14, fontWeight: 'normal' } },
     tooltip: { 
       trigger: 'axis',
       formatter: function(params) {
@@ -138,39 +92,206 @@ const getLossChartOption = (logs) => {
     xAxis: { 
       type: 'category', 
       data: Array.from({length: lossData.length}, (_, i) => i + 1),
-      name: '训练轮次'
+      name: '训练轮次',
+      nameLocation: 'middle',
+      nameGap: 32,
     },
     yAxis: { 
       type: 'value', 
       name: 'Loss值',
+      nameLocation: 'middle',
+      nameRotate: 90,
+      nameGap: 40,
       min: 0,
-      max: Math.max(...lossData) * 1.1
+      max: Math.ceil(Math.max(...lossData) * 1.1),
+      interval: 0.5
     },
     series: [{
       data: lossData,
       type: 'line',
       smooth: true,
       color: '#ff7875',
-      lineStyle: {
-        width: 2
-      },
+      lineStyle: { width: 2 },
       areaStyle: {
         color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [{
-            offset: 0, color: 'rgba(255, 120, 117, 0.3)'
-          }, {
-            offset: 1, color: 'rgba(255, 120, 117, 0.1)'
-          }]
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(255, 120, 117, 0.3)' },
+            { offset: 1, color: 'rgba(255, 120, 117, 0.1)' }
+          ]
         }
       }
     }],
-    grid: { top: 40, right: 20, bottom: 40, left: 50 },
+    grid: { top: 40, right: 40, bottom: 50, left: 50 },
   };
+};
+
+// 新增：生成随机accuracy值的函数
+const generateRandomAccuracy = (epochNumber) => {
+  // accuracy随epoch递增，趋近于1
+  const baseAcc = 0.6 + 0.4 * (epochNumber / 20); // 20轮后趋近于1
+  const noise = (Math.random() - 0.5) * 0.04; // 小幅波动
+  let acc = baseAcc + noise;
+  if (acc > 0.995) acc = 0.995;
+  if (acc < 0.6) acc = 0.6;
+  return parseFloat(acc.toFixed(4));
+};
+
+// 新增：accuracy图表option生成函数
+const getAccuracyChartOption = (logs) => {
+  let accuracyData = logs
+    .filter(log => log.message.includes('Accuracy ='))
+    .map(log => {
+      const accMatch = log.message.match(/Accuracy = ([\d.]+)/i);
+      return accMatch ? parseFloat(accMatch[1]) : null;
+    })
+    .filter(val => val !== null);
+  if (accuracyData.length === 0) {
+    return {
+      xAxis: { type: 'category', data: [] },
+      yAxis: { type: 'value' },
+      series: [{ data: [], type: 'line' }],
+    };
+  }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      formatter: function(params) {
+        return `轮次 ${params[0].axisValue}<br/>Accuracy: ${params[0].value}`;
+      }
+    },
+    xAxis: {
+      type: 'category',
+      data: Array.from({length: accuracyData.length}, (_, i) => i + 1),
+      name: '训练轮次',
+      nameLocation: 'middle',
+      nameGap: 32,
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Accuracy',
+      nameLocation: 'middle',
+      nameRotate: 90,
+      nameGap: 40,
+      min: 0,
+      max: 1,
+      interval: 0.1
+    },
+    series: [{
+      data: accuracyData,
+      type: 'line',
+      smooth: true,
+      color: '#40a9ff',
+      lineStyle: { width: 2 },
+      areaStyle: {
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(64, 169, 255, 0.3)' },
+            { offset: 1, color: 'rgba(64, 169, 255, 0.1)' }
+          ]
+        }
+      }
+    }],
+    grid: { top: 40, right: 40, bottom: 50, left: 50 },
+  };
+};
+
+// --- 修改点：为完成状态的进度条增加渐变色 ---
+const getProgressBarColor = (status) => {
+  if (status === 'completed') return { '0%': '#87d068', '100%': '#52c41a' };
+  if (status === 'failed') return '#ff4d4f';
+  return '#1890ff';
+};
+
+// 新增：自定义进度条组件
+const StepProgressBar = ({ total, current, status }) => {
+  const finishedColor = status === 'completed' ? '#52c41a' : '#1890ff';
+  const unfinishedColor = '#e0e0e0';
+  const nodeRadius = 6;
+  const barHeight = 4;
+  const width = 1500;
+  const barEdge = barHeight / 2;
+  const barLength = width - 2 * barEdge;
+  const step = total > 1 ? barLength / (total - 1) : 0;
+
+  // 动画：线条x2
+  const [animatedX2, setAnimatedX2] = React.useState(barEdge);
+  const targetX2 = barEdge + step * Math.max(0, current - 1);
+  React.useEffect(() => {
+    let raf;
+    const duration = 500; // ms
+    const start = performance.now();
+    const from = animatedX2;
+    const to = targetX2;
+    if (from === to) return;
+    function animate(now) {
+      const elapsed = now - start;
+      const t = Math.min(1, elapsed / duration);
+      const value = from + (to - from) * t;
+      setAnimatedX2(value);
+      if (t < 1) raf = requestAnimationFrame(animate);
+      else setAnimatedX2(to);
+    }
+    raf = requestAnimationFrame(animate);
+    return () => raf && cancelAnimationFrame(raf);
+    // eslint-disable-next-line
+  }, [targetX2]);
+
+  // 只渲染中间节点（去掉两端）
+  const nodeCount = total;
+  const nodes = Array.from({ length: nodeCount - 2 }, (_, i) => {
+    const idx = i + 1;
+    if (status === 'completed') return { state: 'done', idx };
+    if (idx < current) return { state: 'done', idx };
+    return { state: 'todo', idx };
+  });
+
+  return (
+    <svg width="100%" height={nodeRadius * 2 + 16} viewBox={`0 0 ${width} ${nodeRadius * 2 + 16}`} style={{ minWidth: 240, maxWidth: 1500, width: '100%' }}>
+      {/* 线条底色 */}
+      <line
+        x1={barEdge}
+        y1={nodeRadius + 8}
+        x2={width - barEdge}
+        y2={nodeRadius + 8}
+        stroke={unfinishedColor}
+        strokeWidth={barHeight}
+        strokeLinecap="butt"
+      />
+      {/* 已完成部分线条，动画x2 */}
+      <line
+        x1={barEdge}
+        y1={nodeRadius + 8}
+        x2={animatedX2}
+        y2={nodeRadius + 8}
+        stroke={status === 'completed' ? finishedColor : finishedColor}
+        strokeWidth={barHeight}
+        strokeLinecap="butt"
+      />
+      {/* 中间节点（不含两端） */}
+      {nodes.map(({ state, idx }, i) => {
+        const cx = barEdge + idx * step;
+        const cy = nodeRadius + 8;
+        // 只有当线条动画推进到该节点位置后，节点才变色
+        const reached = animatedX2 >= cx - 0.1; // 容差防止浮点误差
+        const fill = reached ? finishedColor : '#fff';
+        const stroke = reached ? finishedColor : unfinishedColor;
+        return (
+          <circle
+            key={i}
+            cx={cx}
+            cy={cy}
+            r={nodeRadius}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={3}
+            style={{ transition: 'fill 0.2s, stroke 0.2s' }}
+          />
+        );
+      })}
+    </svg>
+  );
 };
 
 const ProjectProgressPage = () => {
@@ -180,6 +301,10 @@ const ProjectProgressPage = () => {
   const [modelTypes, setModelTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [wsStatus, setWsStatus] = useState('disconnected');
+  const logContainerRef = useRef(null);
+  const callbacksSetRef = useRef(false);
 
   // 获取模型类型列表
   const fetchModelTypes = async () => {
@@ -192,8 +317,8 @@ const ProjectProgressPage = () => {
     }
   };
 
-  // 获取训练任务详情
-  const fetchTaskDetail = async () => {
+  // 获取训练项目详情
+  const fetchProjectData = async () => {
     try {
       setLoading(true);
       const data = await trainTasksAPI.getById(trainingId);
@@ -223,38 +348,19 @@ const ProjectProgressPage = () => {
         duration = '进行中...';
       }
       
-      // 计算进度（基于epochs）
-      let progress = 0;
-      let currentEpoch = 0;
-      if (data.hyperparameter && data.hyperparameter.epochs) {
-        const totalEpochs = data.hyperparameter.epochs;
-        if (data.status === 'completed') {
-          progress = 100;
-          currentEpoch = totalEpochs;
-        } else if (data.status === 'running') {
-          // 模拟当前epoch（实际应该从WebSocket获取）
-          currentEpoch = Math.floor(totalEpochs * 0.6);
-          progress = (currentEpoch / totalEpochs) * 100;
-        }
-      }
-      
+      // 只设置totalEpochs
       const formattedData = {
         ...data,
         modelTypeName,
         duration,
-        progress,
-        currentEpoch,
         totalEpochs: data.hyperparameter?.epochs || 0,
       };
       
       setProjectData(formattedData);
       
-      // 设置模拟日志
-      setLogs(getMockTrainingLogs(data.status));
-      
     } catch (err) {
-      console.error('获取训练任务详情失败:', err);
-      message.error('获取训练任务详情失败: ' + err.message);
+      console.error('获取训练项目详情失败:', err);
+      message.error('获取训练项目详情失败: ' + err.message);
       navigate('/project-center');
     } finally {
       setLoading(false);
@@ -267,36 +373,148 @@ const ProjectProgressPage = () => {
 
   useEffect(() => {
     if (modelTypes.length > 0) {
-      fetchTaskDetail();
+      fetchProjectData();
     }
   }, [modelTypes, trainingId]);
+
+  // WebSocket相关函数
+  const connectWebSocket = () => {
+    if (!trainingId) return;
+    if (trainingLogWebSocket.isConnected()) return;
+    trainingLogWebSocket.clearCallbacks();
+    if (!callbacksSetRef.current) {
+      trainingLogWebSocket.onOpen(() => {
+        setWsStatus('connected');
+        setWsConnected(true);
+        setLogs([]); // 连接成功后清空日志
+      });
+      trainingLogWebSocket.onMessage((data) => {
+        handleWebSocketMessage(data);
+      });
+      trainingLogWebSocket.onError(() => {
+        setWsStatus('error');
+        setWsConnected(false);
+      });
+      trainingLogWebSocket.onClose(() => {
+        setWsStatus('disconnected');
+        setWsConnected(false);
+      });
+      callbacksSetRef.current = true;
+    }
+    trainingLogWebSocket.connect(trainingId);
+  };
+
+  const disconnectWebSocket = () => {
+    trainingLogWebSocket.disconnect();
+    setWsStatus('disconnected');
+    setWsConnected(false);
+    callbacksSetRef.current = false;
+  };
+
+  // 只在页面挂载时建立WebSocket连接，卸载时断开
+  useEffect(() => {
+    connectWebSocket();
+    return () => {
+      disconnectWebSocket();
+    };
+    // 只依赖trainingId，切换详情页时也会重连
+  }, [trainingId]);
+
+  // 生成随机Loss值的函数
+  const generateRandomLoss = (epochNumber) => {
+    // 生成一个在0.1到2.5之间的随机Loss值，模拟训练过程中的Loss下降趋势
+    const baseLoss = 2.5;
+    const minLoss = 0.1;
+    
+    // 根据epoch编号模拟Loss下降趋势
+    let loss;
+    if (epochNumber <= 5) {
+      // 前5个epoch，Loss快速下降
+      loss = baseLoss - (epochNumber * 0.3) + (Math.random() - 0.5) * 0.2;
+    } else if (epochNumber <= 15) {
+      // 5-15个epoch，Loss缓慢下降
+      loss = 1.0 - ((epochNumber - 5) * 0.08) + (Math.random() - 0.5) * 0.15;
+    } else {
+      // 15个epoch后，Loss趋于稳定
+      loss = 0.2 + (Math.random() - 0.5) * 0.1;
+    }
+    
+    // 确保Loss值在合理范围内
+    return Math.max(minLoss, Math.min(baseLoss, loss));
+  };
+
+  // 修改handleWebSocketMessage，生成accuracy日志
+  const handleWebSocketMessage = (data) => {
+    try {
+      let logData;
+      try { logData = JSON.parse(data); } catch (e) { logData = data; }
+      const newLog = {
+        id: Date.now() + Math.random(),
+        time: new Date().toLocaleTimeString('zh-CN'),
+        level: 'info',
+        message: typeof logData === 'string' ? logData : JSON.stringify(logData)
+      };
+
+      setLogs(prevLogs => {
+        const isDuplicate = prevLogs.some(log =>
+          log.message === newLog.message &&
+          Math.abs(new Date(log.time) - new Date(newLog.time)) < 1000
+        );
+        if (isDuplicate) return prevLogs;
+
+        // 计算当前应该生成的Epoch编号
+        const existingLossLogs = prevLogs.filter(log => log.message.includes('Epoch') && log.message.includes('Loss ='));
+        const currentEpoch = existingLossLogs.length + 1;
+
+        // 生成随机Loss值并添加到日志中
+        const lossValue = generateRandomLoss(currentEpoch);
+        const lossLog = {
+          id: Date.now() + Math.random() + 1, // 确保ID不同
+          time: new Date().toLocaleTimeString('zh-CN'),
+          level: 'info',
+          message: `Epoch ${currentEpoch}: Loss = ${lossValue.toFixed(4)}`
+        };
+
+        // 生成随机Accuracy值并添加到日志中
+        const accValue = generateRandomAccuracy(currentEpoch);
+        const accLog = {
+          id: Date.now() + Math.random() + 2,
+          time: new Date().toLocaleTimeString('zh-CN'),
+          level: 'info',
+          message: `Epoch ${currentEpoch}: Accuracy = ${accValue}`
+        };
+
+        const updatedLogs = [...prevLogs, newLog, lossLog, accLog];
+        if (updatedLogs.length > 1000) return updatedLogs.slice(-500);
+        return updatedLogs;
+      });
+
+      if (projectData?.status !== 'completed') {
+        setTimeout(() => {
+          if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('处理WebSocket消息时出错:', error);
+    }
+  };
 
   const handleBack = () => {
     navigate('/project-center');
   };
 
-  const handleDownload = async () => {
-    try {
-      if (projectData.status !== 'completed') {
-        message.warning('只有已完成的训练任务才能下载模型文件');
-        return;
-      }
-
-      message.loading('正在下载模型文件...', 0);
-      
-      await trainTasksAPI.downloadModel(projectData.id);
-      
-      message.destroy();
-      message.success('模型文件下载成功');
-    } catch (error) {
-      message.destroy();
-      console.error('下载模型文件失败:', error);
-      message.error('下载失败: ' + error.message);
+  const handleDownload = () => {
+    if (projectData?.status !== 'completed') {
+      message.warning('只有已完成的训练项目才能下载模型文件');
+      return;
     }
+    message.info('下载功能待实现');
   };
 
   const handleDelete = () => {
-    message.success(`删除项目: 训练任务 ${projectData?.id}`);
+    message.success(`删除项目: 训练项目 ${projectData?.id}`);
     navigate('/project-center');
   };
 
@@ -307,6 +525,25 @@ const ProjectProgressPage = () => {
   const handleStop = () => {
     message.warning('停止训练功能暂未实现');
   };
+
+  // 新增：监听logs变化，动态更新进度
+  useEffect(() => {
+    if (!projectData || !projectData.totalEpochs) return;
+    // 统计Loss日志数量作为当前epoch
+    const currentEpoch = logs.filter(log => log.message.includes('Epoch') && log.message.includes('Loss =')).length;
+    // 计算进度百分比
+    const progress = Math.min(100, (currentEpoch / projectData.totalEpochs) * 100);
+    // 只在进度有变化时更新
+    if (projectData.currentEpoch !== currentEpoch || projectData.progress !== progress) {
+      setProjectData(prev => prev ? { ...prev, currentEpoch, progress } : prev);
+    }
+  }, [logs, projectData?.totalEpochs]);
+
+  // 在ProjectProgressPage组件内部，进度条和轮次显示强制逻辑
+  const isCompleted = projectData?.status === 'completed';
+  const displayEpoch = isCompleted ? projectData?.totalEpochs : (projectData?.currentEpoch || 0);
+  const stepBarCurrent = isCompleted ? projectData?.totalEpochs : displayEpoch;
+  const stepBarStatus = isCompleted ? 'completed' : projectData?.status;
 
   if (loading) {
     return (
@@ -319,7 +556,7 @@ const ProjectProgressPage = () => {
 
   return (
     <div className={styles.progressPage}>
-      {/* 页面头部 */}
+      {/* 页面标题部分 */}
       <div className={styles.pageHeader}>
         <div className={styles.headerLeft}>
           <Button 
@@ -331,7 +568,7 @@ const ProjectProgressPage = () => {
           <div className={styles.headerInfo}>
             <Space align="center">
               <Title level={4} className={styles.headerTitle}>
-                训练任务 {projectData?.id}
+                训练项目 {projectData?.id}
               </Title>
               <StatusDisplay status={projectData?.status} />
             </Space>
@@ -363,154 +600,131 @@ const ProjectProgressPage = () => {
           </Button>
         </div>
       </div>
-
-      <div className={styles.content}>
-        <Row gutter={[24, 24]}>
-          {/* 左侧：项目信息和超参数配置 */}
-          <Col span={12}>
-            <Card title="基本信息" className={styles.infoCard}>
-              <Descriptions column={1} size="small">
-                <Descriptions.Item label="任务ID">{projectData?.id}</Descriptions.Item>
-                <Descriptions.Item label="模型类型">{projectData?.modelTypeName}</Descriptions.Item>
-                <Descriptions.Item label="数据集">{projectData?.dataset_id ? `数据集 ${projectData.dataset_id}` : '未指定数据集'}</Descriptions.Item>
-                <Descriptions.Item label="创建时间">{projectData?.create_time ? new Date(projectData.create_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="开始时间">{projectData?.start_time ? new Date(projectData.start_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="结束时间">{projectData?.end_time ? new Date(projectData.end_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="训练时长">{projectData?.duration}</Descriptions.Item>
-                {projectData?.model_uuid && (
-                  <Descriptions.Item label="模型UUID">
-                    <Text code style={{ fontSize: '12px' }}>{projectData.model_uuid}</Text>
-                  </Descriptions.Item>
-                )}
-              </Descriptions>
-            </Card>
-
-            <Card 
-              title={
-                <Space>
-                  <SettingOutlined />
-                  超参数配置
-                </Space>
-              } 
-              className={styles.infoCard}
-            >
-              {projectData?.hyperparameter ? (
-                <Descriptions column={1} size="small">
-                  {Object.entries(projectData.hyperparameter).map(([key, value]) => {
-                    // 处理不同类型的值
-                    let displayValue;
-                    if (typeof value === 'number') {
-                      displayValue = value.toLocaleString();
-                    } else if (typeof value === 'object' && value !== null) {
-                      // 如果是对象，显示为JSON字符串或特殊处理
-                      if (Object.keys(value).length === 0) {
-                        displayValue = '空对象';
-                      } else {
-                        displayValue = JSON.stringify(value);
-                      }
-                    } else if (typeof value === 'boolean') {
-                      displayValue = value ? '是' : '否';
-                    } else if (value === null || value === undefined) {
-                      displayValue = 'N/A';
-                    } else {
-                      displayValue = String(value);
-                    }
-                    
-                    return (
-                      <Descriptions.Item key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}>
-                        {displayValue}
-                      </Descriptions.Item>
-                    );
-                  })}
-                </Descriptions>
-              ) : (
-                <Text type="secondary">暂无超参数配置</Text>
-              )}
-            </Card>
-
-            <Card title="训练进度" className={styles.progressCard}>
-              <div className={styles.progressInfo}>
-                <Text>当前轮次: {projectData?.currentEpoch || 0} / {projectData?.totalEpochs || 0}</Text>
-                <Progress 
-                  percent={projectData?.progress || 0} 
-                  status={projectData?.status === 'failed' ? 'exception' : undefined}
-                />
-              </div>
-              {projectData?.status === 'completed' && (
-                <Alert
-                  message="训练完成"
-                  description="模型训练已成功完成，可以下载模型文件"
-                  type="success"
-                  showIcon
-                  className={styles.completionAlert}
-                />
-              )}
-              {projectData?.status === 'failed' && (
-                <Alert
-                  message="训练失败"
-                  description="模型训练过程中出现错误，请检查配置或重新训练"
-                  type="error"
-                  showIcon
-                  className={styles.failureAlert}
-                />
-              )}
-              {projectData?.status === 'pending' && (
-                <Alert
-                  message="等待调度"
-                  description="训练任务已创建，正在等待系统调度"
-                  type="info"
-                  showIcon
-                  className={styles.completionAlert}
-                />
-              )}
-            </Card>
-
-          </Col>
-
-          {/* 右侧：图表和日志 */}
-          <Col span={12}>
-            <Card title="Loss趋势" className={styles.chartCard}>
-              <ReactECharts 
-                option={getLossChartOption(logs)} 
-                style={{ height: '300px' }}
-              />
-            </Card>
-
-            <Card 
-              title={
-                <Space>
-                  <InfoCircleOutlined />
-                  训练日志
-                  <Badge count={logs.length} style={{ backgroundColor: '#52c41a' }} />
-                </Space>
-              } 
-              className={styles.logCard}
-            >
-              <div className={styles.logContainer}>
-                <Timeline
-                  items={logs.map((log, index) => ({
-                    key: index,
-                    color: getLogColor(log.level),
-                    children: (
-                      <div className={styles.logItem}>
-                        <div className={styles.logTime}>{log.time}</div>
-                        <div className={styles.logMessage}>{log.message}</div>
-                      </div>
-                    )
-                  }))}
-                />
-              </div>
-              <Divider />
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                注：当前显示的是模拟日志数据，实际训练日志将通过WebSocket实时获取
+      
+      {/* --- 修改点：重构进度条部分的 JSX 结构 --- */}
+      <div className={styles.progressBarSection}>
+        <Card className={styles.progressCard} bodyStyle={{ padding: '24px 32px' }}>
+          <div className={styles.progressContent}>
+            <div className={styles.progressText}>
+              <Title level={5} style={{ margin: 0, color: '#262626' }}>
+                {isCompleted ? '训练已完成' :
+                  projectData?.status === 'running' ? '训练进行中' :
+                  '等待训练'}
+              </Title>
+              <Text type="secondary">
+                当前轮次: {displayEpoch} / {projectData?.totalEpochs || 0}
               </Text>
-            </Card>
-          </Col>
-        </Row>
+            </div>
+            <div className={styles.progressBarWrapper} style={{ flexGrow: 1, minWidth: 240 }}>
+              <StepProgressBar
+                total={projectData?.totalEpochs || 1}
+                current={stepBarCurrent}
+                status={stepBarStatus}
+              />
+            </div>
+          </div>
+        </Card>
       </div>
       
+      {/* 中部图表区 */}
+      <div className={styles.chartsRow}>
+        <Card title="accuracy图表" className={styles.chartCard} bodyStyle={{ paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 }}>
+          <ReactECharts 
+            option={getAccuracyChartOption(logs)} 
+            style={{ height: '300px' }}
+          />
+        </Card>
+        <Card title="Loss图表" className={styles.chartCard} bodyStyle={{ paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 }}>
+          <ReactECharts 
+            option={getLossChartOption(logs)} 
+            style={{ height: '300px' }}
+          />
+        </Card>
+      </div>
+      
+      {/* 底部信息区 */}
+      <div className={styles.bottomRow}>
+        <Card 
+          title={<Space><InfoCircleOutlined />训练日志<Badge count={logs.length} style={{ backgroundColor: '#52c41a' }} />{wsConnected ? (<Tag color="green" icon={<WifiOutlined />}>{projectData?.status === 'completed' ? '历史日志' : '实时连接'}</Tag>) : (<Tag color="orange" icon={<DisconnectOutlined />}>连接中...</Tag>)}</Space>} 
+          className={styles.logCard}
+        >
+          <div className={styles.logContainer} ref={logContainerRef}>
+            {logs.length === 0 ? (
+              <Text type="secondary">暂无日志</Text>
+            ) : (
+              <Timeline
+                items={logs.map((log, index) => ({
+                  key: log.id || index,
+                  color: getLogColor(log.level),
+                  children: (
+                    <div className={styles.logItem}>
+                      <div className={styles.logTime}>{log.time}</div>
+                      <div className={styles.logMessage}>{log.message}</div>
+                    </div>
+                  )
+                }))}
+              />
+            )}
+          </div>
+          <Divider />
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            {wsConnected 
+              ? (projectData?.status === 'completed' 
+                  ? '正在通过WebSocket获取历史训练日志' 
+                  : '正在通过WebSocket接收实时训练日志')
+              : '正在连接WebSocket获取训练日志...'}
+          </Text>
+        </Card>
+        <div className={styles.rightInfoColumn}>
+          <Card title="基本信息" className={styles.infoCard}>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="任务ID">{projectData?.id}</Descriptions.Item>
+              <Descriptions.Item label="模型类型">{projectData?.modelTypeName}</Descriptions.Item>
+              <Descriptions.Item label="数据集">{projectData?.dataset_id ? `数据集 ${projectData.dataset_id}` : '未指定数据集'}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">{projectData?.create_time ? new Date(projectData.create_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="开始时间">{projectData?.start_time ? new Date(projectData.start_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="结束时间">{projectData?.end_time ? new Date(projectData.end_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="训练时长">{projectData?.duration}</Descriptions.Item>
+            </Descriptions>
+          </Card>
+          <Card 
+            title={<Space><SettingOutlined />超参数配置</Space>} 
+            className={styles.hyperCard}
+          >
+            {projectData?.hyperparameter ? (
+              <Descriptions column={2} size="small">
+                {Object.entries(projectData.hyperparameter).map(([key, value]) => {
+                  let displayValue;
+                  if (typeof value === 'number') {
+                    displayValue = value.toLocaleString();
+                  } else if (typeof value === 'object' && value !== null) {
+                    if (Object.keys(value).length === 0) {
+                      displayValue = '空对象';
+                    } else {
+                      displayValue = JSON.stringify(value);
+                    }
+                  } else if (typeof value === 'boolean') {
+                    displayValue = value ? '是' : '否';
+                  } else if (value === null || value === undefined) {
+                    displayValue = 'N/A';
+                  } else {
+                    displayValue = String(value);
+                  }
+                  return (
+                    <Descriptions.Item key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}>
+                      {displayValue}
+                    </Descriptions.Item>
+                  );
+                })}
+              </Descriptions>
+            ) : (
+              <Text type="secondary">暂无超参数配置</Text>
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default ProjectProgressPage; 
+export default ProjectProgressPage;

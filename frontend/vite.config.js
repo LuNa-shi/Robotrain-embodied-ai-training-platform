@@ -19,6 +19,7 @@ export default defineConfig({
       // 强制 Vite 预构建 fast-deep-equal，以解决模块导入错误
       'fast-deep-equal',
     ],
+    exclude: ['parquet-wasm', 'apache-arrow'],
   },
   server: {
     host: true,

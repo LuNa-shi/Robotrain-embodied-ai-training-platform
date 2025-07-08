@@ -49,13 +49,6 @@ const HomePage = () => {
       return;
     }
 
-    // 检查文件大小（限制为100MB）
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    if (file.size > maxSize) {
-      message.error('文件大小不能超过100MB');
-      return;
-    }
-
     try {
       setUploading(true);
       
@@ -94,12 +87,6 @@ const HomePage = () => {
     const isZip = file.name.toLowerCase().endsWith('.zip');
     if (!isZip) {
       message.error('只支持上传ZIP格式的文件！');
-      return false;
-    }
-    
-    const isLt100M = file.size / 1024 / 1024 < 100;
-    if (!isLt100M) {
-      message.error('文件大小不能超过100MB！');
       return false;
     }
     
@@ -144,7 +131,7 @@ const HomePage = () => {
                 <div className={styles.cardContent}>
                   <Title level={3} className={styles.cardTitle}>上传数据</Title>
                   <Paragraph className={styles.cardDescription}>
-                    上传您的训练数据文件，支持ZIP格式，最大100MB。上传后可以查看和管理您的数据集。
+                    上传您的训练数据文件，支持ZIP格式。上传后可以查看和管理您的数据集。
                   </Paragraph>
                   <Button
                     type="primary"
@@ -194,7 +181,7 @@ const HomePage = () => {
                 <div className={styles.cardContent}>
                   <Title level={3} className={styles.cardTitle}>项目中心</Title>
                   <Paragraph className={styles.cardDescription}>
-                    管理训练项目，创建新的训练任务，监控训练进度和结果。
+                    管理训练项目，创建新的训练项目，监控训练进度和结果。
                   </Paragraph>
                   <Button
                     type="primary"
@@ -274,7 +261,7 @@ const HomePage = () => {
                   <div className={styles.modalDraggerText}>
                     <p className="ant-upload-text">点击或拖拽ZIP文件到此区域</p>
                     <p className="ant-upload-hint">
-                      支持ZIP格式，最大100MB
+                      支持ZIP格式
                     </p>
                   </div>
                 </div>
