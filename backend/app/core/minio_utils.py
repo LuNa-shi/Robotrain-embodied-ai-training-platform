@@ -4,10 +4,16 @@ from fastapi.responses import FileResponse
 from miniopy_async import Minio
 from miniopy_async.error import S3Error
 import mimetypes
+import threading
+import time
 
 from app.core.config import settings
 
 minio_client: Optional[Minio] = None
+
+# 文件锁字典，用于防止并发访问同一ZIP文件
+_zip_file_locks: dict = {}
+_lock_dict_lock = threading.Lock()
 
 async def get_minio_client() -> Optional[Minio]:
     """提供已创建的 MinIO 客户端实例"""
@@ -203,18 +209,31 @@ async def download_dataset_file_from_zip_on_minio(
                           失败则返回 (False, 错误信息)。
     """
     zip_tmp_path = f"{settings.BACKEND_TMP_BASE_DIR}/dataset_zip/{dataset_uuid_str}.zip"
-    # 保证存在文件夹
-    import os
-    os.makedirs(os.path.dirname(zip_tmp_path), exist_ok=True)
     
-    # 把zip下载下来
-    success, message = await download_dataset_from_minio(
-        client=client,
-        local_path=zip_tmp_path,
-        dataset_uuid_str=dataset_uuid_str
-    )
-    if not success:
-        return False, message
+    # 获取或创建文件锁
+    with _lock_dict_lock:
+        if dataset_uuid_str not in _zip_file_locks:
+            _zip_file_locks[dataset_uuid_str] = threading.Lock()
+        file_lock = _zip_file_locks[dataset_uuid_str]
+    
+    # 使用文件锁确保同一ZIP文件的并发安全
+    with file_lock:
+        # 保证存在文件夹
+        import os
+        os.makedirs(os.path.dirname(zip_tmp_path), exist_ok=True)
+        
+        # 检查ZIP文件是否已存在
+        if os.path.exists(zip_tmp_path):
+            print(f"📦 ZIP文件已存在，跳过下载: {zip_tmp_path}")
+        else:
+            # 把zip下载下来
+            success, message = await download_dataset_from_minio(
+                client=client,
+                local_path=zip_tmp_path,
+                dataset_uuid_str=dataset_uuid_str
+            )
+            if not success:
+                return False, message
     # 解压 ZIP 文件并获取指定文件
     try:
         import zipfile
@@ -234,14 +253,40 @@ async def download_dataset_file_from_zip_on_minio(
         error_msg = f"ZIP 文件 '{zip_tmp_path}' 无效: {e}"
         print(f"❌ {error_msg}")
         return False, error_msg
-    # 清理临时 ZIP 文件
+    except Exception as e:
+        error_msg = f"处理 ZIP 文件时发生错误: {e}"
+        print(f"❌ {error_msg}")
+        return False, error_msg
+    # 清理临时 ZIP 文件 - 使用引用计数机制
     finally:
         import os
-        if os.path.exists(zip_tmp_path):
-            os.remove(zip_tmp_path)
-            print(f"🗑️ 已删除临时 ZIP 文件: {zip_tmp_path}")
-        else:
-            print(f"⚠️ 临时 ZIP 文件不存在: {zip_tmp_path}")
+        import asyncio
+        
+        # 使用引用计数机制，只有当没有其他请求在使用时才删除
+        async def smart_cleanup():
+            # 等待一段时间，让其他可能的并发请求完成
+            await asyncio.sleep(2)
+            
+            # 再次检查是否有其他请求在使用这个文件
+            with _lock_dict_lock:
+                if dataset_uuid_str in _zip_file_locks:
+                    # 如果锁还在使用中，说明还有请求，不删除
+                    return
+            
+            # 没有其他请求了，可以安全删除
+            if os.path.exists(zip_tmp_path):
+                os.remove(zip_tmp_path)
+                print(f"🗑️ 已删除临时 ZIP 文件: {zip_tmp_path}")
+                
+                # 清理锁
+                with _lock_dict_lock:
+                    if dataset_uuid_str in _zip_file_locks:
+                        del _zip_file_locks[dataset_uuid_str]
+            else:
+                print(f"⚠️ 临时 ZIP 文件不存在: {zip_tmp_path}")
+        
+        # 创建后台任务进行清理
+        asyncio.create_task(smart_cleanup())
             
     
     

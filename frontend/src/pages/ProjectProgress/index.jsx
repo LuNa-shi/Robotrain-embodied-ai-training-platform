@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -303,6 +303,7 @@ const ProjectProgressPage = () => {
   const [logs, setLogs] = useState([]);
   const [wsConnected, setWsConnected] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
+  const [downloading, setDownloading] = useState(false);
   const logContainerRef = useRef(null);
   const callbacksSetRef = useRef(false);
 
@@ -443,61 +444,48 @@ const ProjectProgressPage = () => {
     return Math.max(minLoss, Math.min(baseLoss, loss));
   };
 
-  // 修改handleWebSocketMessage，生成accuracy日志
-  const handleWebSocketMessage = (data) => {
-    try {
-      let logData;
-      try { logData = JSON.parse(data); } catch (e) { logData = data; }
-      const newLog = {
-        id: Date.now() + Math.random(),
-        time: new Date().toLocaleTimeString('zh-CN'),
-        level: 'info',
-        message: typeof logData === 'string' ? logData : JSON.stringify(logData)
+  // 在 handleWebSocketMessage 及日志处理相关处，添加如下解析函数：
+  function parseLogMessage(raw) {
+    // 匹配前缀的 ISO 时间戳
+    const match = raw.match(/^([0-9T:\-\.\+:]+) - (.+)$/);
+    if (match) {
+      return {
+        time: match[1],
+        message: match[2]
       };
+    }
+    // fallback
+    return {
+      time: new Date().toISOString(),
+      message: raw
+    };
+  }
 
-      setLogs(prevLogs => {
-        const isDuplicate = prevLogs.some(log =>
-          log.message === newLog.message &&
-          Math.abs(new Date(log.time) - new Date(newLog.time)) < 1000
-        );
-        if (isDuplicate) return prevLogs;
-
-        // 计算当前应该生成的Epoch编号
-        const existingLossLogs = prevLogs.filter(log => log.message.includes('Epoch') && log.message.includes('Loss ='));
-        const currentEpoch = existingLossLogs.length + 1;
-
-        // 生成随机Loss值并添加到日志中
-        const lossValue = generateRandomLoss(currentEpoch);
-        const lossLog = {
-          id: Date.now() + Math.random() + 1, // 确保ID不同
-          time: new Date().toLocaleTimeString('zh-CN'),
-          level: 'info',
-          message: `Epoch ${currentEpoch}: Loss = ${lossValue.toFixed(4)}`
-        };
-
-        // 生成随机Accuracy值并添加到日志中
-        const accValue = generateRandomAccuracy(currentEpoch);
-        const accLog = {
-          id: Date.now() + Math.random() + 2,
-          time: new Date().toLocaleTimeString('zh-CN'),
-          level: 'info',
-          message: `Epoch ${currentEpoch}: Accuracy = ${accValue}`
-        };
-
-        const updatedLogs = [...prevLogs, newLog, lossLog, accLog];
-        if (updatedLogs.length > 1000) return updatedLogs.slice(-500);
-        return updatedLogs;
-      });
-
-      if (projectData?.status !== 'completed') {
-        setTimeout(() => {
-          if (logContainerRef.current) {
-            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-          }
-        }, 100);
-      }
-    } catch (error) {
-      console.error('处理WebSocket消息时出错:', error);
+  // 修改 handleWebSocketMessage，使用 parseLogMessage 解析日志
+  const handleWebSocketMessage = (data) => {
+    const parsed = parseLogMessage(data);
+    const newLog = {
+      id: Date.now() + Math.random(),
+      time: parsed.time,
+      level: 'info',
+      message: parsed.message
+    };
+    setLogs(prevLogs => {
+      const isDuplicate = prevLogs.some(log =>
+        log.message === newLog.message &&
+        log.time === newLog.time
+      );
+      if (isDuplicate) return prevLogs;
+      const updatedLogs = [...prevLogs, newLog];
+      if (updatedLogs.length > 1000) return updatedLogs.slice(-500);
+      return updatedLogs;
+    });
+    if (projectData?.status !== 'completed') {
+      setTimeout(() => {
+        if (logContainerRef.current) {
+          logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+      }, 100);
     }
   };
 
@@ -505,13 +493,15 @@ const ProjectProgressPage = () => {
     navigate('/project-center');
   };
 
-  const handleDownload = async () => {
-    if (projectData?.status !== 'completed') {
-      message.warning('只有已完成的训练项目才能下载模型文件');
-      return;
-    }
+  const handleDownload = useCallback(async (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (downloading) return;
+    setDownloading(true);
     try {
       const blob = await trainTasksAPI.downloadModel(projectData.id);
+      if (!(blob instanceof Blob)) {
+        throw new Error('下载接口未返回文件流');
+      }
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -523,8 +513,10 @@ const ProjectProgressPage = () => {
       message.success('模型文件下载成功');
     } catch (err) {
       message.error('下载失败: ' + (err.message || '未知错误'));
+    } finally {
+      setDownloading(false);
     }
-  };
+  }, [downloading, projectData?.id]);
 
   const handleDelete = () => {
     message.success(`删除项目: 训练项目 ${projectData?.id}`);
@@ -592,11 +584,12 @@ const ProjectProgressPage = () => {
         </div>
         <div className={styles.headerActions}>
           <Button 
-            icon={<DownloadOutlined />} 
+            icon={downloading ? <SyncOutlined spin /> : <DownloadOutlined />} 
             onClick={handleDownload}
-            disabled={projectData?.status !== 'completed'}
+            disabled={projectData?.status !== 'completed' || downloading}
+            loading={downloading}
           >
-            下载模型
+            {downloading ? '下载中...' : '下载模型'}
           </Button>
           {projectData?.status === 'running' && (
             <>
@@ -616,7 +609,7 @@ const ProjectProgressPage = () => {
       
       {/* --- 修改点：重构进度条部分的 JSX 结构 --- */}
       <div className={styles.progressBarSection}>
-        <Card className={styles.progressCard} bodyStyle={{ padding: '24px 32px' }}>
+        <Card className={styles.progressCard} styles={{ body: { padding: '24px 32px' } }}>
           <div className={styles.progressContent}>
             <div className={styles.progressText}>
               <Title level={5} style={{ margin: 0, color: '#262626' }}>
@@ -641,13 +634,13 @@ const ProjectProgressPage = () => {
       
       {/* 中部图表区 */}
       <div className={styles.chartsRow}>
-        <Card title="accuracy图表" className={styles.chartCard} bodyStyle={{ paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 }}>
+        <Card title="accuracy图表" className={styles.chartCard} styles={{ body: { paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 } }}>
           <ReactECharts 
             option={getAccuracyChartOption(logs)} 
             style={{ height: '300px' }}
           />
         </Card>
-        <Card title="Loss图表" className={styles.chartCard} bodyStyle={{ paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 }}>
+        <Card title="Loss图表" className={styles.chartCard} styles={{ body: { paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 } }}>
           <ReactECharts 
             option={getLossChartOption(logs)} 
             style={{ height: '300px' }}
@@ -671,7 +664,7 @@ const ProjectProgressPage = () => {
                   color: getLogColor(log.level),
                   children: (
                     <div className={styles.logItem}>
-                      <div className={styles.logTime}>{log.time}</div>
+                      <div className={styles.logTime}>{formatLogTime(log.time)}</div>
                       <div className={styles.logMessage}>{log.message}</div>
                     </div>
                   )
@@ -707,8 +700,23 @@ const ProjectProgressPage = () => {
             {projectData?.hyperparameter ? (
               <Descriptions column={2} size="small">
                 {Object.entries(projectData.hyperparameter).map(([key, value]) => {
+                  // 跳过policy参数，因为它与模型类型一致
+                  if (key === 'policy') {
+                    return null;
+                  }
+                  
                   let displayValue;
-                  if (typeof value === 'number') {
+                  let displayLabel = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                  
+                  // 特殊处理env参数
+                  if (key === 'env') {
+                    displayLabel = 'Environment';
+                    if (typeof value === 'object' && value !== null && value.type) {
+                      displayValue = value.type;
+                    } else {
+                      displayValue = String(value);
+                    }
+                  } else if (typeof value === 'number') {
                     displayValue = value.toLocaleString();
                   } else if (typeof value === 'object' && value !== null) {
                     if (Object.keys(value).length === 0) {
@@ -723,12 +731,13 @@ const ProjectProgressPage = () => {
                   } else {
                     displayValue = String(value);
                   }
+                  
                   return (
-                    <Descriptions.Item key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}>
+                    <Descriptions.Item key={key} label={displayLabel}>
                       {displayValue}
                     </Descriptions.Item>
                   );
-                })}
+                }).filter(item => item !== null)}
               </Descriptions>
             ) : (
               <Text type="secondary">暂无超参数配置</Text>
@@ -739,5 +748,16 @@ const ProjectProgressPage = () => {
     </div>
   );
 };
+
+function formatLogTime(isoString) {
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return isoString;
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0') + ' ' +
+    String(date.getHours()).padStart(2, '0') + ':' +
+    String(date.getMinutes()).padStart(2, '0') + ':' +
+    String(date.getSeconds()).padStart(2, '0');
+}
 
 export default ProjectProgressPage;

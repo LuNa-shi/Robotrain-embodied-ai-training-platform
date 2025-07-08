@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col, message, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -37,6 +37,7 @@ const ProjectCenterPage = () => {
   const [loading, setLoading] = useState(false);
   const [modelTypes, setModelTypes] = useState([]);
   const [modelTypesLoading, setModelTypesLoading] = useState(false);
+  const [downloadingStates, setDownloadingStates] = useState({});
 
   // 获取模型类型列表
   const fetchModelTypes = async () => {
@@ -127,13 +128,15 @@ const ProjectCenterPage = () => {
     navigate(`/project-center/${trainingId}/progress`);
   };
 
-  const handleDownload = async (record) => {
-    if (record.status !== 'completed') {
-      message.warning('只有已完成的训练项目才能下载模型文件');
-      return;
-    }
+  const handleDownload = useCallback(async (record, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (downloadingStates[record.id]) return;
+    setDownloadingStates(prev => ({ ...prev, [record.id]: true }));
     try {
       const blob = await trainTasksAPI.downloadModel(record.id);
+      if (!(blob instanceof Blob)) {
+        throw new Error('下载接口未返回文件流');
+      }
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -145,8 +148,10 @@ const ProjectCenterPage = () => {
       message.success('模型文件下载成功');
     } catch (err) {
       message.error('下载失败: ' + (err.message || '未知错误'));
+    } finally {
+      setDownloadingStates(prev => ({ ...prev, [record.id]: false }));
     }
-  };
+  }, [downloadingStates]);
 
   const handleDelete = (record) => {
     message.success(`删除项目: ${record.name}`);
@@ -226,12 +231,10 @@ const ProjectCenterPage = () => {
                   <Button 
                     type="text" 
                     shape="circle" 
-                    icon={<DownloadOutlined />} 
-                    disabled={record.status !== 'completed'}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(record);
-                    }}
+                    icon={downloadingStates[record.id] ? <SyncOutlined spin /> : <DownloadOutlined />} 
+                    disabled={record.status !== 'completed' || downloadingStates[record.id]}
+                    loading={downloadingStates[record.id]}
+                    onClick={(e) => handleDownload(record, e)}
                   />
                 </Tooltip>
                 <Tooltip title="删除项目">
