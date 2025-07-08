@@ -1,0 +1,11 @@
+fastapi[standard]
+miniopy-async==1.23.1
+aio-pika==9.5.5
+websockets==14.2
+SQLAlchemy==2.0.38
+sqlmodel==0.0.24
+pydantic-settings==2.10.1
+asyncpg==0.30.0
+passlib==1.7.4
+bcrypt==4.0.1
+pyjwt==2.10.1

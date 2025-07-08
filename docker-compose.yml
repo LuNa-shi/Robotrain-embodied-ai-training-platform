@@ -1,0 +1,225 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_BACNEND_SERVER: backend
+      VITE_BACKEND_PORT: 8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+    networks:
+      - app_network
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      BACKEND_TMP_BASE_DIR: ${BACKEND_TMP_BASE_DIR}
+      ALGORITHM:  ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      SECRET_KEY: ${SECRET_KEY}
+      POSTGRES_SERVER: postgres_db
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MINIO_SERVER: 10.1.8.1
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_DATASET_DIR: ${MINIO_DATASET_DIR} 
+      MINIO_MODEL_DIR: ${MINIO_MODEL_DIR}
+      MINIO_CKPT_DIR: ${MINIO_CKPT_DIR}
+      RABBITMQ_SERVER: rabbitmq_mq
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBIT_EXCHANGE_NAME: ${RABBIT_EXCHANGE_NAME}
+      RABBIT_REQUEST_QUEUE_NAME: ${RABBIT_REQUEST_QUEUE_NAME}
+      RABBIT_REQUEST_BINDING_KEY: ${RABBIT_REQUEST_BINDING_KEY}
+      RABBIT_STATUS_QUEUE_NAME: ${RABBIT_STATUS_QUEUE_NAME}
+      RABBIT_STATUS_BINDING_KEY: ${RABBIT_STATUS_BINDING_KEY}
+      RABBIT_TRAIN_LOG_QUEUE_NAME: ${RABBIT_TRAIN_LOG_QUEUE_NAME}
+      RABBIT_TRAIN_LOG_BINDING_KEY: ${RABBIT_TRAIN_LOG_BINDING_KEY}
+    ports:
+      - "8000:8000"
+    volumes: # 部署环境/别的模块测试 就把这两行注释掉
+      - ./backend:/app
+    depends_on:
+      rabbitmq_mq:
+        condition: service_healthy
+      minio_s3:
+        condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - app_network
+        
+  
+  train:
+    build:
+      context: ./train
+    environment:
+      POSTGRES_SERVER: postgres_db
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MINIO_SERVER: 10.1.8.1
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_DATASET_DIR: ${MINIO_DATASET_DIR}
+      MINIO_MODEL_DIR: ${MINIO_MODEL_DIR}
+      RABBITMQ_SERVER: rabbitmq_mq
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBIT_EXCHANGE_NAME: ${RABBIT_EXCHANGE_NAME}
+      RABBIT_REQUEST_QUEUE_NAME: ${RABBIT_REQUEST_QUEUE_NAME}
+      RABBIT_REQUEST_BINDING_KEY: ${RABBIT_REQUEST_BINDING_KEY}
+      RABBIT_STATUS_QUEUE_NAME: ${RABBIT_STATUS_QUEUE_NAME}
+      RABBIT_STATUS_BINDING_KEY: ${RABBIT_STATUS_BINDING_KEY}
+      RABBIT_TRAIN_LOG_QUEUE_NAME: ${RABBIT_TRAIN_LOG_QUEUE_NAME}
+      RABBIT_TRAIN_LOG_BINDING_KEY: ${RABBIT_TRAIN_LOG_BINDING_KEY}
+      SCHEDULER_STEPS_PER_TIMESLICE: ${SCHEDULER_STEPS_PER_TIMESLICE}
+      SCHEDULER_GPUS_PER_TRAINER: ${SCHEDULER_GPUS_PER_TRAINER}
+      RUN_DIR_BASE: ${RUN_DIR_BASE}
+      HF_HUB_OFFLINE: 1
+    volumes:
+      - ./train:/app 
+    shm_size: 20g # 增加共享内存大小，适用于大模型训练
+    depends_on:
+      rabbitmq_mq:
+        condition: service_healthy
+      minio_s3:
+        condition: service_healthy
+    networks:
+      - app_network
+    # 如果你的平台需要访问宿主机的 GPU，需要添加以下配置
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  
+  # PostgreSQL 数据库服务
+  postgres_db:
+    image: postgres:17
+    restart: always
+    ports:
+      - "5432:5432"
+    healthcheck: # <-- 在这里添加healthcheck
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s # 允许容器有足够的时间启动并初始化数据库
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql # 挂载初始化脚本
+    networks:
+      - app_network
+
+  # MinIO 对象存储服务
+  minio_s3:
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    restart: always
+    ports:
+      - "9000:9000" # MinIO API 端口映射
+      - "9001:9001" # MinIO 控制台端口映射
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - app_network
+
+  # RabbitMQ 消息队列服务
+  rabbitmq_mq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - "5672:5672" # RabbitMQ AMQP 端口映射（客户端连接）
+      - "15672:15672" # RabbitMQ 管理界面端口映射（Web UI）
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app_network
+
+# 定义 Docker 卷，用于持久化服务数据。这些卷由 Docker 自动管理。
+volumes:
+  postgres_data:
+  minio_data:
+  rabbitmq_data:
+
+# 定义所有服务共享的网络，允许它们通过服务名称相互通信
+networks:
+  app_network:
+    driver: bridge # 使用桥接网络
+    ipam:
+      config:
+        - subnet: 10.1.0.0/16     # <--- 更改子网为 A 类私有 IP
+          gateway: 10.1.8.1     # <--- 更改网关为新的子网的第一个可用 IP
+
+
+# fake_trainer:
+    # build:
+      # context: ./fake_trainer # 指定 Dockerfile 所在的目录（相对于 docker-compose.yml 的路径）
+    # environment:
+      # POSTGRES_SERVER: postgres_db # 数据库服务名称，Docker Compose 会自动解析为容器 IP
+      # POSTGRES_PORT: ${POSTGRES_PORT}
+      # POSTGRES_USER: ${POSTGRES_USER}
+      # POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # POSTGRES_DB: ${POSTGRES_DB}
+      # MINIO_SERVER: 10.1.8.1 # 由于miniopy解析不了minio_s3:9000这种格式，所以这里配置了ipam，直接写IP地址
+      # MINIO_PORT: ${MINIO_PORT}
+      # MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      # MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      # DATASET_BUCKET: ${DATASET_BUCKET}
+      # RABBITMQ_SERVER: rabbitmq_mq # RabbitMQ 服务名称，Docker Compose 会自动解析为容器 IP
+      # RABBITMQ_PORT: ${RABBITMQ_PORT}
+      # RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      # RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      # RABBIT_EXCHANGE_NAME: ${RABBIT_EXCHANGE_NAME}
+      # RABBIT_REQUEST_QUEUE_NAME: ${RABBIT_REQUEST_QUEUE_NAME}
+      # RABBIT_REQUEST_BINDING_KEY: ${RABBIT_REQUEST_BINDING_KEY}
+      # RABBIT_STATUS_QUEUE_NAME: ${RABBIT_STATUS_QUEUE_NAME}
+      # RABBIT_STATUS_BINDING_KEY: ${RABBIT_STATUS_BINDING_KEY}
+      # RABBIT_TRAIN_LOG_QUEUE_NAME: ${RABBIT_TRAIN_LOG_QUEUE_NAME}
+      # RABBIT_TRAIN_LOG_BINDING_KEY: ${RABBIT_TRAIN_LOG_BINDING_KEY}
+    # volumes: # 部署环境/别的模块测试 就把这两行注释掉
+      # - ./fake_trainer:/app # 挂载本地代码到容器，实现开发时的热重载（仅限开发环境）
+    # depends_on:
+      # - rabbitmq_mq # 依赖于 RabbitMQ 服务，确保消息队列
+      # - postgres_db # 依赖于数据库服务，确保数据库先启动
+      # - minio_s3 # 依赖于 MinIO 服务，确保对象存储先启动
+    # networks:
+      # - app_network # 将服务连接到自定义网络

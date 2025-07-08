@@ -1,0 +1,208 @@
+/* Settings Page Container */
+.settingsContainer {
+  padding: 24px;
+  background: transparent !important;
+  min-height: 100%;
+}
+
+/* Settings Header */
+.settingsHeader {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.settingsHeader h2 {
+  margin-bottom: 8px;
+  color: #1f1f1f;
+}
+
+/* Settings Card */
+.settingsCard {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+  padding: 24px;
+  width: 50%;
+  margin: 0 auto;
+}
+
+/* Settings Tabs */
+.settingsTabs {
+  margin-bottom: 24px;
+}
+
+.settingsTabs :global(.ant-tabs-nav) {
+  margin-bottom: 24px;
+}
+
+.settingsTabs :global(.ant-tabs-tab) {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settingsTabs :global(.ant-tabs-tab-active) {
+  background-color: #f6ffed;
+  border-radius: 6px;
+}
+
+.settingsTabs :global(.ant-tabs-tab .anticon) {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Settings Form */
+.settingsForm {
+  padding: 0 8px;
+}
+
+.settingsForm :global(.ant-form-item-label > label) {
+  font-weight: 500;
+  color: #1f1f1f;
+  font-size: 14px;
+}
+
+.settingsForm :global(.ant-form-item) {
+  margin-bottom: 20px;
+}
+
+.settingsForm :global(.ant-switch) {
+  background-color: #d9d9d9;
+}
+
+.settingsForm :global(.ant-switch-checked) {
+  background-color: #52c41a;
+}
+
+.settingsForm :global(.ant-select-selector) {
+  border-radius: 6px;
+}
+
+.settingsForm :global(.ant-input-number) {
+  width: 100%;
+}
+
+.settingsForm :global(.ant-radio-group) {
+  display: flex;
+  gap: 16px;
+}
+
+.settingsForm :global(.ant-slider) {
+  margin: 8px 0;
+}
+
+.settingsForm :global(.ant-slider-mark) {
+  font-size: 12px;
+}
+
+/* Divider */
+.settingsForm :global(.ant-divider) {
+  margin: 24px 0 16px 0;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+/* Alert */
+.settingsForm :global(.ant-alert) {
+  border-radius: 6px;
+  border: none;
+}
+
+/* Settings Actions */
+.settingsActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 24px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .settingsContainer {
+    padding: 16px;
+  }
+  
+  .settingsHeader h2 {
+    font-size: 20px;
+  }
+  
+  .settingsTabs :global(.ant-tabs-tab) {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .settingsForm {
+    padding: 0;
+  }
+  
+  .settingsForm :global(.ant-radio-group) {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .settingsActions {
+    flex-direction: column;
+  }
+  
+  .settingsActions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .settingsContainer {
+    padding: 12px;
+  }
+  
+  .settingsHeader h2 {
+    font-size: 18px;
+  }
+  
+  .settingsTabs :global(.ant-tabs-nav-list) {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .settingsTabs :global(.ant-tabs-tab) {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+.settingsTitle {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.settingItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+.settingItem .ant-form-item {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.settingItem .ant-form-item-label {
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.settingItem .ant-select {
+  width: 100%;
+}
+
+.settingsPage {
+  background: transparent !important;
+} 

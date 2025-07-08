@@ -1,0 +1,187 @@
+/* 整体页面容器 */
+.dataManagementPage {
+  padding: 24px;
+  background-color: #f0f2f5;
+}
+
+/* 内容区域包装器，用于居中和限制宽度 */
+.contentWrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 页面头部 */
+.pageHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  margin-bottom: 8px !important;
+}
+
+/* 统计卡片行 */
+.statsRow {
+  margin-bottom: 0;
+}
+
+/* 统计卡片样式 */
+.statCard {
+  height: 100%;
+}
+
+.statsContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  width: 100%;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 33.33%;
+  flex-shrink: 0;
+}
+
+.statContent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.statIcon {
+  font-size: 24px;
+  color: #1890ff;
+  flex-shrink: 0;
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.statLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.statValue {
+  font-size: 14px;
+  color: #8c8c8c;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* 过滤卡片 */
+.filterCard {
+  margin-bottom: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex;
+  justify-content: center;
+}
+
+.filterCard :global(.ant-card-body) {
+  width: 100%;
+  max-width: 800px;
+}
+
+/* 表格卡片 */
+.tableCard {
+  margin-bottom: 0;
+}
+
+/* 表格表头居中 */
+:global(.ant-table-thead > tr > th) {
+  text-align: center !important;
+}
+
+/* 表格数据居中 */
+:global(.ant-table-tbody > tr > td) {
+  text-align: center !important;
+}
+
+/* 数据集信息样式 */
+.datasetInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  text-align: center;
+}
+
+.datasetName {
+  font-weight: 600;
+  color: #262626;
+  margin: 0 !important;
+  line-height: 1.4;
+}
+
+.datasetMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+  justify-content: center;
+}
+
+.datasetMeta .ant-typography {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 用户信息样式 */
+.userInfo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 表格行悬停效果 */
+:global(.ant-table-tbody > tr:hover > td) {
+  background-color: #f5f5f5 !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .dataManagementPage {
+    padding: 16px;
+  }
+  
+  .contentWrapper {
+    gap: 16px;
+  }
+  
+  .datasetMeta {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  
+  .statsContainer {
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px 0;
+  }
+  
+  .statItem {
+    width: 100%;
+    justify-content: flex-start;
+  }
+} 

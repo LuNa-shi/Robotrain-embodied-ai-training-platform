@@ -1,0 +1,132 @@
+/* 整体页面容器 */
+.profileContainer {
+  padding: 24px;
+  background: transparent !important;
+}
+
+/* 页面头部 */
+.profileHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* 内容区域包装器，用于居中和限制宽度 */
+.contentWrapper {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* --- 主要信息卡片 --- */
+.profileCard {
+  padding: 24px;
+}
+
+/* 信息展示状态下的样式 */
+.userInfoDisplay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.joinInfo {
+  margin-top: 8px;
+  color: #8c8c8c;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- 信息编辑状态下的样式 --- */
+.profileForm {
+  padding: 0 16px;
+}
+
+.avatarWrapper {
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.avatarOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.avatarWrapper:hover .avatarOverlay {
+  opacity: 1;
+}
+
+/* 表单底部的操作按钮 */
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #f0f0f0;
+  padding: 16px 24px 0;
+  margin: 24px -24px 0;
+}
+
+/* --- 使用统计卡片 --- */
+.statsCard {
+  /* 样式可以保持或根据需要调整 */
+}
+
+.infoRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  color: #444;
+  font-size: 15px;
+}
+
+.statsTitle {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.statItem {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  margin-bottom: 8px;
+  gap: 4px;
+}
+
+.statLabel {
+  color: #888;
+  font-size: 15px;
+  font-weight: 500;
+  /* 你可以在这里自定义信息名称的字体 */
+  font-family: 'Arial', sans-serif;
+}
+
+.statValue {
+  color: #222;
+  font-size: 18px;
+  font-weight: 700;
+  /* 你可以在这里自定义信息内容的字体 */
+  font-family: 'Consolas', monospace;
+}
+
+.profilePage {
+  background: transparent !important;
+}
+ 

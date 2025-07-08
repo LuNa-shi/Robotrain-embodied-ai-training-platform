@@ -1,0 +1,131 @@
+.datasetDetailPage {
+  min-height: 100vh;
+  background: transparent !important;
+  padding: 24px;
+}
+
+.contentWrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.backButton {
+  flex-shrink: 0;
+}
+
+.headerContent {
+  flex: 1;
+}
+
+.pageTitle {
+  margin-bottom: 4px !important;
+}
+
+.loadingContainer,
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+}
+
+.mainCard {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.basicInfo {
+  margin-bottom: 24px;
+}
+
+.basicInfo h3 {
+  margin-bottom: 16px;
+  color: #1890ff;
+}
+
+.statsAndActions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.statsCard,
+.actionsCard {
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.detailCard {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.detailSection {
+  margin-bottom: 16px;
+}
+
+.detailSection h4 {
+  margin-bottom: 16px;
+  color: #1890ff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detailSection p {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .datasetDetailPage {
+    padding: 16px;
+  }
+  
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .backButton {
+    align-self: flex-start;
+  }
+  
+  .headerContent {
+    width: 100%;
+  }
+  
+  .pageTitle {
+    font-size: 24px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .datasetDetailPage {
+    padding: 12px;
+  }
+  
+  .contentWrapper {
+    max-width: 100%;
+  }
+  
+  .mainCard {
+    margin-bottom: 16px;
+  }
+  
+  .statsAndActions {
+    gap: 12px;
+  }
+} 

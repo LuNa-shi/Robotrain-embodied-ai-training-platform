@@ -1,0 +1,191 @@
+.progressPage {
+  padding: 32px 0;
+  background: transparent !important;
+  min-height: 100vh;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  padding: 32px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  max-width: 1064px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.headerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.headerTitle {
+  margin: 0 !important;
+  color: #262626;
+}
+
+.headerSubtitle {
+  margin: 0 !important;
+  color: #8c8c8c;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.content {
+  margin-top: 24px;
+  max-width: 1064px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.infoCard,
+.progressCard,
+.chartCard,
+.logCard {
+  margin-bottom: 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  background: white;
+  max-width: 520px;
+}
+
+/* 卡片标题居中 */
+.infoCard :global(.ant-card-head),
+.progressCard :global(.ant-card-head),
+.chartCard :global(.ant-card-head),
+.logCard :global(.ant-card-head) {
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: center;
+}
+
+.infoCard :global(.ant-card-head-title),
+.progressCard :global(.ant-card-head-title),
+.chartCard :global(.ant-card-head-title),
+.logCard :global(.ant-card-head-title) {
+  text-align: center;
+  font-weight: 600;
+  color: #262626;
+}
+
+.infoCard :global(.ant-card-body),
+.progressCard :global(.ant-card-body),
+.chartCard :global(.ant-card-body),
+.logCard :global(.ant-card-body) {
+  padding-left: 32px !important;
+}
+
+.progressInfo {
+  margin-bottom: 16px;
+}
+
+.progressInfo :global(.ant-typography) {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.completionAlert,
+.failureAlert {
+  margin-top: 16px;
+}
+
+.logContainer {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.logItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.logTime {
+  font-size: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.logMessage {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 滚动条样式 */
+.logContainer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logContainer::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.logContainer::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.logContainer::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .progressPage {
+    padding: 24px 16px;
+  }
+  
+  .pageHeader {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .headerActions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  
+  .content {
+    margin-top: 24px;
+  }
+  
+  .content :global(.ant-col) {
+    margin-bottom: 24px;
+  }
+  
+  .infoCard,
+  .progressCard,
+  .chartCard,
+  .logCard {
+    margin-bottom: 24px;
+  }
+} 
