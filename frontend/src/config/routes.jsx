@@ -96,7 +96,7 @@ const routes = [
       { path: '/project-center', element: <ProjectCenter /> },
       { path: '/data-center', element: <DataCenter /> },
       { path: '/dataset/:datasetId', element: <DatasetDetailPage /> },
-      { path: '/dataset/:datasetId/visualization', element: <DatasetVisualizationPage /> },
+      { path: '/dataset-visualization/:datasetId', element: <DatasetVisualizationPage /> },
       { path: '/evaluation', element: <Evaluation /> },
       { path: '/project-center/:trainingId/progress', element: <ProjectProgressPage /> },
       { path: '/profile', element: <Profile /> },

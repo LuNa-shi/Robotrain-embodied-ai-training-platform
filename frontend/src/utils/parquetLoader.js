@@ -101,3 +101,28 @@ export const loadMotionDataFromParquet = async (url) => {
     return {}; // 返回空对象以防出错
   }
 };
+
+/**
+ * [NEW] 从API获取Parquet数据并处理
+ * @param {ArrayBuffer} arrayBuffer - 从API获取的Parquet数据
+ * @returns {Object} - 按episode分组的数据
+ */
+export const loadMotionDataFromApiParquet = async (arrayBuffer) => {
+  try {
+    await initializeWasm();
+    const ipcStream = readParquet(new Uint8Array(arrayBuffer)).intoIPCStream();
+    const table = tableFromIPC(ipcStream);
+    const rawData = table.toArray().map(rowProxy => rowProxy.toJSON());
+    
+    // 1. 转换数据
+    const processedData = convertRLDataToJointData(rawData);
+    
+    // 2. 按Episode分组
+    const groupedData = groupDataByEpisode(processedData);
+
+    return groupedData;
+  } catch (error) {
+    console.error('从API加载或解析 Parquet 数据失败:', error);
+    return {}; // 返回空对象以防出错
+  }
+};

@@ -191,6 +191,45 @@ export const datasetsAPI = {
   },
 
   /**
+   * 获取数据集视频文件
+   * @param {number} datasetId 数据集ID
+   * @param {number} chunkId 块ID
+   * @param {number} episodeId 片段ID
+   * @param {string} viewPoint 视角点
+   * @returns {Promise<Blob>} 视频文件blob
+   */
+  getVideo: async (datasetId, chunkId, episodeId, viewPoint) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.datasets.getVideo(datasetId, chunkId, episodeId, viewPoint), {
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error) {
+      console.error('获取视频文件失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 获取数据集Parquet文件
+   * @param {number} datasetId 数据集ID
+   * @param {number} chunkId 块ID
+   * @param {number} episodeId 片段ID
+   * @returns {Promise<ArrayBuffer>} Parquet文件数据
+   */
+  getParquet: async (datasetId, chunkId, episodeId) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.datasets.getParquet(datasetId, chunkId, episodeId), {
+        responseType: 'arraybuffer',
+      });
+      return response.data;
+    } catch (error) {
+      console.error('获取Parquet文件失败:', error);
+      throw error;
+    }
+  },
+
+  /**
    * 上传数据集文件
    * @param {string} name 数据集名称
    * @param {string} description 数据集描述

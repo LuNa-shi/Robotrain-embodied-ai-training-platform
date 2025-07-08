@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Typography,
   Card,
@@ -9,7 +9,6 @@ import {
   Col,
   Checkbox,
   Select,
-  Space,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -18,11 +17,10 @@ import ReactECharts from 'echarts-for-react';
 import styles from './DatasetVisualization.module.css';
 import exampleVideo from '@/assets/videos/example.mp4';
 import RobotSimulation from '@/components/RobotSimulation';
-import RobotController from '@/components/RobotController';
-import { loadMotionDataFromParquet } from '@/utils/parquetLoader';
+import { loadMotionDataFromParquet, loadMotionDataFromApiParquet } from '@/utils/parquetLoader';
+import { datasetsAPI } from '@/utils/api';
 
 const { Title } = Typography;
-const { Option } = Select;
 
 // The URDF-related constants remain the same
 const chartGroups = [
@@ -74,7 +72,8 @@ const VALID_JOINT_NAMES = Object.keys(jointFieldMap);
 
 const DatasetVisualizationPage = () => {
     const navigate = useNavigate();
-    const [videoUrl] = useState(exampleVideo);
+    const { datasetId } = useParams();
+    const [videoUrl, setVideoUrl] = useState(exampleVideo);
     const [isMotionDataLoaded, setIsMotionDataLoaded] = useState(false);
     
     const [episodeData, setEpisodeData] = useState({});
@@ -88,39 +87,78 @@ const DatasetVisualizationPage = () => {
     const [showMarkLine, setShowMarkLine] = useState(true);
     
     const robotRef = useRef(null);
-    const videoRef = useRef(null);
     const chartRefs = useRef([]);
     
-    const [isAnimating, setIsAnimating] = useState(false);
     const [currentFrame, setCurrentFrame] = useState(0);
     const animationFrameId = useRef(null);
-    const animationState = useRef({ startTime: 0, elapsedTimeAtPause: 0 });
     const motionDataRef = useRef(motionData);
     const urdfUrl = '/bimanual_robot.urdf';
+    
+    // 统一播放控制状态
+    const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
+    const videoRef = useRef(null);
+
+    // 新增参数选择相关状态
+    const [datasetDetail, setDatasetDetail] = useState(null);
+    const [chunkId, setChunkId] = useState(0);
+    const [episodeId, setEpisodeId] = useState(0);
+    const [viewPoint, setViewPoint] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [loadError, setLoadError] = useState('');
 
     useEffect(() => {
         motionDataRef.current = motionData;
     }, [motionData]);
     
-    // Effect 1: Load all episode data on initial mount
+    // 获取数据集详情并请求默认参数数据
     useEffect(() => {
-        const loadData = async () => {
+        const fetchDefault = async () => {
+            setLoading(true);
+            setLoadError('');
             try {
-                const groupedData = await loadMotionDataFromParquet('/data/file-003.parquet');
-                if (Object.keys(groupedData).length === 0) {
-                    throw new Error("未能从 Parquet 文件中加载或分组数据。");
+                const detail = await datasetsAPI.getById(datasetId);
+                setDatasetDetail(detail);
+                if (!detail || !detail.video_keys || detail.video_keys.length === 0) {
+                    setLoadError('该数据集无可用视角点');
+                    setLoading(false);
+                    return;
                 }
-                const keys = Object.keys(groupedData).map(Number).sort((a, b) => a - b);
-                setEpisodeData(groupedData);
-                setEpisodeKeys(keys);
-                setCurrentEpisode(keys[0]);
-                setIsMotionDataLoaded(true);
-            } catch (error) {
-                console.error("加载运动数据失败:", error);
+                const defaultChunk = 0;
+                const defaultEpisode = 0;
+                const defaultView = detail.video_keys[0];
+                setChunkId(defaultChunk);
+                setEpisodeId(defaultEpisode);
+                setViewPoint(defaultView);
+                // 请求视频
+                const videoBlob = await datasetsAPI.getVideo(datasetId, defaultChunk, defaultEpisode, defaultView);
+                setVideoUrl(URL.createObjectURL(videoBlob));
+                // 请求parquet
+                const parquetData = await datasetsAPI.getParquet(datasetId, defaultChunk, defaultEpisode);
+                const groupedData = await loadMotionDataFromApiParquet(parquetData);
+                if (Object.keys(groupedData).length > 0) {
+                    const keys = Object.keys(groupedData).map(Number).sort((a, b) => a - b);
+                    setEpisodeData(groupedData);
+                    setEpisodeKeys(keys);
+                    setCurrentEpisode(keys[0]);
+                    setIsMotionDataLoaded(true);
+                } else {
+                    setLoadError('未能获取到可用的数据');
+                }
+            } catch (err) {
+                console.error('获取默认数据失败:', err);
+                if (err.message && err.message.includes('CORS')) {
+                    setLoadError('跨域请求失败，请检查后端CORS配置');
+                } else if (err.response && err.response.status === 500) {
+                    setLoadError('后端服务器错误，请检查后端日志');
+                } else {
+                    setLoadError('获取默认数据失败: ' + (err.message || '未知错误'));
+                }
+            } finally {
+                setLoading(false);
             }
         };
-        loadData();
-    }, []);
+        if (datasetId) fetchDefault();
+    }, [datasetId]);
 
     // Effect 2: Prepare data when a new episode is selected
     useEffect(() => {
@@ -142,13 +180,12 @@ const DatasetVisualizationPage = () => {
         }
     }, [currentEpisode, episodeData]);
 
-    // Effect 3: Reset state and autoplay when new motionData is set
+    // Effect 3: Reset state when new motionData is set
     useEffect(() => {
         if (motionData.length === 0) return;
 
         // Reset state for the new episode
         setCurrentFrame(0);
-        animationState.current = { startTime: 0, elapsedTimeAtPause: 0 };
         if (robotRef.current) {
             const initialDataPoint = motionData[0];
             VALID_JOINT_NAMES.forEach(jointName => {
@@ -158,54 +195,53 @@ const DatasetVisualizationPage = () => {
             });
         }
 
-        // Autoplay the new episode
-        setIsAnimating(true);
-
     }, [motionData]);
 
-    // Effect 4: The Animation Engine.
+    // Effect 4: 基于视频播放时间的动画引擎
     useEffect(() => {
-        if (isAnimating) {
-            animationState.current.startTime = performance.now() - animationState.current.elapsedTimeAtPause;
+        if (videoRef.current && isGlobalPlaying) {
+            const video = videoRef.current;
             
-            const animate = () => {
-                const data = motionDataRef.current;
-                if (data.length === 0) { 
-                    setIsAnimating(false); 
-                    return; 
-                }
-
-                const totalDuration = (data[data.length - 1]?.time || 0) * 1000;
-                const elapsedTime = performance.now() - animationState.current.startTime;
-
-                if (elapsedTime >= totalDuration) {
-                    setIsAnimating(false);
-                    setCurrentFrame(data.length - 1);
-                    return;
+            const updateAnimationFromVideo = () => {
+                if (!video.paused && motionData.length > 0) {
+                    const videoTime = video.currentTime;
+                    const totalDuration = motionData[motionData.length - 1]?.time || 0;
+                    
+                    if (videoTime >= totalDuration) {
+                        // 视频播放完毕
+                        setCurrentFrame(motionData.length - 1);
+                        return;
+                    }
+                    
+                    // 根据视频时间计算对应的数据帧
+                    const progress = videoTime / totalDuration;
+                    const targetIndex = Math.floor(progress * motionData.length);
+                    const clampedIndex = Math.min(targetIndex, motionData.length - 1);
+                    setCurrentFrame(clampedIndex);
+                    
+                    // 更新机器人关节角度
+                    const currentDataPoint = motionData[clampedIndex];
+                    if (currentDataPoint) {
+                        VALID_JOINT_NAMES.forEach(jointName => {
+                            if (currentDataPoint[jointName] !== undefined && robotRef.current.setJointAngle) {
+                                robotRef.current.setJointAngle(jointName, currentDataPoint[jointName]);
+                            }
+                        });
+                    }
                 }
                 
-                const progress = elapsedTime / totalDuration;
-                const targetIndex = Math.floor(progress * data.length);
-                const clampedIndex = Math.min(targetIndex, data.length - 1);
-                setCurrentFrame(clampedIndex);
-                
-                const currentDataPoint = data[clampedIndex];
-                if (currentDataPoint) {
-                    VALID_JOINT_NAMES.forEach(jointName => {
-                        if (currentDataPoint[jointName] !== undefined && robotRef.current.setJointAngle) {
-                            robotRef.current.setJointAngle(jointName, currentDataPoint[jointName]);
-                        }
-                    });
+                // 继续监听视频时间更新
+                if (!video.paused) {
+                    animationFrameId.current = requestAnimationFrame(updateAnimationFromVideo);
                 }
-
-                animationFrameId.current = requestAnimationFrame(animate);
             };
-
-            animationFrameId.current = requestAnimationFrame(animate);
+            
+            // 开始动画循环
+            animationFrameId.current = requestAnimationFrame(updateAnimationFromVideo);
         } else {
+            // 停止动画
             if (animationFrameId.current) {
                 cancelAnimationFrame(animationFrameId.current);
-                animationState.current.elapsedTimeAtPause = performance.now() - animationState.current.startTime;
             }
         }
 
@@ -214,19 +250,70 @@ const DatasetVisualizationPage = () => {
                 cancelAnimationFrame(animationFrameId.current);
             }
         };
-    }, [isAnimating]);
+    }, [isGlobalPlaying, motionData]);
+    
+    // 强制图表重新渲染以更新标记线
+    useEffect(() => {
+        if (chartRefs.current.length > 0) {
+            chartRefs.current.forEach(chartRef => {
+                if (chartRef && chartRef.getEchartsInstance) {
+                    chartRef.getEchartsInstance().resize();
+                }
+            });
+        }
+    }, [currentFrame, isGlobalPlaying]);
+    
+    // 视频控制整个页面的播放状态
+    useEffect(() => {
+        if (videoRef.current) {
+            const video = videoRef.current;
+            
+            const handleVideoPlay = () => {
+                handleVideoControl(true);
+            };
+            
+            const handleVideoPause = () => {
+                handleVideoControl(false);
+            };
+            
+            const handleVideoEnded = () => {
+                handleVideoControl(false);
+            };
+            
+            video.addEventListener('play', handleVideoPlay);
+            video.addEventListener('pause', handleVideoPause);
+            video.addEventListener('ended', handleVideoEnded);
+            
+            return () => {
+                video.removeEventListener('play', handleVideoPlay);
+                video.removeEventListener('pause', handleVideoPause);
+                video.removeEventListener('ended', handleVideoEnded);
+            };
+        }
+    }, [videoRef.current]);
 
-    const handleToggleAnimation = () => {
-        if (!isAnimating && currentFrame === motionData.length - 1) {
-            handleResetAnimation();
-        } else {
-            setIsAnimating(prev => !prev);
+    // 视频控制整个页面的播放状态
+    const handleVideoControl = (isPlaying) => {
+        setIsGlobalPlaying(isPlaying);
+        
+        // 动画现在完全基于视频时间，不需要单独控制
+        // 如果视频重新开始播放，重置到开始位置
+        if (isPlaying && videoRef.current) {
+            const video = videoRef.current;
+            if (video.currentTime >= video.duration - 0.1) {
+                // 如果视频已经播放完毕，重新开始
+                video.currentTime = 0;
+                setCurrentFrame(0);
+            }
         }
     };
     
+
+    
     const handleResetAnimation = () => {
-        if (currentEpisode !== null && episodeData[currentEpisode]) {
-            setMotionData([...episodeData[currentEpisode]]);
+        if (videoRef.current) {
+            videoRef.current.currentTime = 0;
+            setCurrentFrame(0);
         }
     };
 
@@ -261,7 +348,7 @@ const DatasetVisualizationPage = () => {
                 lineStyle: { color: joint.color, width: 2 },
                 color: joint.color,
                 symbol: 'none',
-                markLine: showMarkLine && !markLineAdded && jointData[currentFrame] ? {
+                markLine: showMarkLine && !markLineAdded && jointData[currentFrame] && isGlobalPlaying ? {
                     symbol: 'none',
                     data: [{ xAxis: jointData[currentFrame].time, lineStyle: { color: '#bfbfbf', width: 1, type: 'dashed' }, label: { show: false } }],
                     animation: false,
@@ -272,10 +359,17 @@ const DatasetVisualizationPage = () => {
         });
     
         return {
-            grid: { left: 60, right: 30, top: 50, bottom: 50 },
+            grid: { left: 60, right: 30, top: 50, bottom: 60 },
             tooltip: { trigger: 'axis' },
             legend: { data: legendData, type: 'scroll', top: 5 },
-            xAxis: { type: 'value', name: 'Time (s)', min: 0, max: Math.ceil(maxTime) },
+            xAxis: { 
+                type: 'value', 
+                name: 'Time (s)', 
+                nameLocation: 'center',
+                nameGap: 35,
+                min: 0, 
+                max: Math.ceil(maxTime) 
+            },
             yAxis: { type: 'value', name: 'Angle (rad)' },
             series,
         };
@@ -293,6 +387,41 @@ const DatasetVisualizationPage = () => {
     }, []);
 
     const handleBack = () => navigate('/data-center');
+
+    // 用户切换参数时重新获取
+    const handleParamChange = async (newChunk, newEpisode, newView) => {
+      setLoading(true);
+      setLoadError('');
+      try {
+        setChunkId(newChunk);
+        setEpisodeId(newEpisode);
+        setViewPoint(newView);
+        const videoBlob = await datasetsAPI.getVideo(datasetId, newChunk, newEpisode, newView);
+        setVideoUrl(URL.createObjectURL(videoBlob));
+        const parquetData = await datasetsAPI.getParquet(datasetId, newChunk, newEpisode);
+        const groupedData = await loadMotionDataFromApiParquet(parquetData);
+        if (Object.keys(groupedData).length > 0) {
+          const keys = Object.keys(groupedData).map(Number).sort((a, b) => a - b);
+          setEpisodeData(groupedData);
+          setEpisodeKeys(keys);
+          setCurrentEpisode(keys[0]);
+          setIsMotionDataLoaded(true);
+        } else {
+          setLoadError('未能获取到可用的数据');
+        }
+      } catch (err) {
+        console.error('获取数据失败:', err);
+        if (err.message && err.message.includes('CORS')) {
+          setLoadError('跨域请求失败，请检查后端CORS配置');
+        } else if (err.response && err.response.status === 500) {
+          setLoadError('后端服务器错误，请检查后端日志');
+        } else {
+          setLoadError('获取数据失败: ' + (err.message || '未知错误'));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
     if (!isMotionDataLoaded) {
         return (
@@ -313,12 +442,114 @@ const DatasetVisualizationPage = () => {
                 </div>
 
                 <div className={styles.videoSection}>
-                    <div className={styles.videoTitle}><Title level={3}>机器人动作视频</Title></div>
+                    <div className={styles.parameterSelector}>
+                        <div className={styles.parameterCard}>
+                            <div className={styles.parameterLabel}>
+                                <span className={styles.parameterIcon}>📦</span>
+                                <span className={styles.parameterText}>数据块</span>
+                                {loading && <span className={styles.loadingIndicator}>⏳</span>}
+                            </div>
+                            <Select 
+                                className={styles.parameterSelect}
+                                value={chunkId} 
+                                onChange={v => handleParamChange(v, episodeId, viewPoint)} 
+                                disabled={!datasetDetail || loading}
+                                placeholder="选择数据块"
+                                loading={loading}
+                            >
+                                {datasetDetail && Array.from({ length: datasetDetail.total_chunks }, (_, i) => (
+                                    <Select.Option key={i} value={i}>
+                                        <span className={styles.optionText}>Chunk {i}</span>
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                            {datasetDetail && (
+                                <div className={styles.parameterInfo}>
+                                    <span className={styles.currentSelection}>当前: Chunk {chunkId}</span>
+                                    <span className={styles.totalInfo}>共 {datasetDetail.total_chunks} 个数据块</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={styles.parameterCard}>
+                            <div className={styles.parameterLabel}>
+                                <span className={styles.parameterIcon}>🎬</span>
+                                <span className={styles.parameterText}>片段</span>
+                                {loading && <span className={styles.loadingIndicator}>⏳</span>}
+                            </div>
+                            <Select 
+                                className={styles.parameterSelect}
+                                value={episodeId} 
+                                onChange={v => handleParamChange(chunkId, v, viewPoint)} 
+                                disabled={!datasetDetail || loading}
+                                placeholder="选择片段"
+                                loading={loading}
+                            >
+                                {datasetDetail && Array.from({ length: datasetDetail.total_episodes }, (_, i) => (
+                                    <Select.Option key={i} value={i}>
+                                        <span className={styles.optionText}>Episode {i}</span>
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                            {datasetDetail && (
+                                <div className={styles.parameterInfo}>
+                                    <span className={styles.currentSelection}>当前: Episode {episodeId}</span>
+                                    <span className={styles.totalInfo}>共 {datasetDetail.total_episodes} 个片段</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={styles.parameterCard}>
+                            <div className={styles.parameterLabel}>
+                                <span className={styles.parameterIcon}>📹</span>
+                                <span className={styles.parameterText}>视角</span>
+                                {loading && <span className={styles.loadingIndicator}>⏳</span>}
+                            </div>
+                            <Select 
+                                className={styles.parameterSelect}
+                                value={viewPoint} 
+                                onChange={v => handleParamChange(chunkId, episodeId, v)} 
+                                disabled={!datasetDetail || loading}
+                                placeholder="选择视角"
+                                loading={loading}
+                            >
+                                {datasetDetail && datasetDetail.video_keys.map(vp => (
+                                    <Select.Option key={vp} value={vp}>
+                                        <span className={styles.optionText}>{vp}</span>
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                            {datasetDetail && (
+                                <div className={styles.parameterInfo}>
+                                    <span className={styles.currentSelection}>当前: {viewPoint}</span>
+                                    <span className={styles.totalInfo}>共 {datasetDetail.video_keys.length} 个视角</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className={styles.videoTitle}>
+                        <Title level={3}>机器人动作视频</Title>
+                        <div className={styles.videoHint}>
+                            💡 使用视频播放器控制整个页面的播放状态
+                        </div>
+                    </div>
                     <div className={styles.videoContainer}>
                         <video ref={videoRef} src={videoUrl} controls className={styles.videoPlayer}>
                             您的浏览器不支持视频播放。
                         </video>
                     </div>
+                    {loading && (
+                        <div className={styles.loadingContainer}>
+                            <Spin size="large" />
+                            <div className={styles.loadingText}>正在加载数据...</div>
+                        </div>
+                    )}
+                    {loadError && (
+                        <div className={styles.errorContainer}>
+                            <span className={styles.errorIcon}>⚠️</span>
+                            <div className={styles.errorText}>{loadError}</div>
+                        </div>
+                    )}
                 </div>
 
                 <div style={{ marginTop: 32 }}>
@@ -371,39 +602,13 @@ const DatasetVisualizationPage = () => {
                         <Title level={3} style={{ color: '#333', fontWeight: 600 }}>仿真动画演示</Title>
                     </div>
                     <Card style={{ padding: 0 }} styles={{ body: { padding: 0 } }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e6e6e6', padding: '12px 24px', background: '#f7faff' }}>
-                            <RobotController
-                                renderTextOnly
-                                isAnimating={isAnimating}
-                                currentFrame={currentFrame}
-                                motionDataLength={motionData.length}
-                                currentEpisode={currentEpisode}
-                            />
-                            <Space align="center" size="large">
-                                <Space>
-                                    <label style={{fontWeight: 500}}>选择 Episode:</label>
-                                    <Select
-                                        value={currentEpisode}
-                                        onChange={(value) => setCurrentEpisode(value)}
-                                        style={{ width: 120 }}
-                                        loading={!isMotionDataLoaded}
-                                    >
-                                        {episodeKeys.map(key => (
-                                            <Option key={key} value={key}>{key}</Option>
-                                        ))}
-                                    </Select>
-                                </Space>
-                                <RobotController
-                                    renderButtonsOnly
-                                    isAnimating={isAnimating}
-                                    onToggleAnimation={handleToggleAnimation}
-                                    onReset={handleResetAnimation}
-                                    onNextEpisode={handleNextEpisode}
-                                    motionDataLength={motionData.length}
-                                />
-                            </Space>
-                        </div>
-                        <div style={{ background: '#eaf2fb', minHeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ background: '#eaf2fb', minHeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                            {/* 帧数显示 - 左上角 */}
+                            <div className={styles.frameCounter}>
+                                <span className={styles.frameText}>
+                                    帧数: {motionData.length > 0 ? `${currentFrame + 1} / ${motionData.length}` : 'N/A'}
+                                </span>
+                            </div>
                             <div style={{ width: '100%', height: 600 }}>
                                 <RobotSimulation ref={robotRef} urdfUrl={urdfUrl} />
                             </div>
