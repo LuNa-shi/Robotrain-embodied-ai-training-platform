@@ -204,55 +204,41 @@ const TrainingPage = () => {
   const handleTrainingSubmit = async (values) => {
     try {
       setTrainingLoading(true);
-      
-      // 构建超参数对象
-      const hyperparameter = {
-          epochs: values.epochs,
-          batch_size: values.batchSize,
-          learning_rate: values.learningRate,
-          validation_split: values.validationSplit,
-          max_length: values.maxLength,
-          temperature: values.temperature,
-      };
-      
 
-      
-      // 添加调试信息
-      console.log('表单值:', values);
-      console.log('selectedModel:', selectedModel);
-      console.log('values.model:', values.model, '类型:', typeof values.model);
-      
+      // 固定超参数格式
+      const hyperparameter = {
+        policy: { type: 'act' }, // 目前写死为act，后续可扩展为可选项
+        env: { type: 'aloha' },  // 目前写死为aloha，后续可扩展为可选项
+        log_freq: 25,
+        steps: 100,
+        batch_size: 8
+      };
+
       // 验证model值
       if (!values.model || values.model === 'undefined' || values.model === 'null') {
         throw new Error('请先选择模型');
       }
-      
+
       // 构建训练项目创建请求体
       const trainTaskData = {
         dataset_id: parseInt(selectedDataset.id),
         model_type_id: parseInt(values.model),
         hyperparameter: hyperparameter
       };
-      
+
       console.log('训练项目创建请求:', trainTaskData);
-      console.log('数据类型检查:', {
-        dataset_id: typeof trainTaskData.dataset_id,
-        model_type_id: typeof trainTaskData.model_type_id,
-        dataset_id_value: trainTaskData.dataset_id,
-        model_type_id_value: trainTaskData.model_type_id
-      });
-      
+
       // 调用后端API创建训练项目
       const response = await trainTasksAPI.create(trainTaskData);
-      
+
       console.log('训练项目创建成功:', response);
-      
+
       // 设置创建的项目ID
       setCreatedProjectId(response.id.toString());
-      
+
       message.success('机器人训练项目已成功创建！');
       setCurrentStep(3);
-      
+
     } catch (error) {
       console.error('创建训练项目失败:', error);
       message.error('创建训练项目失败: ' + error.message);
