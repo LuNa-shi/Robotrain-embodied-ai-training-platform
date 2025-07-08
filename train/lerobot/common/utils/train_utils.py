@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import asyncio
 from pathlib import Path
 
 from termcolor import colored
@@ -101,6 +102,46 @@ def save_checkpoint(
     cfg.save_pretrained(pretrained_dir)
     save_training_state(checkpoint_dir, step, optimizer, scheduler)
 
+async def async_save_checkpoint(
+    checkpoint_dir: Path,
+    step: int,
+    cfg: TrainPipelineConfig,
+    policy: PreTrainedPolicy,
+    optimizer: Optimizer,
+    scheduler: LRScheduler | None = None,
+) -> None:
+    """This function creates the following directory structure asynchronously:
+
+    005000/  #  training step at checkpoint
+    ├── pretrained_model/
+    │   ├── config.json  # policy config
+    │   ├── model.safetensors  # policy weights
+    │   └── train_config.json  # train config
+    └── training_state/
+        ├── optimizer_param_groups.json  #  optimizer param groups
+        ├── optimizer_state.safetensors  # optimizer state
+        ├── rng_state.safetensors  # rng states
+        ├── scheduler_state.json  # scheduler state
+        └── training_step.json  # training step
+
+    Args:
+        cfg (TrainPipelineConfig): The training config used for this run.
+        step (int): The training step at that checkpoint.
+        policy (PreTrainedPolicy): The policy to save.
+        optimizer (Optimizer | None, optional): The optimizer to save the state from. Defaults to None.
+        scheduler (LRScheduler | None, optional): The scheduler to save the state from. Defaults to None.
+    """
+    pretrained_dir = checkpoint_dir / PRETRAINED_MODEL_DIR
+
+    # 假设 policy.save_pretrained 和 cfg.save_pretrained 内部是同步操作，
+    # 我们可以通过 run_in_executor 将它们包装成异步可等待对象，避免阻塞事件循环。
+    # 如果它们本身有异步版本，可以直接调用。
+    await asyncio.to_thread(policy.save_pretrained, pretrained_dir)
+    await asyncio.to_thread(cfg.save_pretrained, pretrained_dir)
+    
+    # 假设 save_training_state 也有异步版本，或者需要同样包装。
+    # 这里我们假设它是一个同步函数，也用 asyncio.to_thread 包装。
+    await asyncio.to_thread(save_training_state, checkpoint_dir, step, optimizer, scheduler)
 
 def save_training_state(
     checkpoint_dir: Path,
