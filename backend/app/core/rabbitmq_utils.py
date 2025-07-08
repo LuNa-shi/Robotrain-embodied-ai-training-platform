@@ -86,28 +86,12 @@ async def on_status_message(message: aio_pika.IncomingMessage):
             # 假设 status_data 包含任务 ID 和状态信息
             task_id = status_data.get("task_id")
             status = status_data.get("status")
-            if status == "completed":
-                model_uuid_str = status_data.get("model_uuid")
-                # 调用 TrainTaskService 更新任务状态
-                train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
-                    status=status,
-                    model_uuid=model_uuid_str,
-                    log_uuid=uuid4() #之后应该从数据库中提取出所有的日志 UUID
-                )
-                await train_task_service.update_train_task(task_id, train_task_to_update)
-                all_train_logs: list[TrainLog] = await train_log_service.get_train_logs_by_task_id(train_task_id=task_id)
-                # 生成一个uuid，保存到minio中
-                log_uuid = str(uuid4())
-                # 更新数据库中的uuid字段
-                # await TrainLogService.delete_train_logs_by_task_id(task_id)
-                print(f"[Status Consumer] Task {task_id} status updated to '{status}' with model UUID '{model_uuid_str}', log UUID '{log_uuid}'.")
-            else:
-                # 如果状态不是 "completed"，可以根据需要进行其他处理
-                train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
-                    status=status
-                )
-                await train_task_service.update_train_task(task_id, train_task_to_update)
-                print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
+            
+            train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
+                status=status
+            )
+            await train_task_service.update_train_task(task_id, train_task_to_update)
+            print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
             # 确认消息已被处理
             await message.ack()
             print(f"[Status Consumer] Message '{message.body.decode()}' processed and acknowledged.")
@@ -144,14 +128,9 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
                 print(f"[Train Log Consumer] Received invalid message format: {log_message}", flush=True)
                 return
             task_id = log_data.get("task_id")
-            log_content = log_data.get("log_message")
-            # 记得还有 epoch, loss, accuracy 等字段，之后要加上
-            epoch = log_data.get("epoch", 0)
-            loss = log_data.get("loss", 0.0)
-            accuracy = log_data.get("accuracy", 0.0)
 
             # 发送日志到 WebSocket 客户端
-            await send_log_to_websockets(task_id, log_content)
+            await send_log_to_websockets(task_id, log_message=log_message)
 
         
             train_task = await train_task_service.get_train_task_by_id(task_id)
@@ -164,7 +143,7 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
                 return
             train_log_to_create = TrainLogCreate(
                 train_task_id=task_id,
-                log_message=log_content,
+                log_message=log_message,
             )
 
             await train_log_service.create_train_log_for_task(

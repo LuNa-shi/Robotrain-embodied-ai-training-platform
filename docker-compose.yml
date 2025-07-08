@@ -16,6 +16,7 @@ services:
     build:
       context: ./backend
     environment:
+      BACKEND_TMP_BASE_DIR: ${BACKEND_TMP_BASE_DIR}
       ALGORITHM:  ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       SECRET_KEY: ${SECRET_KEY}

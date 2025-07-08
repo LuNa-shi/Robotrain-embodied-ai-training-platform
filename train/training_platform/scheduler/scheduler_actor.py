@@ -54,7 +54,7 @@ class Scheduler:
                 start_step = self.running_task.current_step
                 end_step = min(start_step + self.steps_per_timeslice, total_steps)
                 
-                await send_status_message(task_id=int(self.running_task.task_id), status="running", model_uuid=None)
+                await send_status_message(task_id=int(self.running_task.task_id), status="running")
                 
                 try:
                     final_step = await self.trainer_actor.train.remote(start_step, end_step) #method
@@ -62,13 +62,13 @@ class Scheduler:
                     self.running_task.current_step = final_step
                     
                     if final_step >= total_steps:
-                        await send_status_message(task_id=int(self.running_task.task_id), status="completed", model_uuid=self.running_task.model_uuid)
+                        await send_status_message(task_id=int(self.running_task.task_id), status="completed")
                     else:
                         self.task_queue.append(self.running_task)
                         # await send_status_message(task_id=int(self.running_task.task_id), status="paused", uuid=self.running_task.uuid)
                 except Exception as e:
                     print(f"❌ [Scheduler] Training failed for task {self.running_task.task_id}: {e}")
-                    await send_status_message(task_id=int(self.running_task.task_id), status="failed", model_uuid=None)
+                    await send_status_message(task_id=int(self.running_task.task_id), status="failed")
                 finally:
                     if self.trainer_actor: ray.kill(self.trainer_actor)
                     self.trainer_actor, self.running_task = None, None

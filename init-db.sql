@@ -14,7 +14,14 @@ CREATE TABLE IF NOT EXISTS dataset (
     description TEXT DEFAULT NULL,       -- 数据集描述，可为空
     dataset_uuid UUID NOT NULL,         -- 数据集UUID(作为minio里的文件夹名)，不能为空
     owner_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE, -- 所有者ID，外键引用users表
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', NOW()) NOT NULL-- 创建时间，默认为当前时间
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', NOW()) NOT NULL,-- 创建时间，默认为当前时间
+
+    total_episodes INTEGER DEFAULT 0 NOT NULL, -- 总集数
+    total_chunks INTEGER DEFAULT 0 NOT NULL,   -- 总分块数
+    video_keys TEXT[] DEFAULT '{}' NOT NULL, -- 视频文件的键，存储为字符串数组
+    chunks_size INTEGER DEFAULT 0  NOT NULL,   -- 分块大小
+    video_path TEXT DEFAULT '' NOT NULL, -- 视频文件路径
+    data_path TEXT DEFAULT '' NOT NULL -- 数据文件路径
 );
 CREATE INDEX IF NOT EXISTS idx_datasets_owner_id ON dataset (owner_id);
 
@@ -35,16 +42,9 @@ CREATE TABLE IF NOT EXISTS train_task(
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, 
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, -- 结束时间，可为空
     logs_uuid UUID, -- 训练日志的UUID，可为空
-    model_uuid UUID, -- 训练生成的模型的UUID，可为空
 
     CONSTRAINT chk_status CHECK (status IN ('pending', 'running', 'completed', 'failed'))
 
-    -- CONSTRAINT chk_completed_fields CHECK (
-        -- CASE
-            -- WHEN status = 'completed' THEN (model_uuid IS NOT NULL AND logs_uuid IS NOT NULL)
-            -- ELSE TRUE
-        -- END
-    -- )
 );
 CREATE INDEX IF NOT EXISTS idx_train_tasks_owner_id ON train_task (owner_id);
 

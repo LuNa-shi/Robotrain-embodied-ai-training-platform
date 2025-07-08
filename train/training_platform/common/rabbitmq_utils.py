@@ -96,10 +96,10 @@ async def _send_message(routing_key: str, message_body: dict):
     except Exception as e:
         print(f"发送消息到 {routing_key} 失败: {e}")
 
-async def send_status_message(task_id: int, status: str, model_uuid: Optional[str] = None):
+async def send_status_message(task_id: int, status: str):
     manager = await _RabbitMQManager.get_instance()
     await manager.initialize_internal()
-    message_body = {"task_id": task_id, "status": status, "model_uuid": model_uuid}
+    message_body = {"task_id": task_id, "status": status}
     await _send_message(settings.RABBIT_STATUS_BINDING_KEY, message_body)
 
 

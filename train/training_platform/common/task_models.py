@@ -12,7 +12,6 @@ class TrainingTask(BaseModel):
     # 由 Scheduler 维护的状态
     current_step: int = 0
     status: str = "pending" # pending, running, paused, completed, failed
-    model_uuid: Optional[str] = None  # 训练完成后生成的模型 UUID
 
     # set save_freq manually
     def __init__(self, **data):

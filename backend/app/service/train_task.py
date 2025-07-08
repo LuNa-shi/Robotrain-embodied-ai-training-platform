@@ -154,19 +154,15 @@ class TrainTaskService:
         if not train_task:
             print(f"训练任务 ID {train_task_id} 不存在，无法下载模型")
             return None
-        
-        # 2. 获取模型文件路径
-        model_uuid_str = str(train_task.model_uuid) if train_task.model_uuid else None
-        if not model_uuid_str:
-            print(f"训练任务 ID {train_task_id} 没有模型文件，无法下载")
+        # 2. 检查训练任务状态是否为"completed"
+        if train_task.status != "completed":
+            print(f"训练任务 ID {train_task_id} 状态为 {train_task.status}，无法下载模型")
             return None
         
-        model_file_path = f"/tmp/model_{model_uuid_str}.zip"  # 假设下载到临时目录
         
         success, message = await download_model_from_minio(
             client=await get_minio_client(),
-            local_path=model_file_path,
-            model_uuid_str=model_uuid_str
+            task_id=train_task.id  # 使用训练任务 ID 作为标识
         )
         
         if not success:
@@ -174,4 +170,4 @@ class TrainTaskService:
             return None
         
         
-        return model_file_path
+        return message

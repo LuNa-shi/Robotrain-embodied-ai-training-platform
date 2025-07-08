@@ -22,11 +22,9 @@ class TrainTaskPublic(SQLModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     logs_uuid: Optional[UUID] = None
-    model_uuid: Optional[UUID] = None
     
 class TrainTaskUpdate(SQLModel):
     status: Optional[TrainTaskStatus] = Field(default=None, max_length=20)
     start_time: Optional[datetime] = Field(default=None)
     end_time: Optional[datetime] = Field(default=None)
     logs_uuid: Optional[UUID] = Field(default=None)
-    model_uuid: Optional[UUID] = Field(default=None)

@@ -13,8 +13,6 @@ import os
 # 创建路由实例
 router = APIRouter()
 
-def remove_file(path: str):
-    os.remove(path)
 
 # 依赖注入 UserService
 async def get_train_task_service(db: Annotated[AsyncSession, Depends(get_db)]) -> TrainTaskService:
@@ -126,6 +124,6 @@ async def download_model(
     return FileResponse(download_path,
                         media_type="application/octet-stream",
                         filename=f"model_{task_id}.zip",
-                        background=BackgroundTask(remove_file, download_path))
+                        background=BackgroundTask(os.remove, download_path))
     
 
