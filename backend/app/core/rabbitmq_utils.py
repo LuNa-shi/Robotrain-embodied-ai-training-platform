@@ -86,15 +86,12 @@ async def on_status_message(message: aio_pika.IncomingMessage):
             # 假设 status_data 包含任务 ID 和状态信息
             task_id = status_data.get("task_id")
             status = status_data.get("status")
-
-            
-            await send_log_to_websockets(task_id, log_message=message_content)
-            
             
             train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
                 status=status
             )
             await train_task_service.update_train_task(task_id, train_task_to_update)
+            await send_log_to_websockets(task_id, log_message=message_content)
             print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
             # 确认消息已被处理
             await message.ack()
