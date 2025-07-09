@@ -142,10 +142,16 @@ const StepProgressBar = ({ steps, logFreq, currentStep, status }) => {
   const barLength = width - 2 * barEdge;
   
   // 计算进度百分比
-  const progressPercent = steps > 0 ? Math.min(100, (currentStep / steps) * 100) : 0;
+  let progressPercent;
+  if (status === 'completed') {
+    // 如果项目已完成，使用原有的处理方式：epoch/steps × 100%
+    progressPercent = steps > 0 ? Math.min(100, (currentStep / steps) * 100) : 0;
+  } else {
+    progressPercent = steps > 0 ? Math.min(95, (currentStep / steps) * 95) : 0;
+  }
   
   // 计算每次WebSocket消息的进度增量
-  const progressIncrement = steps > 0 && logFreq > 0 ? (logFreq / steps) * 100 : 0;
+  const progressIncrement = steps > 0 && logFreq > 0 ? (logFreq / steps) * 95 : 0;
   
   // 动画：线条x2
   const [animatedX2, setAnimatedX2] = React.useState(barEdge);
@@ -275,8 +281,20 @@ const ProjectProgressPage = () => {
       setLoading(true);
       const data = await trainTasksAPI.getById(trainingId);
       
+      // 如果modelTypes为空，先获取模型类型列表
+      let currentModelTypes = modelTypes;
+      if (modelTypes.length === 0) {
+        try {
+          currentModelTypes = await modelsAPI.getAllModelTypes();
+          setModelTypes(currentModelTypes);
+        } catch (err) {
+          console.error('获取模型类型列表失败:', err);
+          currentModelTypes = [];
+        }
+      }
+      
       // 获取模型类型名称
-      const modelType = modelTypes.find(mt => mt.id === data.model_type_id);
+      const modelType = currentModelTypes.find(mt => mt.id === data.model_type_id);
       const modelTypeName = modelType ? modelType.type_name : '未知模型';
       
       // 计算训练时长
@@ -365,11 +383,12 @@ const ProjectProgressPage = () => {
 
   // 只在页面挂载时建立WebSocket连接，卸载时断开
   useEffect(() => {
+    // 无论项目状态如何都建立WebSocket连接
     connectWebSocket();
     return () => {
       disconnectWebSocket();
     };
-    // 只依赖trainingId，切换详情页时也会重连
+    // 依赖trainingId，切换详情页时也会重连
   }, [trainingId]);
 
   // 生成随机Loss值的函数
@@ -387,6 +406,18 @@ const ProjectProgressPage = () => {
         // 尝试解析JSON部分
         const data = JSON.parse(jsonPart);
         
+        // 检查是否是状态完成消息（只包含status字段）
+        if (data.status && data.status !== null && !data.epoch && !data.loss) {
+          return {
+            type: 'status_completed',
+            data: {
+              status: data.status
+            },
+            time: timestamp,
+            message: `训练状态更新: ${data.status}`
+          };
+        }
+        
         // 检查是否是训练数据格式
         if (data.task_id && data.epoch && data.loss !== undefined) {
           return {
@@ -396,7 +427,8 @@ const ProjectProgressPage = () => {
               epoch: data.epoch,
               loss: data.loss,
               accuracy: data.accuracy,
-              log_message: data.log_message
+              log_message: data.log_message,
+              status: data.status
             },
             time: timestamp,
             message: data.log_message || `Epoch ${data.epoch}: loss=${data.loss.toFixed(4)}`
@@ -421,6 +453,18 @@ const ProjectProgressPage = () => {
     try {
       const data = JSON.parse(raw);
       
+      // 检查是否是状态完成消息（只包含status字段）
+      if (data.status && data.status !== null && !data.epoch && !data.loss) {
+        return {
+          type: 'status_completed',
+          data: {
+            status: data.status
+          },
+          time: new Date().toISOString(),
+          message: `训练状态更新: ${data.status}`
+        };
+      }
+      
       // 检查是否是训练数据格式
       if (data.task_id && data.epoch && data.loss !== undefined) {
         return {
@@ -430,7 +474,8 @@ const ProjectProgressPage = () => {
             epoch: data.epoch,
             loss: data.loss,
             accuracy: data.accuracy,
-            log_message: data.log_message
+            log_message: data.log_message,
+            status: data.status
           },
           time: new Date().toISOString(),
           message: data.log_message || `Epoch ${data.epoch}: loss=${data.loss.toFixed(4)}`
@@ -451,6 +496,13 @@ const ProjectProgressPage = () => {
   // 处理WebSocket消息
   const handleWebSocketMessage = (data) => {
     const parsed = parseLogMessage(data);
+    
+    // 处理状态完成消息
+    if (parsed.type === 'status_completed') {
+      // 当接收到status消息时，向后端发送获取项目详情的请求
+      fetchProjectData();
+      return;
+    }
     
     // 处理训练数据
     if (parsed.type === 'training_data') {
@@ -520,25 +572,32 @@ const ProjectProgressPage = () => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const blob = await trainTasksAPI.downloadModel(projectData.id);
-      if (!(blob instanceof Blob)) {
-        throw new Error('下载接口未返回文件流');
-      }
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `model_task_${projectData.id}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      message.success('模型文件下载成功');
+        // 【核心修改】
+        // 调用API，现在它会返回一个包含 blob 和 filename 的对象
+        const { blob, filename } = await trainTasksAPI.downloadModel(projectData.id);
+
+        // 判断返回的是否是文件blob（如果API内部出错，这里会直接进catch块）
+        if (blob && blob.size > 0) {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename; // 使用从API获取的文件名
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            message.success('模型文件下载成功');
+        } else {
+            // 虽然axios拦截器会处理大部分错误，但这里可以作为一个额外的保障
+            throw new Error('下载失败：未收到有效的文件数据');
+        }
     } catch (err) {
-      message.error('下载失败: ' + (err.message || '未知错误'));
+        // 现在这里的错误都是由axios拦截器或API函数本身抛出的真实错误
+        message.error('下载失败: ' + (err.message || '未知错误'));
     } finally {
-      setDownloading(false);
+        setDownloading(false);
     }
-  }, [downloading, projectData?.id]);
+}, [downloading, projectData?.id]);
 
   const handleDelete = async () => {
     if (!projectData?.id) return;
@@ -564,13 +623,20 @@ const ProjectProgressPage = () => {
     if (!projectData || !projectData.hyperparameter?.steps) return;
     
     // 计算进度百分比
-    const progress = Math.min(100, (currentStep / projectData.hyperparameter.steps) * 100);
+    let progress;
+    if (projectData.status === 'completed') {
+      // 如果项目已完成，使用原有的处理方式：epoch/steps × 100%
+      progress = Math.min(100, (latestEpoch / projectData.hyperparameter.steps) * 100);
+    } else {
+      // 否则显示 epoch/steps × 95%
+      progress = Math.min(95, (latestEpoch / projectData.hyperparameter.steps) * 95);
+    }
     
     // 只在进度有变化时更新
     if (projectData.progress !== progress) {
       setProjectData(prev => prev ? { ...prev, progress } : prev);
     }
-  }, [currentStep, projectData?.hyperparameter?.steps]);
+  }, [latestEpoch, projectData?.hyperparameter?.steps, projectData?.status]);
 
   // 在ProjectProgressPage组件内部，进度条状态逻辑
   const isCompleted = projectData?.status === 'completed';
@@ -637,14 +703,21 @@ const ProjectProgressPage = () => {
             <div className={styles.progressText}>
               <Title level={5} style={{ margin: 0, color: '#262626' }}>
                 {isCompleted ? '训练已完成' :
-                  projectData?.status === 'running' ? '训练进行中' :
+                  projectData?.status === 'running' ? 
+                    (latestEpoch < (projectData?.hyperparameter?.steps || 0) ? '训练进行中' :
+                     latestEpoch === (projectData?.hyperparameter?.steps || 0) ? '模型上传中' :
+                     '训练进行中') :
                   '等待训练'}
               </Title>
               <Text type="secondary">
                 当前进度: {
-                  projectData?.hyperparameter?.steps
-                    ? Math.round((latestEpoch / projectData.hyperparameter.steps) * 100)
-                    : 0
+                  projectData?.status === 'completed' 
+                    ? (projectData?.hyperparameter?.steps
+                        ? Math.round((latestEpoch / projectData.hyperparameter.steps) * 100)
+                        : 0)
+                    : projectData?.hyperparameter?.steps
+                      ? Math.round((latestEpoch / projectData.hyperparameter.steps) * 95)
+                      : 0
                 }%
               </Text>
             </div>
