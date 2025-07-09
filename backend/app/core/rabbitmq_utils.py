@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 import aio_pika
 from aio_pika.connection import Connection
 from aio_pika.channel import Channel
@@ -90,6 +91,7 @@ async def on_status_message(message: aio_pika.IncomingMessage):
             train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
                 status=status
             )
+
             await train_task_service.update_train_task(task_id, train_task_to_update)
             await send_log_to_websockets(task_id, log_message=message_content)
             print(f"[Status Consumer] Task {task_id} status updated to '{status}'.")
