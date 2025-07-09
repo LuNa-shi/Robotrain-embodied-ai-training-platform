@@ -12,7 +12,7 @@ import {
   PlusOutlined
 } from '@ant-design/icons';
 import styles from './ProjectCenter.module.css';
-import { trainTasksAPI, modelsAPI } from '@/utils/api';
+import { trainTasksAPI, modelsAPI, deleteTrainTask } from '@/utils/api';
 
 const { Title, Text } = Typography;
 
@@ -153,9 +153,14 @@ const ProjectCenterPage = () => {
     }
   }, [downloadingStates]);
 
-  const handleDelete = (record) => {
-    message.success(`删除项目: ${record.name}`);
-    // 这里可以添加实际的删除逻辑
+  const handleDelete = async (taskId) => {
+    try {
+      await deleteTrainTask(taskId);
+      message.success('删除成功');
+      fetchTrainingTasks(); // Refresh the list after successful deletion
+    } catch (err) {
+      message.error(err.message || '删除失败');
+    }
   };
 
   
@@ -244,7 +249,7 @@ const ProjectCenterPage = () => {
                     icon={<DeleteOutlined />} 
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(record);
+                      handleDelete(record.id);
                     }}
                   />
                 </Tooltip>

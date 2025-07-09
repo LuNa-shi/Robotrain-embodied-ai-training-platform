@@ -35,7 +35,7 @@ import {
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import styles from './ProjectProgress.module.css';
-import { trainTasksAPI, modelsAPI } from '@/utils/api';
+import { trainTasksAPI, modelsAPI, deleteTrainTask } from '@/utils/api';
 import trainingLogWebSocket from '@/utils/websocket';
 
 const { Title, Paragraph, Text } = Typography;
@@ -540,9 +540,15 @@ const ProjectProgressPage = () => {
     }
   }, [downloading, projectData?.id]);
 
-  const handleDelete = () => {
-    message.success(`删除项目: 训练项目 ${projectData?.id}`);
-    navigate('/project-center');
+  const handleDelete = async () => {
+    if (!projectData?.id) return;
+    try {
+      await deleteTrainTask(projectData.id);
+      message.success('删除成功');
+      navigate('/project-center');
+    } catch (err) {
+      message.error(err.message || '删除失败');
+    }
   };
 
   const handlePause = () => {

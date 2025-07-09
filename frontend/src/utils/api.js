@@ -479,4 +479,28 @@ export const trainTasksAPI = {
   },
 };
 
+export async function deleteTrainTask(taskId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/train_tasks/${taskId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+    },
+  });
+  // 调试输出
+  console.log('deleteTrainTask status:', res.status);
+  let text = '';
+  try {
+    text = await res.text();
+    console.log('deleteTrainTask response text:', text);
+  } catch (e) {
+    console.log('deleteTrainTask response text parse error:', e);
+  }
+  if (res.status === 204 || res.status === 200) return true;
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权删除该任务');
+  if (res.status === 404) throw new Error('任务不存在');
+  throw new Error('删除失败');
+}
+
 export default api; 
