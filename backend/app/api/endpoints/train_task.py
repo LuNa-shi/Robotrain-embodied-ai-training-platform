@@ -125,5 +125,38 @@ async def download_model(
                         media_type="application/octet-stream",
                         filename=f"model_{task_id}.zip",
                         background=BackgroundTask(os.remove, download_path))
+
+@router.delete("/{task_id}", summary="删除训练任务")
+async def delete_train_task(
+    task_id: int,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    train_task_service: Annotated[TrainTaskService, Depends(get_train_task_service)]
+):
+    """
+    **删除指定训练任务**
+
+    根据任务 ID 删除训练任务。
+
+    **路径参数:**
+    - `task_id`: 训练任务的唯一标识符。
+
+    **响应:**
+    - `204 No Content`: 成功删除训练任务。
+    - `403 Forbidden`: 当前用户无权删除该任务。
+    - `404 Not Found`: 任务不存在。
+    - `401 Unauthorized`: 用户未登录。
+    """
+    # 验证任务是否存在
+    train_task = await train_task_service.get_train_task_by_id(task_id)
+    if not train_task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="训练任务不存在")
+    
+    # 验证当前用户是否有权限删除该任务
+    if train_task.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除该训练任务")
+    
+    await train_task_service.delete_train_task_for_user(task_id, current_user)
+    
+    return {"detail": "训练任务已成功删除"}
     
 

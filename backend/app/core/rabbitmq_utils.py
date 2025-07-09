@@ -86,6 +86,10 @@ async def on_status_message(message: aio_pika.IncomingMessage):
             # 假设 status_data 包含任务 ID 和状态信息
             task_id = status_data.get("task_id")
             status = status_data.get("status")
+
+            
+            await send_log_to_websockets(task_id, log_message=message_content)
+            
             
             train_task_to_update: TrainTaskUpdate = TrainTaskUpdate(
                 status=status
@@ -128,9 +132,13 @@ async def on_train_log_message(message: aio_pika.IncomingMessage):
                 print(f"[Train Log Consumer] Received invalid message format: {log_message}", flush=True)
                 return
             task_id = log_data.get("task_id")
+            # 往log_data中添加一项status为null
+            log_data["status"] = None  # 假设日志消息中没有状态信息
+            # log_data转回字符串
+            log_message_trans = json.dumps(log_data)
 
             # 发送日志到 WebSocket 客户端
-            await send_log_to_websockets(task_id, log_message=log_message)
+            await send_log_to_websockets(task_id, log_message=log_message_trans)
 
         
             train_task = await train_task_service.get_train_task_by_id(task_id)
