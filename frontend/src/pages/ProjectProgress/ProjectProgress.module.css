@@ -22,7 +22,8 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  max-width: 1064px;
+  /* --- 修改点 1：宽度从 880px 改为 950px --- */
+  max-width: 950px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -71,7 +72,7 @@
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   background: white;
-  max-width: 520px;
+  max-width: 480px;
 }
 
 /* 卡片标题居中 */
@@ -226,19 +227,23 @@
 
 
 .chartsRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  display: flex;
+  justify-content: center;
   max-width: 1064px;
   margin: 0 auto 24px auto;
 }
 
+.chartsRow .chartCard {
+  width: 100%;
+  max-width: 800px;
+}
+
 .bottomRow {
   display: grid;
-  /* --- 修改点 1：将布局改为左侧自动宽度，右侧填充剩余空间 --- */
-  grid-template-columns: 440px 1fr;
+  grid-template-columns: 11fr 15fr;
   gap: 24px;
-  max-width: 1064px;
+  /* --- 修改点 2：宽度从 880px 改为 950px --- */
+  max-width: 950px;
   margin: 0 auto 24px auto;
   align-items: stretch;
 }
@@ -249,7 +254,6 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  max-width: 440px;
 }
 
 .bottomRow .rightInfoColumn {
@@ -265,7 +269,6 @@
   flex: 1 1 0;
   width: 100%;
   margin-bottom: 0;
-  /* --- 修改点 2：解除右侧两张卡片的最大宽度限制，允许它们拉伸 --- */
   max-width: none;
   border-radius: 12px !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
@@ -328,7 +331,11 @@
 
 @media (max-width: 900px) {
   .chartsRow {
-    grid-template-columns: 1fr;
+    padding: 0 16px;
+  }
+  
+  .chartsRow .chartCard {
+    max-width: 100%;
   }
   .bottomRow {
     grid-template-columns: 1fr;

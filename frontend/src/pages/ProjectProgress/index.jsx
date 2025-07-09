@@ -64,34 +64,29 @@ const getLogColor = (level) => {
 };
 
 // ECharts 图表配置 - Loss趋势
-const getLossChartOption = (logs) => {
-  const lossData = logs
-    .filter(log => log.message.includes('loss') || log.message.includes('损失') || log.message.includes('Loss ='))
-    .map(log => {
-      const lossMatch = log.message.match(/loss[:\s]*([\d.]+)/i) || 
-                       log.message.match(/损失[:\s]*([\d.]+)/i) ||
-                       log.message.match(/Loss[:\s]*([\d.]+)/i) ||
-                       log.message.match(/Loss = ([\d.]+)/i);
-      return lossMatch ? parseFloat(lossMatch[1]) : null;
-    })
-    .filter(val => val !== null);
-  if (lossData.length === 0) {
+const getLossChartOption = (trainingData) => {
+  if (trainingData.length === 0) {
     return {
       xAxis: { type: 'category', data: [] },
       yAxis: { type: 'value' },
       series: [{ data: [], type: 'line' }],
     };
   }
+  
+  // 从训练数据中提取epoch和loss值
+  const epochs = trainingData.map(item => item.epoch);
+  const lossData = trainingData.map(item => item.loss);
+  
   return {
     tooltip: { 
       trigger: 'axis',
       formatter: function(params) {
-        return `轮次 ${params[0].axisValue}<br/>Loss: ${params[0].value}`;
+        return `轮次 ${params[0].axisValue}<br/>Loss: ${params[0].value.toFixed(4)}`;
       }
     },
     xAxis: { 
       type: 'category', 
-      data: Array.from({length: lossData.length}, (_, i) => i + 1),
+      data: epochs,
       name: '训练轮次',
       nameLocation: 'middle',
       nameGap: 32,
@@ -104,7 +99,7 @@ const getLossChartOption = (logs) => {
       nameGap: 40,
       min: 0,
       max: Math.ceil(Math.max(...lossData) * 1.1),
-      interval: 0.5
+      interval: Math.ceil(Math.max(...lossData) * 1.1) / 10
     },
     series: [{
       data: lossData,
@@ -126,76 +121,7 @@ const getLossChartOption = (logs) => {
   };
 };
 
-// 新增：生成随机accuracy值的函数
-const generateRandomAccuracy = (epochNumber) => {
-  // accuracy随epoch递增，趋近于1
-  const baseAcc = 0.6 + 0.4 * (epochNumber / 20); // 20轮后趋近于1
-  const noise = (Math.random() - 0.5) * 0.04; // 小幅波动
-  let acc = baseAcc + noise;
-  if (acc > 0.995) acc = 0.995;
-  if (acc < 0.6) acc = 0.6;
-  return parseFloat(acc.toFixed(4));
-};
 
-// 新增：accuracy图表option生成函数
-const getAccuracyChartOption = (logs) => {
-  let accuracyData = logs
-    .filter(log => log.message.includes('Accuracy ='))
-    .map(log => {
-      const accMatch = log.message.match(/Accuracy = ([\d.]+)/i);
-      return accMatch ? parseFloat(accMatch[1]) : null;
-    })
-    .filter(val => val !== null);
-  if (accuracyData.length === 0) {
-    return {
-      xAxis: { type: 'category', data: [] },
-      yAxis: { type: 'value' },
-      series: [{ data: [], type: 'line' }],
-    };
-  }
-  return {
-    tooltip: {
-      trigger: 'axis',
-      formatter: function(params) {
-        return `轮次 ${params[0].axisValue}<br/>Accuracy: ${params[0].value}`;
-      }
-    },
-    xAxis: {
-      type: 'category',
-      data: Array.from({length: accuracyData.length}, (_, i) => i + 1),
-      name: '训练轮次',
-      nameLocation: 'middle',
-      nameGap: 32,
-    },
-    yAxis: {
-      type: 'value',
-      name: 'Accuracy',
-      nameLocation: 'middle',
-      nameRotate: 90,
-      nameGap: 40,
-      min: 0,
-      max: 1,
-      interval: 0.1
-    },
-    series: [{
-      data: accuracyData,
-      type: 'line',
-      smooth: true,
-      color: '#40a9ff',
-      lineStyle: { width: 2 },
-      areaStyle: {
-        color: {
-          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(64, 169, 255, 0.3)' },
-            { offset: 1, color: 'rgba(64, 169, 255, 0.1)' }
-          ]
-        }
-      }
-    }],
-    grid: { top: 40, right: 40, bottom: 50, left: 50 },
-  };
-};
 
 // --- 修改点：为完成状态的进度条增加渐变色 ---
 const getProgressBarColor = (status) => {
@@ -205,19 +131,26 @@ const getProgressBarColor = (status) => {
 };
 
 // 新增：自定义进度条组件
-const StepProgressBar = ({ total, current, status }) => {
+const StepProgressBar = ({ steps, logFreq, currentStep, status }) => {
   const finishedColor = status === 'completed' ? '#52c41a' : '#1890ff';
   const unfinishedColor = '#e0e0e0';
   const nodeRadius = 6;
   const barHeight = 4;
-  const width = 1500;
-  const barEdge = barHeight / 2;
+  const sidePadding = 32;
+  const width = 1500 + sidePadding * 2;
+  const barEdge = sidePadding;
   const barLength = width - 2 * barEdge;
-  const step = total > 1 ? barLength / (total - 1) : 0;
-
+  
+  // 计算进度百分比
+  const progressPercent = steps > 0 ? Math.min(100, (currentStep / steps) * 100) : 0;
+  
+  // 计算每次WebSocket消息的进度增量
+  const progressIncrement = steps > 0 && logFreq > 0 ? (logFreq / steps) * 100 : 0;
+  
   // 动画：线条x2
   const [animatedX2, setAnimatedX2] = React.useState(barEdge);
-  const targetX2 = barEdge + step * Math.max(0, current - 1);
+  const targetX2 = barEdge + (barLength * progressPercent) / 100;
+  
   React.useEffect(() => {
     let raf;
     const duration = 500; // ms
@@ -238,17 +171,28 @@ const StepProgressBar = ({ total, current, status }) => {
     // eslint-disable-next-line
   }, [targetX2]);
 
-  // 只渲染中间节点（去掉两端）
-  const nodeCount = total;
-  const nodes = Array.from({ length: nodeCount - 2 }, (_, i) => {
-    const idx = i + 1;
-    if (status === 'completed') return { state: 'done', idx };
-    if (idx < current) return { state: 'done', idx };
-    return { state: 'todo', idx };
+  // 生成10%间隔的节点
+  const nodeCount = 11; // 0%, 10%, 20%, ..., 100%
+  const nodes = Array.from({ length: nodeCount }, (_, i) => {
+    const percent = i * 10;
+    const cx = barEdge + (barLength * percent) / 100;
+    const cy = nodeRadius + 8;
+    const reached = progressPercent >= percent;
+    const fill = reached ? finishedColor : '#fff';
+    const stroke = reached ? finishedColor : unfinishedColor;
+    
+    return {
+      cx,
+      cy,
+      fill,
+      stroke,
+      percent,
+      reached
+    };
   });
 
   return (
-    <svg width="100%" height={nodeRadius * 2 + 16} viewBox={`0 0 ${width} ${nodeRadius * 2 + 16}`} style={{ minWidth: 240, maxWidth: 1500, width: '100%' }}>
+    <svg width="100%" height={nodeRadius * 2 + 40} viewBox={`0 0 ${width} ${nodeRadius * 2 + 40}`} style={{ minWidth: 240, maxWidth: 1500 + sidePadding * 2, width: '100%' }}>
       {/* 线条底色 */}
       <line
         x1={barEdge}
@@ -265,21 +209,14 @@ const StepProgressBar = ({ total, current, status }) => {
         y1={nodeRadius + 8}
         x2={animatedX2}
         y2={nodeRadius + 8}
-        stroke={status === 'completed' ? finishedColor : finishedColor}
+        stroke={finishedColor}
         strokeWidth={barHeight}
         strokeLinecap="butt"
       />
-      {/* 中间节点（不含两端） */}
-      {nodes.map(({ state, idx }, i) => {
-        const cx = barEdge + idx * step;
-        const cy = nodeRadius + 8;
-        // 只有当线条动画推进到该节点位置后，节点才变色
-        const reached = animatedX2 >= cx - 0.1; // 容差防止浮点误差
-        const fill = reached ? finishedColor : '#fff';
-        const stroke = reached ? finishedColor : unfinishedColor;
-        return (
+      {/* 节点 */}
+      {nodes.map(({ cx, cy, fill, stroke, percent, reached }, i) => (
+        <g key={i}>
           <circle
-            key={i}
             cx={cx}
             cy={cy}
             r={nodeRadius}
@@ -288,8 +225,19 @@ const StepProgressBar = ({ total, current, status }) => {
             strokeWidth={3}
             style={{ transition: 'fill 0.2s, stroke 0.2s' }}
           />
-        );
-      })}
+          {/* 百分比标签 */}
+          <text
+            x={cx}
+            y={cy + nodeRadius + 12}
+            textAnchor="middle"
+            fontSize="12"
+            fill={reached ? finishedColor : '#8c8c8c'}
+            style={{ transition: 'fill 0.2s' }}
+          >
+            {percent}%
+          </text>
+        </g>
+      ))}
     </svg>
   );
 };
@@ -301,11 +249,14 @@ const ProjectProgressPage = () => {
   const [modelTypes, setModelTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
+  const [trainingData, setTrainingData] = useState([]); // 新增：存储训练数据（epoch, loss等）
+  const [currentStep, setCurrentStep] = useState(0); // 新增：当前训练步数
   const [wsConnected, setWsConnected] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
   const [downloading, setDownloading] = useState(false);
   const logContainerRef = useRef(null);
   const callbacksSetRef = useRef(false);
+  const [latestEpoch, setLatestEpoch] = useState(0);
 
   // 获取模型类型列表
   const fetchModelTypes = async () => {
@@ -422,54 +373,124 @@ const ProjectProgressPage = () => {
   }, [trainingId]);
 
   // 生成随机Loss值的函数
-  const generateRandomLoss = (epochNumber) => {
-    // 生成一个在0.1到2.5之间的随机Loss值，模拟训练过程中的Loss下降趋势
-    const baseLoss = 2.5;
-    const minLoss = 0.1;
-    
-    // 根据epoch编号模拟Loss下降趋势
-    let loss;
-    if (epochNumber <= 5) {
-      // 前5个epoch，Loss快速下降
-      loss = baseLoss - (epochNumber * 0.3) + (Math.random() - 0.5) * 0.2;
-    } else if (epochNumber <= 15) {
-      // 5-15个epoch，Loss缓慢下降
-      loss = 1.0 - ((epochNumber - 5) * 0.08) + (Math.random() - 0.5) * 0.15;
-    } else {
-      // 15个epoch后，Loss趋于稳定
-      loss = 0.2 + (Math.random() - 0.5) * 0.1;
-    }
-    
-    // 确保Loss值在合理范围内
-    return Math.max(minLoss, Math.min(baseLoss, loss));
-  };
 
-  // 在 handleWebSocketMessage 及日志处理相关处，添加如下解析函数：
+
+  // 解析WebSocket消息的函数
   function parseLogMessage(raw) {
-    // 匹配前缀的 ISO 时间戳
+    // 首先尝试匹配时间戳 - JSON格式
     const match = raw.match(/^([0-9T:\-\.\+:]+) - (.+)$/);
     if (match) {
-      return {
-        time: match[1],
-        message: match[2]
-      };
+      const timestamp = match[1];
+      const jsonPart = match[2];
+      
+      try {
+        // 尝试解析JSON部分
+        const data = JSON.parse(jsonPart);
+        
+        // 检查是否是训练数据格式
+        if (data.task_id && data.epoch && data.loss !== undefined) {
+          return {
+            type: 'training_data',
+            data: {
+              task_id: data.task_id,
+              epoch: data.epoch,
+              loss: data.loss,
+              accuracy: data.accuracy,
+              log_message: data.log_message
+            },
+            time: timestamp,
+            message: data.log_message || `Epoch ${data.epoch}: loss=${data.loss.toFixed(4)}`
+          };
+        } else {
+          return {
+            type: 'log',
+            time: timestamp,
+            message: jsonPart
+          };
+        }
+      } catch (error) {
+        return {
+          type: 'log',
+          time: timestamp,
+          message: jsonPart
+        };
+      }
     }
-    // fallback
+    
+    // 如果不是时间戳 - JSON格式，尝试直接解析JSON
+    try {
+      const data = JSON.parse(raw);
+      
+      // 检查是否是训练数据格式
+      if (data.task_id && data.epoch && data.loss !== undefined) {
+        return {
+          type: 'training_data',
+          data: {
+            task_id: data.task_id,
+            epoch: data.epoch,
+            loss: data.loss,
+            accuracy: data.accuracy,
+            log_message: data.log_message
+          },
+          time: new Date().toISOString(),
+          message: data.log_message || `Epoch ${data.epoch}: loss=${data.loss.toFixed(4)}`
+        };
+      }
+    } catch (error) {
+      // 忽略错误，继续处理
+    }
+    
+    // fallback - 按普通日志处理
     return {
+      type: 'log',
       time: new Date().toISOString(),
       message: raw
     };
   }
 
-  // 修改 handleWebSocketMessage，使用 parseLogMessage 解析日志
+  // 处理WebSocket消息
   const handleWebSocketMessage = (data) => {
     const parsed = parseLogMessage(data);
+    
+    // 处理训练数据
+    if (parsed.type === 'training_data') {
+      setLatestEpoch(parsed.data.epoch);
+      // 更新训练数据
+      setTrainingData(prevData => {
+        const existingIndex = prevData.findIndex(item => item.epoch === parsed.data.epoch);
+        if (existingIndex >= 0) {
+          // 如果已存在该epoch的数据，更新它
+          const updatedData = [...prevData];
+          updatedData[existingIndex] = parsed.data;
+          return updatedData;
+        } else {
+          // 添加新的训练数据
+          return [...prevData, parsed.data].sort((a, b) => a.epoch - b.epoch);
+        }
+      });
+      
+      // 更新当前步数（从epoch推断）
+      // 假设每个epoch包含steps/epochs数量的步数
+      const totalSteps = projectData?.hyperparameter?.steps || 0;
+      const totalEpochs = projectData?.hyperparameter?.epochs || 1;
+      const stepsPerEpoch = totalSteps / totalEpochs;
+      const newStep = Math.floor(parsed.data.epoch * stepsPerEpoch);
+      setCurrentStep(newStep);
+      
+      // 更新项目数据的当前epoch
+      if (projectData && parsed.data.epoch > (projectData.currentEpoch || 0)) {
+        setProjectData(prev => prev ? { ...prev, currentEpoch: parsed.data.epoch } : prev);
+      }
+    }
+    
+    // 处理日志消息
     const newLog = {
       id: Date.now() + Math.random(),
       time: parsed.time,
       level: 'info',
       message: parsed.message
     };
+    
     setLogs(prevLogs => {
       const isDuplicate = prevLogs.some(log =>
         log.message === newLog.message &&
@@ -480,6 +501,7 @@ const ProjectProgressPage = () => {
       if (updatedLogs.length > 1000) return updatedLogs.slice(-500);
       return updatedLogs;
     });
+    
     if (projectData?.status !== 'completed') {
       setTimeout(() => {
         if (logContainerRef.current) {
@@ -531,23 +553,21 @@ const ProjectProgressPage = () => {
     message.warning('停止训练功能暂未实现');
   };
 
-  // 新增：监听logs变化，动态更新进度
+  // 监听训练数据变化，动态更新进度
   useEffect(() => {
-    if (!projectData || !projectData.totalEpochs) return;
-    // 统计Loss日志数量作为当前epoch
-    const currentEpoch = logs.filter(log => log.message.includes('Epoch') && log.message.includes('Loss =')).length;
+    if (!projectData || !projectData.hyperparameter?.steps) return;
+    
     // 计算进度百分比
-    const progress = Math.min(100, (currentEpoch / projectData.totalEpochs) * 100);
+    const progress = Math.min(100, (currentStep / projectData.hyperparameter.steps) * 100);
+    
     // 只在进度有变化时更新
-    if (projectData.currentEpoch !== currentEpoch || projectData.progress !== progress) {
-      setProjectData(prev => prev ? { ...prev, currentEpoch, progress } : prev);
+    if (projectData.progress !== progress) {
+      setProjectData(prev => prev ? { ...prev, progress } : prev);
     }
-  }, [logs, projectData?.totalEpochs]);
+  }, [currentStep, projectData?.hyperparameter?.steps]);
 
-  // 在ProjectProgressPage组件内部，进度条和轮次显示强制逻辑
+  // 在ProjectProgressPage组件内部，进度条状态逻辑
   const isCompleted = projectData?.status === 'completed';
-  const displayEpoch = isCompleted ? projectData?.totalEpochs : (projectData?.currentEpoch || 0);
-  const stepBarCurrent = isCompleted ? projectData?.totalEpochs : displayEpoch;
   const stepBarStatus = isCompleted ? 'completed' : projectData?.status;
 
   if (loading) {
@@ -577,9 +597,6 @@ const ProjectProgressPage = () => {
               </Title>
               <StatusDisplay status={projectData?.status} />
             </Space>
-            <Paragraph className={styles.headerSubtitle}>
-              模型类型: {projectData?.modelTypeName} | 创建时间: {projectData?.create_time ? new Date(projectData.create_time).toLocaleString('zh-CN') : 'N/A'}
-            </Paragraph>
           </div>
         </div>
         <div className={styles.headerActions}>
@@ -618,13 +635,18 @@ const ProjectProgressPage = () => {
                   '等待训练'}
               </Title>
               <Text type="secondary">
-                当前轮次: {displayEpoch} / {projectData?.totalEpochs || 0}
+                当前进度: {
+                  projectData?.hyperparameter?.steps
+                    ? Math.round((latestEpoch / projectData.hyperparameter.steps) * 100)
+                    : 0
+                }%
               </Text>
             </div>
             <div className={styles.progressBarWrapper} style={{ flexGrow: 1, minWidth: 240 }}>
               <StepProgressBar
-                total={projectData?.totalEpochs || 1}
-                current={stepBarCurrent}
+                steps={projectData?.hyperparameter?.steps || 0}
+                logFreq={projectData?.hyperparameter?.log_freq || 1}
+                currentStep={latestEpoch}
                 status={stepBarStatus}
               />
             </div>
@@ -634,15 +656,9 @@ const ProjectProgressPage = () => {
       
       {/* 中部图表区 */}
       <div className={styles.chartsRow}>
-        <Card title="accuracy图表" className={styles.chartCard} styles={{ body: { paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 } }}>
-          <ReactECharts 
-            option={getAccuracyChartOption(logs)} 
-            style={{ height: '300px' }}
-          />
-        </Card>
         <Card title="Loss图表" className={styles.chartCard} styles={{ body: { paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 8 } }}>
           <ReactECharts 
-            option={getLossChartOption(logs)} 
+            option={getLossChartOption(trainingData)} 
             style={{ height: '300px' }}
           />
         </Card>
