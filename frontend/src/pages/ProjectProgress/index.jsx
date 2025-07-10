@@ -26,8 +26,6 @@ import {
   CloseCircleOutlined,
   ClockCircleOutlined,
   PlayCircleOutlined,
-  PauseCircleOutlined,
-  StopOutlined,
   SettingOutlined,
   InfoCircleOutlined,
   WifiOutlined,
@@ -610,13 +608,7 @@ const ProjectProgressPage = () => {
     }
   };
 
-  const handlePause = () => {
-    message.info('暂停训练功能暂未实现');
-  };
 
-  const handleStop = () => {
-    message.warning('停止训练功能暂未实现');
-  };
 
   // 监听训练数据变化，动态更新进度
   useEffect(() => {
@@ -680,16 +672,7 @@ const ProjectProgressPage = () => {
           >
             {downloading ? '下载中...' : '下载模型'}
           </Button>
-          {projectData?.status === 'running' && (
-            <>
-              <Button icon={<PauseCircleOutlined />} onClick={handlePause}>
-                暂停
-              </Button>
-              <Button icon={<StopOutlined />} danger onClick={handleStop}>
-                停止
-              </Button>
-            </>
-          )}
+
           <Button icon={<DeleteOutlined />} danger onClick={handleDelete}>
             删除
           </Button>
