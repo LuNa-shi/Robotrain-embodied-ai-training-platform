@@ -191,12 +191,10 @@ const TrainingPage = () => {
     // 设置表单默认值
     trainingForm.setFieldsValue({
       model: modelValue,
-      epochs: 10,
-      batchSize: 32,
-      learningRate: 0.001,
-      validationSplit: 0.2,
-      maxLength: 512,
-      temperature: 0.7,
+      env: 'aloha',
+      log_freq: 25,
+      steps: 100,
+      batch_size: 8,
     });
   };
 
@@ -204,55 +202,41 @@ const TrainingPage = () => {
   const handleTrainingSubmit = async (values) => {
     try {
       setTrainingLoading(true);
-      
-      // 构建超参数对象
-      const hyperparameter = {
-          epochs: values.epochs,
-          batch_size: values.batchSize,
-          learning_rate: values.learningRate,
-          validation_split: values.validationSplit,
-          max_length: values.maxLength,
-          temperature: values.temperature,
-      };
-      
 
-      
-      // 添加调试信息
-      console.log('表单值:', values);
-      console.log('selectedModel:', selectedModel);
-      console.log('values.model:', values.model, '类型:', typeof values.model);
-      
       // 验证model值
       if (!values.model || values.model === 'undefined' || values.model === 'null') {
         throw new Error('请先选择模型');
       }
-      
-      // 构建训练任务创建请求体
+
+      // 使用用户选择的超参数
+      const hyperparameter = {
+        policy: { type: selectedModel.label.toLowerCase() }, // 使用选择的模型的type_name，转换为小写
+        env: { type: values.env },
+        log_freq: values.log_freq,
+        steps: values.steps,
+        batch_size: values.batch_size
+      };
+
+      // 构建训练项目创建请求体
       const trainTaskData = {
         dataset_id: parseInt(selectedDataset.id),
         model_type_id: parseInt(values.model),
         hyperparameter: hyperparameter
       };
-      
-      console.log('训练任务创建请求:', trainTaskData);
-      console.log('数据类型检查:', {
-        dataset_id: typeof trainTaskData.dataset_id,
-        model_type_id: typeof trainTaskData.model_type_id,
-        dataset_id_value: trainTaskData.dataset_id,
-        model_type_id_value: trainTaskData.model_type_id
-      });
-      
-      // 调用后端API创建训练任务
+
+      console.log('训练项目创建请求:', trainTaskData);
+
+      // 调用后端API创建训练项目
       const response = await trainTasksAPI.create(trainTaskData);
-      
-      console.log('训练任务创建成功:', response);
-      
+
+      console.log('训练项目创建成功:', response);
+
       // 设置创建的项目ID
       setCreatedProjectId(response.id.toString());
-      
+
       message.success('机器人训练项目已成功创建！');
       setCurrentStep(3);
-      
+
     } catch (error) {
       console.error('创建训练项目失败:', error);
       message.error('创建训练项目失败: ' + error.message);
@@ -301,17 +285,18 @@ const TrainingPage = () => {
               {datasets.map(dataset => (
                 <Card 
                   key={dataset.id} 
-                  className={styles.card}
+                  className={
+                    selectedDataset && selectedDataset.id === dataset.id
+                      ? `${styles.datasetCard} ${styles.datasetCardSelected}`
+                      : styles.datasetCard
+                  }
                   hoverable
                   onClick={() => handleDatasetSelect(dataset)}
                 >
                   <div className={styles.cardContent}>
-                    <Title level={5} className={styles.cardTitle}>{dataset.dataset_name}</Title>
+                    <Title level={3} className={styles.cardTitle}>{dataset.dataset_name}</Title>
                     <Text type="secondary" className={styles.cardDescription}>{dataset.description}</Text>
                     <div className={styles.cardMeta}>
-                      <Tag color="blue">ID: {dataset.dataset_uuid}</Tag>
-                      <Tag color="green">{dataset.size}</Tag>
-                      <Tag color="orange">{dataset.samples} 样本</Tag>
                     </div>
                     <Text type="secondary" style={{ fontSize: '12px' }}>
                       上传于: {new Date(dataset.uploaded_at).toLocaleString('zh-CN')}
@@ -335,10 +320,10 @@ const TrainingPage = () => {
           {selectedDataset && (
             <Alert
               message={`已选择数据集: ${selectedDataset.dataset_name}`}
-              description={`UUID: ${selectedDataset.dataset_uuid} | 描述: ${selectedDataset.description}`}
+              description={`描述: ${selectedDataset.description}`}
               type="info"
               showIcon
-              style={{ marginBottom: '16px' }}
+              style={{ marginBottom: '16px', width: '540px', maxWidth: '100%' }}
             />
           )}
           
@@ -356,21 +341,36 @@ const TrainingPage = () => {
               </Text>
             </div>
           ) : (
-          <div className={styles.cardGrid}>
-            {availableModels.map(model => (
-              <Card 
-                key={model.value} 
-                className={styles.card}
-                hoverable
-                onClick={() => handleModelSelect(model.value)}
-              >
-                <div className={styles.cardContent}>
-                  <Title level={5} className={styles.cardTitle}>{model.label}</Title>
-                  <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <>
+            <div className={styles.cardGrid}>
+              {availableModels.map(model => (
+                <Card 
+                  key={model.value} 
+                  className={
+                    selectedModel && selectedModel.value === model.value
+                      ? `${styles.modelCard} ${styles.modelCardSelected}`
+                      : styles.modelCard
+                  }
+                  hoverable
+                  onClick={() => handleModelSelect(model.value)}
+                >
+                  <div className={styles.cardContent}>
+                    <Title level={5} className={styles.cardTitle}>{model.label}</Title>
+                    <Text type="secondary" className={styles.cardDescription}>{model.description}</Text>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: 32 }}>
+              <Button onClick={() => {
+                setCurrentStep(0);
+                setSelectedModel(null);
+                setSelectedDataset(null);
+              }}>
+                返回上一步
+              </Button>
+            </div>
+          </>
           )}
         </div>
       )
@@ -386,7 +386,7 @@ const TrainingPage = () => {
           {selectedDataset && selectedModel && (
             <Alert
               message={`数据集: ${selectedDataset.dataset_name} | 模型: ${selectedModel.label}`}
-              description={`UUID: ${selectedDataset.dataset_uuid}`}
+              description={`策略类型 (Policy): ${selectedModel.label} (由选择的模型决定)`}
               type="info"
               showIcon
               style={{ marginBottom: '16px' }}
@@ -400,117 +400,71 @@ const TrainingPage = () => {
             className={styles.formContainer}
             initialValues={{
               model: selectedModel?.value || undefined,
-              epochs: 10,
-              batchSize: 32,
-              learningRate: 0.001,
-              validationSplit: 0.2,
-              maxLength: 512,
-              temperature: 0.7,
+              env: 'aloha',
+              log_freq: 25,
+              steps: 100,
+              batch_size: 8,
             }}
           >
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
-                  label="训练轮数 (Epochs)"
-                  name="epochs"
-                  rules={[{ required: true, message: '请输入训练轮数' }]}
+                  label="环境类型 (Environment)"
+                  name="env"
+                  rules={[{ required: true, message: '请选择环境类型' }]}
+                >
+                  <Select placeholder="选择环境类型">
+                    <Option value="aloha">Aloha</Option>
+                    <Option value="pusht">Pusht</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="训练步数 (Steps)"
+                  name="steps"
+                  rules={[{ required: true, message: '请输入训练步数' }]}
                 >
                   <InputNumber
                     min={1}
+                    max={1000000}
+                    style={{ width: '100%' }}
+                    placeholder="训练步数"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="日志频率 (Log Frequency)"
+                  name="log_freq"
+                  rules={[{ required: true, message: '请输入日志频率' }]}
+                >
+                  <InputNumber
+                    min={10}
                     max={1000}
                     style={{ width: '100%' }}
-                    placeholder="训练轮数"
+                    placeholder="日志频率"
                   />
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item
                   label="批次大小 (Batch Size)"
-                  name="batchSize"
+                  name="batch_size"
                   rules={[{ required: true, message: '请输入批次大小' }]}
                 >
                   <InputNumber
                     min={1}
-                    max={512}
+                    max={16}
                     style={{ width: '100%' }}
                     placeholder="批次大小"
                   />
                 </Form.Item>
               </Col>
             </Row>
-
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="学习率 (Learning Rate)"
-                  name="learningRate"
-                  rules={[{ required: true, message: '请输入学习率' }]}
-                >
-                  <InputNumber
-                    min={0.0001}
-                    max={1}
-                    step={0.0001}
-                    style={{ width: '100%' }}
-                    placeholder="学习率"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="验证集比例"
-                  name="validationSplit"
-                  rules={[{ required: true, message: '请输入验证集比例' }]}
-                >
-                  <InputNumber
-                    min={0.1}
-                    max={0.5}
-                    step={0.05}
-                    style={{ width: '100%' }}
-                    placeholder="验证集比例"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="最大序列长度"
-                  name="maxLength"
-                  rules={[{ required: true, message: '请输入最大序列长度' }]}
-                >
-                  <InputNumber
-                    min={64}
-                    max={4096}
-                    style={{ width: '100%' }}
-                    placeholder="最大序列长度"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="温度参数 (Temperature)"
-                  name="temperature"
-                  rules={[{ required: true, message: '请输入温度参数' }]}
-                >
-                  <InputNumber
-                    min={0.1}
-                    max={2.0}
-                    step={0.1}
-                    style={{ width: '100%' }}
-                    placeholder="温度参数"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Form.Item
-              label="机器人训练项目描述"
-              name="description"
-              rules={[{ required: false, message: '请输入机器人训练项目描述' }]}
-            >
-              <Input placeholder="机器人训练项目描述（可选）" />
-            </Form.Item>
 
             {/* 隐藏的模型字段，确保模型值被正确传递 */}
             <Form.Item
@@ -525,9 +479,15 @@ const TrainingPage = () => {
 
             <Divider />
 
-            <div className={styles.actionButtonsFixed}>
-              <Button onClick={handleReset} style={{ marginRight: 24 }}>
+            <div className={styles.actionButtonsFixed} style={{ marginTop: '12px' }}>
+              <Button onClick={handleReset} style={{ marginRight: 16 }}>
                 重新开始
+              </Button>
+              <Button onClick={() => {
+                setCurrentStep(1);
+                setSelectedModel(null);
+              }} style={{ marginRight: 16 }}>
+                返回上一步
               </Button>
               <Button 
                 type="primary" 
@@ -535,7 +495,7 @@ const TrainingPage = () => {
                 loading={trainingLoading}
                 icon={<PlayCircleOutlined />}
               >
-                开始机器人训练
+                开始训练
               </Button>
             </div>
           </Form>
@@ -557,7 +517,7 @@ const TrainingPage = () => {
                 创建新训练项目
               </Button>
               {createdProjectId && (
-                <Button type="primary" onClick={() => navigate(`/project-center/${createdProjectId}`)}>
+                <Button type="primary" onClick={() => navigate(`/project-center/${createdProjectId}/progress`)}>
                   查看项目详情
                 </Button>
               )}
@@ -603,11 +563,11 @@ const TrainingPage = () => {
         </div>
 
         <Card className={styles.mainCard}>
-          <div style={{display:'flex',alignItems:'center',minHeight:900}}>
-            <div style={{marginRight:56}}>
+          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'center',height:'600px'}}>
+            <div style={{marginRight:48, display:'flex', alignItems:'center', height:'100%'}}>
               <VerticalTimeline steps={timelineSteps} currentStep={currentStep} />
             </div>
-            <div style={{flex:1}}>
+            <div style={{minWidth: 800, maxWidth: 800, marginLeft: 0, marginRight: 'auto', display:'flex', justifyContent:'center'}}>
               <div className={styles.stepContentContainer}>
                 <div className={styles.stepContent}>
                   {steps[currentStep].content}

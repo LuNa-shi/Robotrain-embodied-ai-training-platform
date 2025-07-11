@@ -73,7 +73,7 @@ async def get_dataset(
         )
     return dataset
 
-@router.get("/visualize/{dataset_id}/{chunck_id}/{episode_id}/video", 
+@router.get("/visualize/{dataset_id}/{chunck_id}/{episode_id}/{view_point}/video", 
             summary="获取数据集中的视频数据",
             response_class=FileResponse)
 async def get_dataset_video(

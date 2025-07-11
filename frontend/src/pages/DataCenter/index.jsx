@@ -91,7 +91,8 @@ const DataCenterPage = () => {
 
   // 处理查看可视化 - 跳转到数据集可视化页面
   const handleViewVisualization = (dataset) => {
-    navigate(`/dataset/${dataset.id}/visualization`);
+    console.log('dataset', dataset);
+    navigate(`/dataset-visualization/${dataset.id}`);
   };
 
   // 处理菜单项点击

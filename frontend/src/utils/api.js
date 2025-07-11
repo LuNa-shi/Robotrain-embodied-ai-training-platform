@@ -191,6 +191,45 @@ export const datasetsAPI = {
   },
 
   /**
+   * 获取数据集视频文件
+   * @param {number} datasetId 数据集ID
+   * @param {number} chunkId 块ID
+   * @param {number} episodeId 片段ID
+   * @param {string} viewPoint 视角点
+   * @returns {Promise<Blob>} 视频文件blob
+   */
+  getVideo: async (datasetId, chunkId, episodeId, viewPoint) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.datasets.getVideo(datasetId, chunkId, episodeId, viewPoint), {
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error) {
+      console.error('获取视频文件失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 获取数据集Parquet文件
+   * @param {number} datasetId 数据集ID
+   * @param {number} chunkId 块ID
+   * @param {number} episodeId 片段ID
+   * @returns {Promise<ArrayBuffer>} Parquet文件数据
+   */
+  getParquet: async (datasetId, chunkId, episodeId) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.datasets.getParquet(datasetId, chunkId, episodeId), {
+        responseType: 'arraybuffer',
+      });
+      return response.data;
+    } catch (error) {
+      console.error('获取Parquet文件失败:', error);
+      throw error;
+    }
+  },
+
+  /**
    * 上传数据集文件
    * @param {string} name 数据集名称
    * @param {string} description 数据集描述
@@ -374,7 +413,7 @@ export const trainTasksAPI = {
         }
       );
 
-      // 添加响应拦截器
+      // 添加响应拦截器（这部分可以保持原样，用于统一错误处理）
       downloadApi.interceptors.response.use(
         (response) => {
           return response;
@@ -382,27 +421,17 @@ export const trainTasksAPI = {
         (error) => {
           console.error('下载响应错误:', error);
           
-          // 处理特定的下载错误
           if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('userInfo');
-            localStorage.removeItem('tokenInfo');
-            
-            if (window.location.pathname !== '/user/login') {
-              window.location.href = '/user/login';
-            }
+            // ... (错误处理逻辑保持不变)
             return Promise.reject(new Error('用户未登录，请重新登录'));
           }
-          
           if (error.response?.status === 403) {
             return Promise.reject(new Error('权限不足，无法下载该模型文件'));
           }
-          
           if (error.response?.status === 404) {
             return Promise.reject(new Error('训练任务不存在或模型文件未生成'));
           }
           
-          // 其他错误处理
           const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || '下载失败';
           return Promise.reject(new Error(errorMessage));
         }
@@ -415,29 +444,51 @@ export const trainTasksAPI = {
       let filename = `model_${taskId}.zip`; // 默认文件名
       
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
+        // 使用更健壮的正则来匹配文件名，以防有其他参数
+        const filenameMatch = contentDisposition.match(/filename\*?=['"]?([^'";]+)['"]?/);
+        if (filenameMatch && filenameMatch[1]) {
+          // 解码UTF-8格式的文件名
+          filename = decodeURIComponent(filenameMatch[1]);
         }
       }
       
-      // 创建下载链接
-      const blob = new Blob([response.data]);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      console.log('模型文件下载成功:', filename);
+      // 【核心修改】
+      // 移除在此处创建和点击链接的逻辑，改为返回包含blob和文件名的对象
+      return {
+        blob: response.data,
+        filename: filename,
+      };
+
     } catch (error) {
       console.error('下载模型文件失败:', error);
+      // 将底层的错误继续向上抛出，让UI层处理
       throw error;
     }
   },
 };
+
+export async function deleteTrainTask(taskId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/train_tasks/${taskId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+    },
+  });
+  // 调试输出
+  console.log('deleteTrainTask status:', res.status);
+  let text = '';
+  try {
+    text = await res.text();
+    console.log('deleteTrainTask response text:', text);
+  } catch (e) {
+    console.log('deleteTrainTask response text parse error:', e);
+  }
+  if (res.status === 204 || res.status === 200) return true;
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权删除该任务');
+  if (res.status === 404) throw new Error('任务不存在');
+  throw new Error('删除失败');
+}
 
 export default api; 

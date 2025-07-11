@@ -9,7 +9,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 60px;
 }
 
 /* 页面头部 */
@@ -24,7 +24,12 @@
 
 /* 主卡片 */
 .mainCard {
-  min-height: 600px;
+  min-height: 100px;
+  max-width: 1000px;
+  margin: 0 auto;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 /* 步骤样式 */
@@ -35,15 +40,15 @@
 
 /* 步骤内容容器 */
 .stepContainer {
-  padding: 24px;
-  min-height: 400px;
+  padding: 0;
+  min-height: 100px;
 }
 
 /* 步骤内容 */
 .stepContent {
   max-width: 800px;
   margin: 0 auto;
-  min-height: 400px;
+  min-height: 200px;
   padding-bottom: 100px;
 }
 
@@ -62,14 +67,63 @@
 /* 数据集卡片 */
 .datasetCard {
   cursor: pointer;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
+  transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  min-width: 260px;
+  max-width: 320px;
+  min-height: 120px;
+  margin: 0 auto;
+  padding: 12px 18px 10px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .datasetCard:hover {
   border-color: #1677ff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 18px rgba(22,119,255,0.10);
+  transform: translateY(-2px) scale(1.03);
+  z-index: 2;
+}
+
+.datasetCardSelected {
+  border-color: #1677ff !important;
+  box-shadow: 0 8px 24px rgba(22,119,255,0.18);
+  transform: scale(1.04);
+  z-index: 3;
+  animation: selectPop 0.25s cubic-bezier(.25,.8,.25,1);
+}
+
+@keyframes selectPop {
+  0% { transform: scale(1); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1.04); }
+}
+
+.cardContent {
+  padding: 0;
+  width: 100%;
+}
+
+.cardTitle {
+  margin-bottom: 8px !important;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.cardDescription {
+  margin-bottom: 10px;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.cardMeta {
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 6px;
 }
 
 .datasetInfo {
@@ -100,10 +154,11 @@
 /* 模型卡片 */
 .modelCard {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(.25,.8,.25,1);
   border: 2px solid transparent;
   text-align: center;
   padding: 20px;
+  animation: fadeInUp 0.3s ease-out;
 }
 
 .modelCard:hover {
@@ -255,38 +310,16 @@
   margin-top: 32px;
 }
 
-.cardContent {
-  padding: 32px 32px 28px 32px;
-}
-
-.cardTitle {
-  margin-bottom: 16px !important;
-  font-size: 18px;
-}
-
-.cardDescription {
-  margin-bottom: 18px;
-  line-height: 1.7;
-}
-
-.cardMeta {
-  gap: 16px;
-  margin-top: 18px;
-  margin-bottom: 12px;
-}
-
 .actionButtonsFixed {
-  position: absolute;
-  right: 0;
-  bottom: 0;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 32px;
-  width: 100%;
-  padding: 24px 32px;
-  background: linear-gradient(0deg, #fff 90%, rgba(255,255,255,0.7) 100%);
+  width: auto;
+  padding: 12px 0 0 0;
+  background: transparent !important;
   box-sizing: border-box;
   z-index: 2;
+  margin-left: 0;
 }
 
 .actionButtons {
@@ -314,4 +347,12 @@
     align-items: center;
     gap: 16px;
   }
+}
+
+.modelCardSelected {
+  border-color: #1677ff !important;
+  box-shadow: 0 8px 24px rgba(22,119,255,0.18);
+  transform: scale(1.04);
+  z-index: 3;
+  animation: selectPop 0.25s cubic-bezier(.25,.8,.25,1);
 } 

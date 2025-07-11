@@ -241,11 +241,44 @@ export const getStoredUserInfo = () => {
   }
 };
 
-// 检查用户是否已登录
+// 统一的token验证函数
+export const validateToken = (token) => {
+  if (!token) {
+    return { isValid: false, reason: 'token_missing' };
+  }
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const currentTime = Date.now() / 1000;
+    
+    if (payload.exp < currentTime) {
+      return { isValid: false, reason: 'token_expired' };
+    }
+    
+    return { isValid: true, payload };
+  } catch (error) {
+    console.error('Token解析失败:', error);
+    return { isValid: false, reason: 'token_invalid' };
+  }
+};
+
+// 检查用户是否已登录（改进版本）
 export const isAuthenticated = () => {
   const token = getStoredToken();
   const userInfo = getStoredUserInfo();
-  return !!(token && userInfo);
+  
+  if (!token || !userInfo) {
+    return false;
+  }
+  
+  const validation = validateToken(token);
+  if (!validation.isValid) {
+    // 清除无效的认证信息
+    clearUserInfo();
+    return false;
+  }
+  
+  return true;
 };
 
 // 检查token是否过期（简单检查，实际应该在后端验证）

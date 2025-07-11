@@ -32,6 +32,7 @@ from lerobot.common.utils.train_utils import (
     get_step_checkpoint_dir,
     load_training_state,
     save_checkpoint,
+    async_save_checkpoint,
     update_last_checkpoint,
 )
 from lerobot.common.utils.utils import get_safe_torch_device
@@ -153,7 +154,7 @@ def initialize_training_objects(
     return dataset, policy, optimizer, lr_scheduler, grad_scaler
 
 
-def execute_training_loop(
+async def execute_training_loop(
     cfg: TrainPipelineConfig,
     device: torch.device,
     start_step: int,
@@ -235,7 +236,7 @@ def execute_training_loop(
                 logging.info(f"Saving checkpoint at step {current_step}")
                 checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, current_step)
                 logging.info(f"Saving checkpoint to: {checkpoint_dir}")
-                save_checkpoint(checkpoint_dir, current_step, cfg, policy, optimizer, lr_scheduler)
+                await async_save_checkpoint(checkpoint_dir, current_step, cfg, policy, optimizer, lr_scheduler)
                 update_last_checkpoint(checkpoint_dir)
                 
                 save_callback(current_step, str(checkpoint_dir))
@@ -254,7 +255,7 @@ def execute_training_loop(
             logging.info(f"Saving final state of the slice at step {end_step}")
             checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, end_step)
             logging.info(f"Saving final checkpoint to: {checkpoint_dir}")
-            save_checkpoint(checkpoint_dir, end_step, cfg, policy, optimizer, lr_scheduler)
+            await save_checkpoint(checkpoint_dir, end_step, cfg, policy, optimizer, lr_scheduler)
             update_last_checkpoint(checkpoint_dir)
             save_callback(end_step, str(checkpoint_dir))
         elif last_step_already_saved:
@@ -267,7 +268,7 @@ def execute_training_loop(
     return end_step
 
 
-def run_lerobot_training(
+async def run_lerobot_training(
     base_config_path: str,
     user_override_config: Dict[str, Any],
     run_dir: str,
@@ -308,7 +309,7 @@ def run_lerobot_training(
     training_objects = initialize_training_objects(cfg, device, start_step)
     
     # 阶段三：执行训练循环
-    final_step = execute_training_loop(
+    final_step = await execute_training_loop(
         cfg, device, start_step, end_step,
         training_objects, log_callback, save_callback
     )

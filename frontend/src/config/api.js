@@ -54,6 +54,9 @@ export const API_ENDPOINTS = {
     upload: '/api/datasets/upload', // 上传数据集文件
     update: (id) => `/api/datasets/${id}`,
     delete: (id) => `/api/datasets/${id}`,
+    // 数据集可视化相关API
+    getVideo: (datasetId, chunkId, episodeId, viewPoint) => `/api/datasets/visualize/${datasetId}/${chunkId}/${episodeId}/${viewPoint}/video`,
+    getParquet: (datasetId, chunkId, episodeId) => `/api/datasets/visualize/${datasetId}/${chunkId}/${episodeId}/parquet`,
   },
   
   // 模型相关

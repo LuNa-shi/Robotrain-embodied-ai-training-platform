@@ -1,0 +1,50 @@
+/* .homePageLayout 的改动实现了完美居中 */
+.homePageLayout {
+  height: 100%;
+  overflow: auto;
+  background-color: #f0f2f5;
+  padding: 24px;
+  display: flex;
+  justify-content: center; /* 实现水平居中 */
+  align-items: center;     /* 实现垂直居中 */
+  padding: 15vh 24px 24px;  /* 增大顶部内边距，让所有内容下移 */
+}
+
+.centerStage {
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* 移除了 margin-top，让 flex 布局来处理垂直居中 */
+}
+
+.mainTitle {
+  font-family: 'Consolas', Arial, sans-serif;
+  font-size: 52px !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  letter-spacing: -1px;
+}
+
+.dragger {
+  background-color: #fafafa !important;
+  border: 2px dashed #d9d9d9 !important;
+  border-radius: 8px !important;
+
+  /* 1. 调整内边距来改变形状：增加上下，减少左右 */
+  padding: 40px 120px !important;
+  
+  /* 2. 设置最大宽度并使其在父容器中居中 */
+  width: 100% !important; /* 确保宽度占满容器 */
+  margin-top: 100px !important; /* 保持与上方文字的间距 */
+  text-align: center; /* 确保文本居中对齐 */
+  cursor: pointer; /* 鼠标悬停时显示为可点击 */
+  transition: border-color 0.3s; /* 添加过渡效果 */
+}
+
+/* 可选：添加悬停效果让用户更容易感知可交互区域 */
+.dragger:hover {
+  border-color: #1890ff !important;
+}

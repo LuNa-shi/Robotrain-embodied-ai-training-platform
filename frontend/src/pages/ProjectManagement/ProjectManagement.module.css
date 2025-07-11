@@ -1,0 +1,217 @@
+/* 整体页面容器 */
+.projectManagementPage {
+  padding: 24px;
+  background-color: transparent;
+}
+
+/* 内容区域包装器，用于居中和限制宽度 */
+.contentWrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 页面头部 */
+.pageHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  margin-bottom: 8px !important;
+}
+
+/* 统计卡片行 */
+.statsRow {
+  margin-bottom: 0;
+}
+
+/* 统计卡片样式 */
+.statCard {
+  height: 100%;
+}
+
+.statsContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  width: 100%;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 25%;
+  flex-shrink: 0;
+}
+
+.statIcon {
+  font-size: 24px;
+  color: #1890ff;
+  flex-shrink: 0;
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.statLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.statValue {
+  font-size: 14px;
+  color: #8c8c8c;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* 过滤卡片 */
+.filterCard {
+  margin-bottom: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex;
+  justify-content: center;
+}
+
+.filterCard :global(.ant-card-body) {
+  width: 100%;
+  max-width: 800px;
+}
+
+/* 表格卡片 */
+.tableCard {
+  margin-bottom: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* 表格表头居中 */
+:global(.ant-table-thead > tr > th) {
+  text-align: center !important;
+}
+
+/* 表格数据居中 */
+:global(.ant-table-tbody > tr > td) {
+  text-align: center !important;
+}
+
+/* 训练任务信息样式 */
+.trainingInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  text-align: center;
+}
+
+.trainingName {
+  font-weight: 600;
+  color: #262626;
+  margin: 0 !important;
+  line-height: 1.4;
+}
+
+.trainingMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+  justify-content: center;
+}
+
+.trainingMeta .ant-typography {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 用户信息样式 */
+.userInfo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 状态显示样式 */
+.statusDisplay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 资源信息样式 */
+.resourceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #595959;
+  align-items: center;
+}
+
+/* 表格行悬停效果 */
+:global(.ant-table-tbody > tr:hover > td) {
+  background-color: #f5f5f5 !important;
+}
+
+/* 进度条样式调整 */
+:global(.ant-progress-small .ant-progress-outer) {
+  margin-right: 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .projectManagementPage {
+    padding: 16px;
+  }
+  
+  .contentWrapper {
+    gap: 16px;
+  }
+  
+  .trainingMeta {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  
+  .resourceInfo {
+    font-size: 11px;
+  }
+  
+  .statsContainer {
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px 0;
+  }
+  
+  .statItem {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* 分页条居中样式 */
+.paginationWrapper {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0 0 0;
+} 

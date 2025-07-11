@@ -81,6 +81,37 @@ class TrainTaskService:
         
         return train_task
     
+    async def delete_train_task_for_user(self, train_task_id: int, user: AppUser) -> bool:
+        """
+        删除用户训练任务的业务逻辑。
+        - 检查训练任务是否存在
+        - 检查用户是否有权限删除该任务
+        - 调用 CRUD 层删除训练任务
+        """
+        # 1. 检查训练任务是否存在 (业务逻辑)
+        train_task = await crud_train_task.get_train_task_by_id(self.db_session, train_task_id)
+        if not train_task:
+            print(f"训练任务 ID {train_task_id} 不存在，无法删除")
+            return False
+        
+        # 2. 检查用户是否有权限删除该任务
+        if train_task.owner_id != user.id:
+            print(f"用户 {user.id} 无权删除训练任务 ID {train_task_id}")
+            return False
+        
+        # 3. 调用 CRUD 层删除训练任务
+        success = await crud_train_task.delete_train_task(self.db_session, train_task_id)
+        
+        if not success:
+            print(f"删除训练任务 ID {train_task_id} 失败")
+            return False
+        
+        # 提交事务
+        await self.db_session.commit()
+        await self.db_session.refresh(user)
+        
+        return True
+    
     async def get_tasks_by_user(self, user_id: int) -> list[TrainTask]:
         """
         获取指定用户的所有训练任务。

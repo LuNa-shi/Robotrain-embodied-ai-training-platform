@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col, message, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -12,7 +12,7 @@ import {
   PlusOutlined
 } from '@ant-design/icons';
 import styles from './ProjectCenter.module.css';
-import { trainTasksAPI, modelsAPI } from '@/utils/api';
+import { trainTasksAPI, modelsAPI, deleteTrainTask } from '@/utils/api';
 
 const { Title, Text } = Typography;
 
@@ -37,6 +37,7 @@ const ProjectCenterPage = () => {
   const [loading, setLoading] = useState(false);
   const [modelTypes, setModelTypes] = useState([]);
   const [modelTypesLoading, setModelTypesLoading] = useState(false);
+  const [downloadingStates, setDownloadingStates] = useState({});
 
   // 获取模型类型列表
   const fetchModelTypes = async () => {
@@ -54,7 +55,7 @@ const ProjectCenterPage = () => {
     }
   };
 
-  // 获取训练任务列表
+  // 获取训练项目列表
   const fetchTrainingTasks = async () => {
     try {
       setLoading(true);
@@ -89,7 +90,7 @@ const ProjectCenterPage = () => {
         
         return {
           id: task.id.toString(),
-          name: `训练任务 ${task.id}`,
+          name: `训练项目 ${task.id}`,
           modelType: modelTypeName,
           dataset: task.dataset_id ? `数据集 ${task.dataset_id}` : '未指定数据集',
           startTime: new Date(task.create_time).toLocaleString('zh-CN'),
@@ -102,10 +103,10 @@ const ProjectCenterPage = () => {
       });
       
       setTrainingRecords(formattedRecords);
-      console.log('获取训练任务列表成功:', formattedRecords);
+      console.log('获取训练项目列表成功:', formattedRecords);
     } catch (err) {
-      console.error('获取训练任务列表失败:', err);
-      message.error('获取训练任务列表失败: ' + err.message);
+      console.error('获取训练项目列表失败:', err);
+      message.error('获取训练项目列表失败: ' + err.message);
       // 如果获取失败，使用空列表
       setTrainingRecords([]);
     } finally {
@@ -127,35 +128,40 @@ const ProjectCenterPage = () => {
     navigate(`/project-center/${trainingId}/progress`);
   };
 
-  const handleDownload = async (record) => {
+  const handleDownload = useCallback(async (record, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (downloadingStates[record.id]) return;
+    setDownloadingStates(prev => ({ ...prev, [record.id]: true }));
     try {
-      // 检查任务状态，只有完成的训练任务才能下载模型
-      if (record.status !== 'completed') {
-        message.warning('只有已完成的训练任务才能下载模型文件');
-        return;
+      const blob = await trainTasksAPI.downloadModel(record.id);
+      if (!(blob instanceof Blob)) {
+        throw new Error('下载接口未返回文件流');
       }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `model_task_${record.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('模型文件下载成功');
+    } catch (err) {
+      message.error('下载失败: ' + (err.message || '未知错误'));
+    } finally {
+      setDownloadingStates(prev => ({ ...prev, [record.id]: false }));
+    }
+  }, [downloadingStates]);
 
-      message.loading('正在下载模型文件...', 0);
-      
-      // 调用下载API
-      await trainTasksAPI.downloadModel(record.originalData.id);
-      
-      message.destroy(); // 清除加载消息
-      message.success(`模型文件下载成功: ${record.name}`);
-    } catch (error) {
-      message.destroy(); // 清除加载消息
-      console.error('下载模型文件失败:', error);
-      message.error('下载失败: ' + error.message);
+  const handleDelete = async (taskId) => {
+    try {
+      await deleteTrainTask(taskId);
+      message.success('删除成功');
+      fetchTrainingTasks(); // Refresh the list after successful deletion
+    } catch (err) {
+      message.error(err.message || '删除失败');
     }
   };
-
-  const handleDelete = (record) => {
-    message.success(`删除项目: ${record.name}`);
-    // 这里可以添加实际的删除逻辑
-  };
-
-
-
 
   
   return (
@@ -219,28 +225,21 @@ const ProjectCenterPage = () => {
                   </Text>
                   <Text>{record.duration}</Text>
                 </Col>
-                {record.status === 'completed' && record.modelUuid && (
-                  <Col span={24}>
-                    <Text type="secondary">模型ID:</Text>
-                    <Text code style={{ fontSize: '12px' }}>{record.modelUuid}</Text>
-                  </Col>
-                )}
+                {record.status === 'completed'}
               </Row>
             </div>
 
             {/* 下方部分 */}
             <div className={styles.cardFooter}>
               <Space>
-                <Tooltip title={record.status === 'completed' ? "下载模型" : "只有已完成的训练任务才能下载模型"}>
+                <Tooltip title={record.status === 'completed' ? "下载模型" : "只有已完成的训练项目才能下载模型"}>
                   <Button 
                     type="text" 
                     shape="circle" 
-                    icon={<DownloadOutlined />} 
-                    disabled={record.status !== 'completed'}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(record);
-                    }}
+                    icon={downloadingStates[record.id] ? <SyncOutlined spin /> : <DownloadOutlined />} 
+                    disabled={record.status !== 'completed' || downloadingStates[record.id]}
+                    loading={downloadingStates[record.id]}
+                    onClick={(e) => handleDownload(record, e)}
                   />
                 </Tooltip>
                 <Tooltip title="删除项目">
@@ -250,7 +249,7 @@ const ProjectCenterPage = () => {
                     icon={<DeleteOutlined />} 
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(record);
+                      handleDelete(record.id);
                     }}
                   />
                 </Tooltip>

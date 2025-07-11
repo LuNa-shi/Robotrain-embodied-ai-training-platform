@@ -100,10 +100,40 @@ export const fetchCurrentUser = createAsyncThunk(
   }
 );
 
-// 初始化状态，从localStorage读取
+// 验证token有效性的函数
+const validateStoredToken = () => {
+  const token = getStoredToken();
+  const userInfo = getStoredUserInfo();
+  
+  if (!token || !userInfo) {
+    return { token: null, userInfo: null };
+  }
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const currentTime = Date.now() / 1000;
+    
+    if (payload.exp < currentTime) {
+      // Token已过期，清除本地存储
+      clearUserInfo();
+      return { token: null, userInfo: null };
+    }
+    
+    return { token, userInfo };
+  } catch (error) {
+    console.error('Token解析失败:', error);
+    // 清除无效的token
+    clearUserInfo();
+    return { token: null, userInfo: null };
+  }
+};
+
+// 初始化状态，从localStorage读取并验证
+const { token: initialToken, userInfo: initialUserInfo } = validateStoredToken();
+
 const initialState = {
-  token: getStoredToken(),
-  userInfo: getStoredUserInfo(),
+  token: initialToken,
+  userInfo: initialUserInfo,
   loading: false,
   error: null,
 };

@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSelector } from 'react-redux';
+import { validateToken } from '@/utils/auth';
 
 // 布局
 import BasicLayout from '@/layouts/BasicLayout.jsx';
@@ -21,16 +22,35 @@ import ProjectProgressPage from '@/pages/ProjectProgress/index.jsx'; // 项目�
 import DatasetDetailPage from '@/pages/DatasetDetail/index.jsx'; // 数据集详情页
 import DatasetVisualizationPage from '@/pages/DatasetVisualization/index.jsx'; // 数据集可视化页
 import DataManagement from '@/pages/DataManagement/index.jsx'; // 数据管理页
-import TrainingManagement from '@/pages/TrainingManagement/index.jsx'; // 训练管理页
+import ProjectManagement from '@/pages/ProjectManagement/index.jsx'; // 项目管理页
 import Evaluation from '@/pages/Evaluation/index.jsx'; // 模型评估测试页
 import Training from '@/pages/Training/index.jsx'; // 发起训练页
 
 // 认证路由保护组件
 const AuthRoute = ({ children }) => {
   const isAuth = useAuth();
-  if (!isAuth) {
+  
+  // 额外的安全检查：确保localStorage中的token也是有效的
+  const additionalCheck = () => {
+    const token = localStorage.getItem('token');
+    const userInfo = localStorage.getItem('userInfo');
+    
+    if (!token || !userInfo) {
+      return false;
+    }
+    
+    const validation = validateToken(token);
+    return validation.isValid;
+  };
+  
+  if (!isAuth || !additionalCheck()) {
+    // 清除可能存在的无效认证信息
+    localStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('tokenInfo');
     return <Navigate to="/user/login" replace />;
   }
+  
   return children;
 };
 
@@ -76,7 +96,7 @@ const routes = [
       { path: '/project-center', element: <ProjectCenter /> },
       { path: '/data-center', element: <DataCenter /> },
       { path: '/dataset/:datasetId', element: <DatasetDetailPage /> },
-      { path: '/dataset/:datasetId/visualization', element: <DatasetVisualizationPage /> },
+      { path: '/dataset-visualization/:datasetId', element: <DatasetVisualizationPage /> },
       { path: '/evaluation', element: <Evaluation /> },
       { path: '/project-center/:trainingId/progress', element: <ProjectProgressPage /> },
       { path: '/profile', element: <Profile /> },
@@ -86,8 +106,8 @@ const routes = [
         element: <AdminRoute><DataManagement /></AdminRoute> 
       },
       { 
-        path: '/training-management', 
-        element: <AdminRoute><TrainingManagement /></AdminRoute> 
+        path: '/project-management', 
+        element: <AdminRoute><ProjectManagement /></AdminRoute> 
       },
     ],
   },
