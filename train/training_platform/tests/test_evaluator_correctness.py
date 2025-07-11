@@ -139,8 +139,8 @@ def run_evaluator_logic_test():
         }
         
         eval_config = {
-            "n_episodes": 4,  # 较少的剧集数用于快速测试
-            "batch_size": 2,
+            "n_episodes": 500,  # 较少的剧集数用于快速测试
+            "batch_size": 50,
             "use_async_envs": False
         }
         
@@ -240,8 +240,8 @@ def run_simple_test():
         }
         
         eval_config = {
-            "n_episodes": 4,
-            "batch_size": 2,
+            "n_episodes": 500,
+            "batch_size": 50,
             "use_async_envs": False
         }
         

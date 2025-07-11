@@ -130,6 +130,42 @@ async def download_ckpt_from_minio(
         object_dir=settings.MINIO_CKPT_DIR
     )
 
+async def list_objects_with_prefix(
+    client: Minio,
+    bucket_name: str,
+    prefix: str = "",
+) -> Tuple[bool, list]:
+    """
+    列出指定前缀的所有对象
+    
+    Args:
+        client: MinIO 客户端
+        bucket_name: 桶名称
+        prefix: 对象前缀
+        
+    Returns:
+        (success, object_list): 成功标志和对象列表
+    """
+    if not isinstance(client, Minio):
+        return False, []
+    
+    try:
+        found = await client.bucket_exists(bucket_name)
+        if not found:
+            return False, []
+        
+        objects = []
+        async for obj in client.list_objects(bucket_name, prefix=prefix, recursive=True):
+            objects.append(obj.object_name)
+        
+        return True, objects
+    except S3Error as e:
+        print(f"❌ MinIO 列出对象失败: {e}")
+        return False, []
+    except Exception as e:
+        print(f"❌ 列出对象时发生意外错误: {e}")
+        return False, []
+
 async def download_file_from_minio(
     client: Minio,
     local_file_path: str,
