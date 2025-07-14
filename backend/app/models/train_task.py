@@ -26,7 +26,6 @@ class TrainTask(TrainTaskBase, table=True):
     owner_id: int = Field(foreign_key="app_user.id", nullable=False, index=True)
     status: TrainTaskStatus = Field(
         default=TrainTaskStatus.pending,
-        max_length=20,
         nullable=False
     )
     create_time: Optional[datetime] = Field(

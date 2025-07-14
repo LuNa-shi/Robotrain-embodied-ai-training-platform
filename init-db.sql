@@ -1,3 +1,6 @@
+CREATE TYPE traintaskstatus AS ENUM ('pending', 'running', 'completed', 'failed');
+CREATE TYPE evaltaskstatus AS ENUM ('pending', 'running', 'completed', 'failed');
+
 CREATE TABLE IF NOT EXISTS app_user (
     id SERIAL PRIMARY KEY,              -- 用户ID，自增主键
     username VARCHAR(50) UNIQUE NOT NULL, -- 用户名，唯一且不能为空
@@ -37,7 +40,7 @@ CREATE TABLE IF NOT EXISTS train_task(
     dataset_id INTEGER REFERENCES dataset(id) ON DELETE SET NULL, -- 数据集ID，外键引用datasets表
     model_type_id INTEGER REFERENCES model_type(id) ON DELETE SET NULL, -- 模型类型ID，外键引用model_types表
     hyperparameter JSONB NOT NULL, -- 超参数，存储为JSONB格式
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',        -- 训练状态，如 'pending', 'running', 'completed', 'failed'
+    status traintaskstatus NOT NULL DEFAULT 'pending',        -- 训练状态，如 'pending', 'running', 'completed', 'failed'
     create_time TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', NOW()) NOT NULL, -- 开始时间，默认为当前时间
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, 
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, -- 结束时间，可为空
@@ -47,6 +50,21 @@ CREATE TABLE IF NOT EXISTS train_task(
 
 );
 CREATE INDEX IF NOT EXISTS idx_train_tasks_owner_id ON train_task (owner_id);
+
+CREATE TABLE IF NOT EXIST eval_task(
+    id SERIAL PRIMARY KEY,              -- 评估记录ID，自增主键
+    owner_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE, -- 用户ID，外键引用users表
+    train_task_id INTEGER NOT NULL REFERENCES train_task(id) ON DELETE CASCADE, -- 训练任务ID，外键引用train_tasks表
+    status evaltaskstatus NOT NULL DEFAULT 'pending',        -- 评估状态，如 'pending', 'running', 'completed', 'failed'
+    eval_stage INTEGER NOT NULL DEFAULT 1, -- 评估的训练阶段，默认为1，只能为1，2，3，4
+    create_time TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', NOW()) NOT NULL, -- 创建时间，默认为当前时间
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, 
+    end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, -- 结束时间，可为空
+
+    CONSTRAINT chk_eval_status CHECK (status IN ('pending', 'running', 'completed', 'failed'))
+    CONSTRAINT chk_eval_stage CHECK (eval_stage IN (1, 2, 3, 4))
+);
+CREATE INDEX IF NOT EXISTS idx_eval_tasks_owner_id ON eval_task (owner_id);
 
 CREATE TABLE IF NOT EXISTS train_log (
     id SERIAL PRIMARY KEY,              -- 训练日志ID，自增主键
