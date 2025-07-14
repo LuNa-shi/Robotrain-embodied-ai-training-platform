@@ -282,7 +282,14 @@ const EvaluationPage = () => {
     <List.Item
       key={record.id}
       className={`${styles.projectItem} ${selectedRecord?.id === record.id ? styles.selectedProject : ''}`}
-      onClick={() => setSelectedRecord(record)}
+      onClick={() => {
+        setSelectedRecord(record);
+        // 当选择其他项目时，退出评估模式
+        if (isEvaluationMode) {
+          setIsEvaluationMode(false);
+          setSelectedTrainingProject(null);
+        }
+      }}
     >
       <div className={styles.projectItemContent}>
         <div className={styles.projectInfo}>
@@ -305,7 +312,14 @@ const EvaluationPage = () => {
     <div
       key={record.id}
       className={`${styles.projectItemHorizontal} ${selectedRecord?.id === record.id ? styles.selectedProjectHorizontal : ''}`}
-      onClick={() => setSelectedRecord(record)}
+      onClick={() => {
+        setSelectedRecord(record);
+        // 当选择其他项目时，退出评估模式
+        if (isEvaluationMode) {
+          setIsEvaluationMode(false);
+          setSelectedTrainingProject(null);
+        }
+      }}
     >
       <div className={styles.projectName}>{record.name}</div>
       <div className={styles.projectMeta}>
