@@ -150,3 +150,5 @@ cython_debug/
 outputs/
 
 conversion_project/
+datasets/
+coverage/

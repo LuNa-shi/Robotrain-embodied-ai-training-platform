@@ -1,4 +1,4 @@
-# training_platform/evaluater/evaluater_logic.py
+# training_platform/evaluator/evaluator_logic.py
 
 import json
 import logging
@@ -432,12 +432,13 @@ def prepare_eval_config(
     Returns:
         配置好的 EvalPipelineConfig 对象
     """
-    from lerobot.common import envs
+    from lerobot.common.envs.factory import make_env_config
     from lerobot.configs.default import EvalConfig
     from lerobot.configs.policies import PreTrainedConfig
     
-    # 创建环境配置
-    env_cfg = envs.EnvConfig(**env_config)
+    # 创建环境配置 - 使用 make_env_config 而不是直接实例化抽象类
+    env_type = env_config.pop("type")  # 获取环境类型
+    env_cfg = make_env_config(env_type, **env_config)
     
     # 创建评估配置
     eval_cfg = EvalConfig(**eval_config)
@@ -460,7 +461,6 @@ def prepare_eval_config(
     )
     
     return cfg
-
 
 def run_lerobot_evaluation(
     model_path: str,

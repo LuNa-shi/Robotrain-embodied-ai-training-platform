@@ -1,3 +1,4 @@
+import time
 import asyncio
 import json
 from typing import Optional, Callable
@@ -120,3 +121,30 @@ async def start_task_queue_consumer(on_message_callback: Callable):
         await queue.consume(on_message_callback, no_ack=False)
     except Exception as e:
         print(f"❌ 启动消费者失败: {e}")
+
+async def publish_status_message(task_id: int, user_id: int, status: str, message: str):
+    """发布任务状态消息"""
+    message_body = {
+        "task_id": task_id,
+        "user_id": user_id,
+        "status": status,
+        "message": message,
+        "timestamp": time.time()
+    }
+    await _send_message(settings.RABBIT_STATUS_BINDING_KEY, message_body)
+
+async def publish_eval_result_message(
+    task_id: int, 
+    user_id: int, 
+    model_uuid: str, 
+    eval_results: dict
+):
+    """发布评估结果消息"""
+    message_body = {
+        "task_id": task_id,
+        "user_id": user_id,
+        "model_uuid": model_uuid,
+        "eval_results": eval_results,
+        "timestamp": time.time()
+    }
+    await _send_message("eval_result_binding_key", message_body)  # 可能需要在settings中添加
