@@ -14,7 +14,7 @@
     },
     "policy": {
         "type": "act",
-        "device": "cuda",
+        "device": "cpu",
         "use_amp": "true",
         "n_obs_steps": 1,
         "chunk_size": 100,
