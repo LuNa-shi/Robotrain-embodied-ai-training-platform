@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS train_task(
 );
 CREATE INDEX IF NOT EXISTS idx_train_tasks_owner_id ON train_task (owner_id);
 
-CREATE TABLE IF NOT EXIST eval_task(
+CREATE TABLE IF NOT EXISTS eval_task(
     id SERIAL PRIMARY KEY,              -- 评估记录ID，自增主键
     owner_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE, -- 用户ID，外键引用users表
     train_task_id INTEGER NOT NULL REFERENCES train_task(id) ON DELETE CASCADE, -- 训练任务ID，外键引用train_tasks表
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXIST eval_task(
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, 
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, -- 结束时间，可为空
 
-    CONSTRAINT chk_eval_status CHECK (status IN ('pending', 'running', 'completed', 'failed'))
+    CONSTRAINT chk_eval_status CHECK (status IN ('pending', 'running', 'completed', 'failed')),
     CONSTRAINT chk_eval_stage CHECK (eval_stage IN (1, 2, 3, 4))
 );
 CREATE INDEX IF NOT EXISTS idx_eval_tasks_owner_id ON eval_task (owner_id);

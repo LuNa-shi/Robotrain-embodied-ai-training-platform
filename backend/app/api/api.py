@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import auth, user, dataset, train_task, websocket, model_type # 导入 auth 和 user 模块
+from app.api.endpoints import auth, user, dataset, train_task, websocket, model_type, eval_task # 导入 auth 和 user 模块
 
 # 创建主 API 路由器
 api_router = APIRouter()
@@ -13,3 +13,4 @@ api_router.include_router(dataset.router, prefix="/datasets", tags=["datasets"])
 api_router.include_router(websocket.router, prefix="/websocket", tags=["websocket"])
 api_router.include_router(train_task.router, prefix="/train_tasks", tags=["train_tasks"])
 api_router.include_router(model_type.router, prefix="/model_types", tags=["model_types"])
+api_router.include_router(eval_task.router, prefix="/eval_tasks", tags=["eval_tasks"])

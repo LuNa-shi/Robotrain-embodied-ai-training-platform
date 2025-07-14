@@ -8,15 +8,70 @@ from app.models.user import AppUser
 from app.models.eval_task import EvalTask
 from app.models.train_task import TrainTask
 from app.schemas.eval_task import EvalTaskCreate, EvalTaskCreateDB, EvalTaskUpdate
-from app.crud import crud_eval_task
+from app.crud import crud_eval_task, crud_train_task
 
 class EvalTaskService:
     def __init__(self, db_session: AsyncSession): # 接收同步 Session
         self.db_session = db_session
         
     async def create_eval_task_for_user(self, user: AppUser, eval_task_create: EvalTaskCreate) -> Optional[EvalTask]:
-        pass
+        if not user:
+            print("用户不存在，无法创建评估任务")
+            return None
+        train_task: TrainTask = await crud_train_task.get_train_task_by_id(self.db_session, eval_task_create.train_task_id)
+        if not train_task:
+            print("训练任务不存在，无法创建评估任务")
+            return None
+
+        eval_task_create_db = EvalTaskCreateDB(
+            train_task_id=eval_task_create.train_task_id,
+            eval_stage=eval_task_create.eval_stage,
+            owner_id=user.id
+        )
+        # 调用 CRUD 层创建评估任务
+        eval_task = await crud_eval_task.create_eval_task(
+            db_session=self.db_session,
+            eval_task_create_db=eval_task_create_db
+        )
+        
+        await self.db_session.refresh(eval_task)
+        # 进行rabbitmq的消息发送
+        from app.core.rabbitmq_utils import send_eval_task_message
+        try:
+            await send_eval_task_message(eval_task.id, eval_task.owner_id, eval_task.train_task_id, eval_task.eval_stage)
+            print(f"发送评估任务消息成功: {eval_task.id}")
+        except Exception as e:
+            print(f"发送评估任务消息失败: {e}")
+            return None
+        await self.db_session.commit()
+        await self.db_session.refresh(eval_task)
+        return eval_task
     
+    async def download_eval_task_result(self, eval_task_id: int, current_user: AppUser) -> Optional[str]:
+        """
+        下载评估任务结果。
+        - 检查评估任务是否存在
+        - 检查用户是否有权限下载该任务结果
+        - 调用 MinIO 客户端下载文件
+        """
+        eval_task = await crud_eval_task.get_eval_task_by_id(self.db_session, eval_task_id)
+        if not eval_task:
+            print(f"评估任务 ID {eval_task_id} 不存在，无法下载结果")
+            return None
+        if eval_task.owner_id != current_user.id:
+            print(f"用户 {current_user.id} 无权下载评估任务 ID {eval_task_id} 的结果")
+            return None
+        # 使用 MinIO 客户端下载文件
+        success, file_path = await download_model_from_minio(
+            eval_task_id=eval_task.id,
+            user_id=current_user.id
+        )
+        if not success:
+            print(f"下载评估任务结果失败: {eval_task_id}")
+            return None
+        
+        return file_path
+        
     async def delete_eval_task_for_user(self, eval_task_id: int, user: AppUser) -> bool:
         """
         删除用户评估任务的业务逻辑。

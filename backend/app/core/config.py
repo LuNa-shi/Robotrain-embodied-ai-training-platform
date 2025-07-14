@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str
     MINIO_DATASET_DIR: str
     MINIO_MODEL_DIR: str
+    MINIO_EVAL_DIR: str
 
     RABBITMQ_DEFAULT_USER: str
     RABBITMQ_DEFAULT_PASS: str
@@ -32,6 +33,10 @@ class Settings(BaseSettings):
     RABBIT_STATUS_BINDING_KEY: str
     RABBIT_TRAIN_LOG_QUEUE_NAME: str
     RABBIT_TRAIN_LOG_BINDING_KEY: str
+    RABBIT_EVAL_QUEUE_NAME: str
+    RABBIT_EVAL_BINDING_KEY: str
+    RABBIT_EVAL_STATUS_QUEUE_NAME: str
+    RABBIT_EVAL_STATUS_BINDING_KEY: str
 
     @property
     def DATABASE_URL(self) -> str:
