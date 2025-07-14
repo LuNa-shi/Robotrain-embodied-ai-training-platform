@@ -12,6 +12,11 @@ import torch.cuda
 @ray.remote
 class Scheduler:
     def __init__(self):
+        # 获取集群资源
+        cluster_resources = ray.cluster_resources()
+        self.num_gpus = cluster_resources.get("GPU", 0)
+        print(f"[Scheduler] Number of GPUs: {self.num_gpus}")
+        
         self.task_queue: Deque[TrainingTask] = deque()
         self.running_task: Optional[TrainingTask] = None
         self.trainer_actor: Optional["ray.actor.ActorHandle"] = None
