@@ -240,6 +240,7 @@ const ProjectCenterPage = () => {
                     disabled={record.status !== 'completed' || downloadingStates[record.id]}
                     loading={downloadingStates[record.id]}
                     onClick={(e) => handleDownload(record, e)}
+                    aria-label="下载模型"
                   />
                 </Tooltip>
                 <Tooltip title="删除项目">
@@ -251,6 +252,7 @@ const ProjectCenterPage = () => {
                       e.stopPropagation();
                       handleDelete(record.id);
                     }}
+                    aria-label="删除项目"
                   />
                 </Tooltip>
               </Space>
