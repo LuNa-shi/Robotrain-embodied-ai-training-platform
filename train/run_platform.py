@@ -22,6 +22,11 @@ scheduler_actor_handle: Optional["ray.actor.ActorHandle"] = None
 training_scheduler_handle: Optional["ray.actor.ActorHandle"] = None
 evaluation_scheduler_handle: Optional["ray.actor.ActorHandle"] = None
 
+# 全局任务句柄用于清理
+train_consumer_task: Optional[asyncio.Task] = None
+eval_consumer_task: Optional[asyncio.Task] = None 
+eval_status_consumer_task: Optional[asyncio.Task] = None
+
 async def on_task_message(message: aio_pika.IncomingMessage):
     """处理训练任务消息的回调函数"""
     async with message.process():
@@ -97,6 +102,8 @@ async def start_separate_schedulers():
     evaluation_scheduler_handle.run.remote()
 
 async def main():
+    global train_consumer_task, eval_consumer_task, eval_status_consumer_task
+    
     if not ray.is_initialized(): ray.init()
     print("✅ Ray is initialized.")
     
@@ -135,10 +142,89 @@ async def main():
     await shutdown_event.wait()
 
 async def shutdown():
+    """优雅地关闭平台，确保所有ray资源被正确释放"""
+    global scheduler_actor_handle, training_scheduler_handle, evaluation_scheduler_handle
+    global train_consumer_task, eval_consumer_task, eval_status_consumer_task
+    
     print("\nShutting down platform...")
-    await close_rabbitmq()
-    if ray.is_initialized(): ray.shutdown()
-    print("👋 Platform has been shut down gracefully.")
+    
+    try:
+        # 1. 首先取消所有消费者任务
+        print("📋 Cancelling consumer tasks...")
+        tasks_to_cancel = [task for task in [train_consumer_task, eval_consumer_task, eval_status_consumer_task] if task and not task.done()]
+        if tasks_to_cancel:
+            for task in tasks_to_cancel:
+                task.cancel()
+            try:
+                await asyncio.wait_for(asyncio.gather(*tasks_to_cancel, return_exceptions=True), timeout=5.0)
+                print("✅ Consumer tasks cancelled successfully")
+            except asyncio.TimeoutError:
+                print("⚠️  Consumer tasks cancellation timed out")
+        
+        # 2. 清理Ray scheduler actors
+        print("🔄 Cleaning up Ray scheduler actors...")
+        
+        # 首先调用优雅关闭方法
+        shutdown_tasks = []
+        if scheduler_actor_handle:
+            shutdown_tasks.append(("UnifiedScheduler", scheduler_actor_handle.shutdown.remote()))
+        if training_scheduler_handle:
+            shutdown_tasks.append(("TrainingScheduler", training_scheduler_handle.shutdown.remote()))
+        if evaluation_scheduler_handle:
+            shutdown_tasks.append(("EvaluationScheduler", evaluation_scheduler_handle.shutdown.remote()))
+        
+        if shutdown_tasks:
+            try:
+                # 等待所有调度器完成优雅关闭，最多等待5秒
+                for actor_name, shutdown_task in shutdown_tasks:
+                    try:
+                        await asyncio.wait_for(shutdown_task, timeout=3.0)
+                        print(f"✅ {actor_name} shutdown gracefully")
+                    except asyncio.TimeoutError:
+                        print(f"⚠️  {actor_name} shutdown timed out")
+                    except Exception as e:
+                        print(f"⚠️  {actor_name} shutdown failed: {e}")
+            except Exception as e:
+                print(f"⚠️  Error during graceful shutdown: {e}")
+        
+        # 然后强制杀死所有actors
+        actors_to_kill = []
+        if scheduler_actor_handle:
+            actors_to_kill.append(("UnifiedScheduler", scheduler_actor_handle))
+        if training_scheduler_handle:
+            actors_to_kill.append(("TrainingScheduler", training_scheduler_handle))
+        if evaluation_scheduler_handle:
+            actors_to_kill.append(("EvaluationScheduler", evaluation_scheduler_handle))
+        
+        if actors_to_kill:
+            for actor_name, actor_handle in actors_to_kill:
+                try:
+                    ray.kill(actor_handle)
+                    print(f"✅ Killed {actor_name} actor")
+                except Exception as e:
+                    print(f"⚠️  Failed to kill {actor_name} actor: {e}")
+        
+        # 3. 关闭RabbitMQ连接
+        print("🐰 Closing RabbitMQ connections...")
+        await close_rabbitmq()
+        
+        # 4. 关闭Ray
+        print("🔄 Shutting down Ray...")
+        if ray.is_initialized(): 
+            ray.shutdown()
+            print("✅ Ray shutdown completed")
+        
+        print("👋 Platform has been shut down gracefully.")
+        
+    except Exception as e:
+        print(f"❌ Error during shutdown: {e}")
+        # 强制关闭Ray以确保资源释放
+        if ray.is_initialized():
+            try:
+                ray.shutdown()
+                print("🔄 Force shutdown Ray completed")
+            except Exception as ray_e:
+                print(f"❌ Error during force Ray shutdown: {ray_e}")
 
 if __name__ == "__main__":
     try:

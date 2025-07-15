@@ -138,18 +138,18 @@ async def publish_status_message(task_id: int, user_id: int, status: str, messag
 async def publish_eval_result_message(
     task_id: int, 
     user_id: int, 
-    model_uuid: str, 
+    train_task_id: int, 
     eval_results: dict
 ):
     """发布评估结果消息"""
     message_body = {
-        "task_id": task_id,
+        "eval_task_id": task_id,
         "user_id": user_id,
-        "model_uuid": model_uuid,
+        "train_task_id": train_task_id,
         "eval_results": eval_results,
         "timestamp": time.time()
     }
-    await _send_message("eval_result_binding_key", message_body)  # 可能需要在settings中添加
+    await _send_message(settings.RABBIT_EVAL_BINDING_KEY, message_body)
 
 async def start_eval_queue_consumer(on_eval_message_callback: Callable):
     """
