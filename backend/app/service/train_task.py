@@ -1,4 +1,3 @@
-import json
 from typing import Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.user import AppUser
@@ -125,6 +124,20 @@ class TrainTaskService:
             return []
         
         return train_tasks
+    
+    async def get_completed_tasks_by_user(self, user_id: int) -> list[TrainTask]:
+        """
+        获取指定用户的已完成训练任务。
+        - 调用 CRUD 层获取已完成训练任务列表
+        """
+        # 调用 CRUD 层获取已完成训练任务列表
+        completed_tasks = await crud_train_task.get_completed_tasks_by_user_id(self.db_session, user_id)
+        
+        if not completed_tasks:
+            print(f"用户 ID {user_id} 没有任何已完成的训练任务")
+            return []
+        
+        return completed_tasks
 
     async def get_train_task_by_id(self, train_task_id: int) -> Optional[TrainTask]:
         """

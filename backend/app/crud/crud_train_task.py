@@ -1,5 +1,4 @@
 from typing import Optional
-from datetime import datetime, timezone
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,6 +27,18 @@ async def get_train_tasks_by_user_id(db_session: AsyncSession, user_id: int) -> 
     获取指定用户的所有训练任务。
     """
     statement = select(TrainTask).where(TrainTask.owner_id == user_id)
+    result = await db_session.exec(statement)
+    return result.all()
+
+async def get_completed_tasks_by_user_id(db_session: AsyncSession, user_id: int) -> list[TrainTask]:
+    """
+    获取指定用户已完成的训练任务。
+    """
+    from app.models.train_task import TrainTaskStatus
+    statement = select(TrainTask).where(
+        TrainTask.owner_id == user_id,
+        TrainTask.status == TrainTaskStatus.completed
+    )
     result = await db_session.exec(statement)
     return result.all()
 

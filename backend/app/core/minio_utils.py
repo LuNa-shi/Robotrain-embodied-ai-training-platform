@@ -336,6 +336,33 @@ async def download_dataset_from_minio(
         print(f"❌ {error_msg}")
         return False, error_msg
     
+
+        
+async def download_eval_task_result_from_minio(
+    client: Minio,
+    eval_task_id: int,
+    local_path: str
+) -> Optional[str]:
+    """
+    - 下载评估任务结果。
+    - 检查评估任务是否存在
+    - 调用 MinIO 客户端下载文件
+    """
+    path_in_minio = f"evals/{eval_task_id}/result.zip"  # 假设评估任务结果存储在这个路径
+    success, message = await download_file_from_minio(
+        client=client,
+        local_path=local_path,
+        bucket_name=settings.MINIO_BUCKET,  # 使用配置文件中的桶名
+        object_name=path_in_minio,
+        object_dir=""  # 假设没有额外的目录前缀
+    )
+    if success:
+        print(f"✅ 评估任务结果已成功下载到本地: {local_path}")
+        return local_path
+    else:
+        print(f"❌ 下载评估任务结果失败: {message}")
+        return None
+            
 async def upload_file_to_minio(
     client: Minio,
     upload_file: UploadFile,

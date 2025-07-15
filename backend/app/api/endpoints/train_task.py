@@ -34,6 +34,23 @@ async def get_my_train_tasks(
     """
     return await train_task_service.get_tasks_by_user(current_user.id)
 
+@router.get("/me/completed", response_model=list[TrainTaskPublic], summary="获取已完成的训练任务")
+async def get_my_completed_train_tasks(
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    train_task_service: Annotated[TrainTaskService, Depends(get_train_task_service)]
+) -> list[TrainTaskPublic]:
+    """
+    **获取当前用户已完成的训练任务**
+
+    返回当前登录用户已完成的所有训练任务信息。
+
+    **响应:**
+    - `200 OK`: 成功获取已完成的训练任务列表。
+    - `401 Unauthorized`: 用户未登录。
+    """
+    
+    return await train_task_service.get_completed_tasks_by_user(current_user.id)
+
 @router.post("/", response_model=TrainTaskPublic, summary="创建训练任务")
 async def create_train_task(
     train_task_create: TrainTaskCreate,
