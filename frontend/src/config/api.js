@@ -68,8 +68,16 @@ export const API_ENDPOINTS = {
   trainTasks: {
     create: '/api/train_tasks/', // 创建训练任务
     getMyTasks: '/api/train_tasks/me', // 获取当前用户的训练任务列表
+    getCompletedTasks: '/api/train_tasks/me/completed', // 获取已完成的训练任务列表
     getById: (taskId) => `/api/train_tasks/${taskId}`, // 获取训练任务详情
     downloadModel: (taskId) => `/api/train_tasks/${taskId}/download_model`, // 下载训练模型
+  },
+  
+  // 评估任务相关
+  evalTasks: {
+    create: '/api/eval_tasks/', // 创建评估任务
+    getMyTasks: '/api/eval_tasks/me', // 获取当前用户的评估任务列表
+    getById: (taskId) => `/api/eval_tasks/${taskId}`, // 获取评估任务详情
   },
   
   // 其他API端点可以在这里添加
