@@ -19,7 +19,8 @@ import {
   List,
   Avatar,
   Badge,
-  Spin
+  Spin,
+  Radio
 } from 'antd';
 import {
   DownloadOutlined,
@@ -38,103 +39,20 @@ import {
   RobotOutlined
 } from '@ant-design/icons';
 import styles from './Evaluation.module.css';
-import { trainTasksAPI } from '@/utils/api';
+import { trainTasksAPI, evalTasksAPI } from '@/utils/api';
 
 const { Title, Text, Paragraph } = Typography;
 
-// 模拟测试记录数据
-const mockEvaluationRecords = [
-  {
-    id: 'eval-20250625-001',
-    name: '机器人视觉识别测试',
-    model: 'GPT-4 Vision',
-    dataset: '工业机器人视觉数据集',
-    startTime: '2025-06-25 10:30',
-    duration: '45m',
-    status: 'completed',
-    accuracy: '96.8%',
-    precision: '94.2%',
-    recall: '97.1%',
-    f1Score: '95.6%',
-    testCases: 1500,
-    passedCases: 1452,
-    failedCases: 48,
-    videoUrl: 'https://example.com/video1.mp4',
-    thumbnail: 'https://via.placeholder.com/300x200/1890ff/ffffff?text=视觉识别测试'
-  },
-  {
-    id: 'eval-20250625-002',
-    name: '机器人语音交互测试',
-    model: 'Claude 3 Sonnet',
-    dataset: '机器人语音指令数据集',
-    startTime: '2025-06-25 14:00',
-    duration: '进行中...',
-    status: 'running',
-    accuracy: 'N/A',
-    precision: 'N/A',
-    recall: 'N/A',
-    f1Score: 'N/A',
-    testCases: 2000,
-    passedCases: 1250,
-    failedCases: 0,
-    videoUrl: 'https://example.com/video2.mp4',
-    thumbnail: 'https://via.placeholder.com/300x200/52c41a/ffffff?text=语音交互测试'
-  },
-  {
-    id: 'eval-20250624-005',
-    name: '机器人动作控制测试',
-    model: 'Whisper Large',
-    dataset: '机器人动作指令数据集',
-    startTime: '2025-06-24 09:00',
-    duration: '1h 20m',
-    status: 'failed',
-    accuracy: '78.5%',
-    precision: '75.2%',
-    recall: '81.3%',
-    f1Score: '78.1%',
-    testCases: 800,
-    passedCases: 628,
-    failedCases: 172,
-    videoUrl: 'https://example.com/video3.mp4',
-    thumbnail: 'https://via.placeholder.com/300x200/ff4d4f/ffffff?text=动作控制测试'
-  },
-  {
-    id: 'eval-20250623-003',
-    name: '机器人路径规划测试',
-    model: 'PathFinder Pro',
-    dataset: '室内导航数据集',
-    startTime: '2025-06-23 16:30',
-    duration: '2h 15m',
-    status: 'completed',
-    accuracy: '92.3%',
-    precision: '91.8%',
-    recall: '92.7%',
-    f1Score: '92.2%',
-    testCases: 1200,
-    passedCases: 1108,
-    failedCases: 92,
-    videoUrl: 'https://example.com/video4.mp4',
-    thumbnail: 'https://via.placeholder.com/300x200/722ed1/ffffff?text=路径规划测试'
-  },
-  {
-    id: 'eval-20250622-004',
-    name: '机器人抓取测试',
-    model: 'GraspNet',
-    dataset: '物体抓取数据集',
-    startTime: '2025-06-22 11:00',
-    duration: '1h 45m',
-    status: 'completed',
-    accuracy: '88.7%',
-    precision: '87.2%',
-    recall: '89.1%',
-    f1Score: '88.1%',
-    testCases: 900,
-    passedCases: 798,
-    failedCases: 102,
-    videoUrl: 'https://example.com/video5.mp4',
-    thumbnail: 'https://via.placeholder.com/300x200/fa8c16/ffffff?text=抓取测试'
-  }
-];
+// 模型类型ID到名称的映射
+const getModelTypeName = (modelTypeId) => {
+  const modelTypeMap = {
+    1: 'ACT',
+    2: 'Diffusion'
+  };
+  return modelTypeMap[modelTypeId] || '未知模型类型';
+};
+
+
 
 // 根据状态返回不同的Tag和Icon
 const StatusDisplay = ({ status }) => {
@@ -150,7 +68,7 @@ const StatusDisplay = ({ status }) => {
 
 const EvaluationPage = () => {
   const navigate = useNavigate();
-  const [records, setRecords] = useState(mockEvaluationRecords);
+  const [records, setRecords] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedRecordDetails, setSelectedRecordDetails] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -161,6 +79,12 @@ const EvaluationPage = () => {
   const [trainingProjects, setTrainingProjects] = useState([]);
   const [selectedTrainingProject, setSelectedTrainingProject] = useState(null);
   const [loadingTrainingProjects, setLoadingTrainingProjects] = useState(false);
+  
+  // 评估任务相关状态
+  const [loadingEvaluationTasks, setLoadingEvaluationTasks] = useState(false);
+  const [selectedEvalStage, setSelectedEvalStage] = useState(null);
+  const [creatingEvaluation, setCreatingEvaluation] = useState(false);
+  const [evaluationModalVisible, setEvaluationModalVisible] = useState(false);
 
   useEffect(() => {
     const leftPanelWidth = 260;
@@ -173,38 +97,86 @@ const EvaluationPage = () => {
         setIsMobile(false);
       }
     };
-    // 默认选择"进行中"的测试项目
-    const runningRecord = records.find(r => r.status === 'running');
-    setSelectedRecord(runningRecord || records[0]);
+    
+    // 获取评估任务列表
+    fetchEvaluationTasks();
+    
+    // 默认选择"发起评估"项
+    setIsEvaluationMode(true);
+    setSelectedRecord(null);
+    fetchCompletedTrainingProjects();
+    
     window.addEventListener('resize', checkLayout);
     setTimeout(checkLayout, 0); // 首次渲染后测量一次
     return () => window.removeEventListener('resize', checkLayout);
-  }, [records]);
+  }, []);
+
+  // 获取评估任务列表
+  const fetchEvaluationTasks = async () => {
+    try {
+      setLoadingEvaluationTasks(true);
+      const data = await evalTasksAPI.getMyTasks();
+      
+      // 转换后端数据为前端显示格式
+      const evaluationRecords = data.map(task => ({
+        id: `eval-${task.id}`,
+        name: `评估任务 ${task.id}`,
+        modelType: '待获取', // 这里需要根据train_task_id获取训练任务信息
+        dataset: '待获取', // 这里需要根据train_task_id获取数据集信息
+        startTime: new Date(task.create_time).toLocaleString('zh-CN'),
+        duration: task.end_time ? 
+          `${Math.round((new Date(task.end_time) - new Date(task.start_time)) / 60000)}m` : 
+          '进行中...',
+        status: task.status,
+        accuracy: 'N/A', // 评估结果需要从其他地方获取
+        precision: 'N/A',
+        recall: 'N/A',
+        f1Score: 'N/A',
+        testCases: 0, // 这些信息需要从评估结果中获取
+        passedCases: 0,
+        failedCases: 0,
+        videoUrl: 'https://example.com/video1.mp4', // 模拟视频URL
+        thumbnail: 'https://via.placeholder.com/300x200/1890ff/ffffff?text=评估任务',
+        evalStage: task.eval_stage,
+        trainTaskId: task.train_task_id,
+        originalData: task
+      }));
+      
+      setRecords(evaluationRecords);
+      console.log('获取评估任务成功:', evaluationRecords);
+    } catch (err) {
+      console.error('获取评估任务失败:', err);
+      message.error('获取评估任务失败: ' + err.message);
+      setRecords([]);
+    } finally {
+      setLoadingEvaluationTasks(false);
+    }
+  };
 
   // 获取已完成的训练项目
   const fetchCompletedTrainingProjects = async () => {
     try {
       setLoadingTrainingProjects(true);
-      const data = await trainTasksAPI.getMyTasks();
+      const data = await trainTasksAPI.getCompletedTasks();
       
-      // 过滤出已完成的训练项目
-      const completedProjects = data
-        .filter(task => task.status === 'completed')
-        .map(task => ({
-          id: task.id.toString(),
-          name: `训练项目 ${task.id}`,
-          modelType: task.model_type,
-          dataset: task.dataset_id ? `数据集 ${task.dataset_id}` : '未指定数据集',
-          startTime: new Date(task.create_time).toLocaleString('zh-CN'),
-          status: task.status,
-          originalData: task
-        }));
+      // 直接使用后端返回的已完成训练项目数据
+      const completedProjects = data.map(task => ({
+        id: task.id.toString(),
+        name: `训练项目 ${task.id}`,
+        modelType: task.model_type_id ? getModelTypeName(task.model_type_id) : '未指定模型类型',
+        startTime: new Date(task.create_time).toLocaleString('zh-CN'),
+        endTime: task.end_time ? new Date(task.end_time).toLocaleString('zh-CN') : '未完成',
+        status: task.status,
+        hyperparameter: task.hyperparameter,
+        logsUuid: task.logs_uuid,
+        originalData: task
+      }));
       
       setTrainingProjects(completedProjects);
       console.log('获取已完成训练项目成功:', completedProjects);
     } catch (err) {
-      console.error('获取训练项目失败:', err);
-      message.error('获取训练项目失败: ' + err.message);
+      console.error('获取已完成训练项目失败:', err);
+      message.error('获取已完成训练项目失败: ' + err.message);
       setTrainingProjects([]);
     } finally {
       setLoadingTrainingProjects(false);
@@ -218,38 +190,40 @@ const EvaluationPage = () => {
       return;
     }
 
+    if (!selectedEvalStage) {
+      message.warning('请选择评估阶段');
+      return;
+    }
+
     try {
-      // 构建评估配置
-      const evaluationConfig = {
-        trained_project_id: selectedTrainingProject.id,
-        trained_project_name: selectedTrainingProject.name,
-        dataset: selectedTrainingProject.dataset,
-        parameters: {
-          testCases: 1000,
-          timeout: 300,
-          batchSize: 32,
-          threshold: 0.8,
-        },
-        description: `机器人模型评估 - ${selectedTrainingProject.name}`,
+      setCreatingEvaluation(true);
+      
+      // 构建评估任务创建请求
+      const evalTaskData = {
+        train_task_id: parseInt(selectedTrainingProject.id),
+        eval_stage: selectedEvalStage
       };
       
-      console.log('评估配置:', evaluationConfig);
+      console.log('创建评估任务:', evalTaskData);
       
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 调用后端API创建评估任务
+      const createdTask = await evalTasksAPI.create(evalTaskData);
       
-      // 生成评估ID（模拟后端返回）
-      const evaluationId = `eval-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      message.success(`评估任务 ${createdTask.id} 创建成功！`);
       
-      message.success(`评估任务 ${evaluationId} 创建成功！`);
-      
-      // 退出评估模式，回到正常模式
-      setIsEvaluationMode(false);
-      setSelectedTrainingProject(null);
+          // 重新获取评估任务列表
+    await fetchEvaluationTasks();
+    
+    // 关闭弹窗并重置状态
+    setEvaluationModalVisible(false);
+    setSelectedTrainingProject(null);
+    setSelectedEvalStage(null);
       
     } catch (error) {
       console.error('创建评估任务失败:', error);
       message.error('创建评估任务失败: ' + error.message);
+    } finally {
+      setCreatingEvaluation(false);
     }
   };
 
@@ -334,17 +308,20 @@ const EvaluationPage = () => {
     <List.Item
       key={project.id}
       className={`${styles.projectItem} ${selectedTrainingProject?.id === project.id ? styles.selectedProject : ''}`}
-      onClick={() => setSelectedTrainingProject(project)}
+      onClick={() => {
+        setSelectedTrainingProject(project);
+        setEvaluationModalVisible(true);
+        setSelectedEvalStage(null); // 重置评估阶段选择
+      }}
     >
       <div className={styles.projectItemContent}>
         <div className={styles.projectInfo}>
           <div className={styles.projectName}>{project.name}</div>
           <div className={styles.projectMeta}>
-            <Text type="secondary">{project.dataset}</Text>
-            <StatusDisplay status={project.status} />
+            <Text type="secondary">{project.modelType}</Text>
           </div>
           <div className={styles.projectStats}>
-            <Text type="secondary">开始时间: {project.startTime}</Text>
+            <Text type="secondary">完成时间: {project.endTime}</Text>
           </div>
         </div>
       </div>
@@ -386,20 +363,10 @@ const EvaluationPage = () => {
               title={
                 <div className={styles.videoTitle}>
                   <RobotOutlined />
-                  <span>选择训练项目进行评估</span>
+                  <span>选择已完成的训练项目进行评估</span>
                 </div>
               }
               className={styles.videoCard}
-              extra={
-                <Button 
-                  type="primary" 
-                  icon={<ExperimentOutlined />}
-                  disabled={!selectedTrainingProject}
-                  onClick={handleStartEvaluation}
-                >
-                  发起评估
-                </Button>
-              }
             >
               {loadingTrainingProjects ? (
                 <div className={styles.loadingContainer}>
@@ -509,10 +476,17 @@ const EvaluationPage = () => {
               className={styles.projectPanel}
               bodyStyle={{ padding: '12px' }}
             >
-              <div className={styles.projectListHorizontal}>
-                {renderAddProjectItem()}
-                {records.map(renderProjectItemHorizontal)}
-              </div>
+              {loadingEvaluationTasks ? (
+                <div className={styles.loadingContainer}>
+                  <Spin size="large" />
+                  <Text>加载评估任务中...</Text>
+                </div>
+              ) : (
+                <div className={styles.projectListHorizontal}>
+                  {renderAddProjectItem()}
+                  {records.map(renderProjectItemHorizontal)}
+                </div>
+              )}
             </Card>
           </div>
           <RightPanelContent />
@@ -530,20 +504,150 @@ const EvaluationPage = () => {
               }
               className={styles.projectPanel}
             >
-              <List
-                dataSource={[{ id: 'add-evaluation' }, ...records]}
-                renderItem={(item) => 
-                  item.id === 'add-evaluation' 
-                    ? renderAddProjectItem() 
-                    : renderProjectItem(item)
-                }
-                className={styles.projectList}
-              />
+              {loadingEvaluationTasks ? (
+                <div className={styles.loadingContainer}>
+                  <Spin size="large" />
+                  <Text>加载评估任务中...</Text>
+                </div>
+              ) : (
+                <List
+                  dataSource={[{ id: 'add-evaluation' }, ...records]}
+                  renderItem={(item) => 
+                    item.id === 'add-evaluation' 
+                      ? renderAddProjectItem() 
+                      : renderProjectItem(item)
+                  }
+                  className={styles.projectList}
+                />
+              )}
             </Card>
           </div>
           <RightPanelContent />
         </div>
       )}
+
+      {/* 评估阶段选择弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ExperimentOutlined style={{ color: '#1677ff' }} />
+            <span>选择评估阶段</span>
+          </div>
+        }
+        open={evaluationModalVisible}
+        onCancel={() => {
+          setEvaluationModalVisible(false);
+          setSelectedTrainingProject(null);
+          setSelectedEvalStage(null);
+        }}
+        footer={[
+          <Button 
+            key="cancel" 
+            onClick={() => {
+              setEvaluationModalVisible(false);
+              setSelectedTrainingProject(null);
+              setSelectedEvalStage(null);
+            }}
+          >
+            取消
+          </Button>,
+          <Button 
+            key="start" 
+            type="primary" 
+            loading={creatingEvaluation}
+            disabled={!selectedEvalStage || creatingEvaluation}
+            onClick={handleStartEvaluation}
+            style={{ backgroundColor: '#1677ff', borderColor: '#1677ff' }}
+          >
+            发起评估
+          </Button>
+        ]}
+        width={500}
+        centered
+      >
+        {selectedTrainingProject && (
+          <div>
+            <div style={{ marginBottom: 24 }}>
+              <Text strong>已选择训练项目：</Text>
+              <div style={{ marginTop: 8, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 6 }}>
+                <Text>{selectedTrainingProject.name}</Text>
+                <br />
+                <Text type="secondary">{selectedTrainingProject.modelType}</Text>
+              </div>
+            </div>
+            
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: 16 }}>
+                请选择评估阶段：
+              </Text>
+              <Radio.Group 
+                value={selectedEvalStage} 
+                onChange={(e) => setSelectedEvalStage(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
+                    <Radio.Button 
+                      value={1} 
+                      style={{ 
+                        width: '100%', 
+                        textAlign: 'center',
+                        backgroundColor: selectedEvalStage === 1 ? '#e6f7ff' : '#ffffff',
+                        borderColor: selectedEvalStage === 1 ? '#1677ff' : '#d9d9d9',
+                        color: selectedEvalStage === 1 ? '#1677ff' : '#000000'
+                      }}
+                    >
+                      25% 训练进度
+                    </Radio.Button>
+                  </Col>
+                  <Col span={12}>
+                    <Radio.Button 
+                      value={2} 
+                      style={{ 
+                        width: '100%', 
+                        textAlign: 'center',
+                        backgroundColor: selectedEvalStage === 2 ? '#e6f7ff' : '#ffffff',
+                        borderColor: selectedEvalStage === 2 ? '#1677ff' : '#d9d9d9',
+                        color: selectedEvalStage === 2 ? '#1677ff' : '#000000'
+                      }}
+                    >
+                      50% 训练进度
+                    </Radio.Button>
+                  </Col>
+                  <Col span={12}>
+                    <Radio.Button 
+                      value={3} 
+                      style={{ 
+                        width: '100%', 
+                        textAlign: 'center',
+                        backgroundColor: selectedEvalStage === 3 ? '#e6f7ff' : '#ffffff',
+                        borderColor: selectedEvalStage === 3 ? '#1677ff' : '#d9d9d9',
+                        color: selectedEvalStage === 3 ? '#1677ff' : '#000000'
+                      }}
+                    >
+                      75% 训练进度
+                    </Radio.Button>
+                  </Col>
+                  <Col span={12}>
+                    <Radio.Button 
+                      value={4} 
+                      style={{ 
+                        width: '100%', 
+                        textAlign: 'center',
+                        backgroundColor: selectedEvalStage === 4 ? '#e6f7ff' : '#ffffff',
+                        borderColor: selectedEvalStage === 4 ? '#1677ff' : '#d9d9d9',
+                        color: selectedEvalStage === 4 ? '#1677ff' : '#000000'
+                      }}
+                    >
+                      100% 训练进度
+                    </Radio.Button>
+                  </Col>
+                </Row>
+              </Radio.Group>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* 测试详情弹窗 */}
       <Modal

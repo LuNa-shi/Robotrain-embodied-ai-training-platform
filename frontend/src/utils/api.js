@@ -369,6 +369,27 @@ export const trainTasksAPI = {
   },
 
   /**
+   * 获取当前用户已完成的训练任务列表
+   * @param {AbortSignal} signal 可选的AbortSignal用于取消请求
+   * @returns {Promise<Array>} 已完成的训练任务列表
+   */
+  getCompletedTasks: async (signal) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.trainTasks.getCompletedTasks, {
+        signal: signal
+      });
+      return response.data;
+    } catch (error) {
+      // 如果是取消请求，直接抛出
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        throw error;
+      }
+      console.error('获取已完成训练任务列表失败:', error);
+      throw error;
+    }
+  },
+
+  /**
    * 根据ID获取训练任务详情
    * @param {number} taskId 训练任务ID
    * @returns {Promise<Object>} 训练任务详情
@@ -462,6 +483,60 @@ export const trainTasksAPI = {
     } catch (error) {
       console.error('下载模型文件失败:', error);
       // 将底层的错误继续向上抛出，让UI层处理
+      throw error;
+    }
+  },
+};
+
+// 评估任务相关API函数
+export const evalTasksAPI = {
+  /**
+   * 创建评估任务
+   * @param {Object} evalTaskData 评估任务数据
+   * @returns {Promise<Object>} 创建的评估任务
+   */
+  create: async (evalTaskData) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.evalTasks.create, evalTaskData);
+      return response.data;
+    } catch (error) {
+      console.error('创建评估任务失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 获取当前用户的评估任务列表
+   * @param {AbortSignal} signal 可选的AbortSignal用于取消请求
+   * @returns {Promise<Array>} 评估任务列表
+   */
+  getMyTasks: async (signal) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.evalTasks.getMyTasks, {
+        signal: signal
+      });
+      return response.data;
+    } catch (error) {
+      // 如果是取消请求，直接抛出
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        throw error;
+      }
+      console.error('获取评估任务列表失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 根据ID获取评估任务详情
+   * @param {number} taskId 评估任务ID
+   * @returns {Promise<Object>} 评估任务详情
+   */
+  getById: async (taskId) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.evalTasks.getById(taskId));
+      return response.data;
+    } catch (error) {
+      console.error('获取评估任务详情失败:', error);
       throw error;
     }
   },
