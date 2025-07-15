@@ -6,6 +6,7 @@ from app.core.deps import get_db
 from datetime import datetime
 
 active_ws_connections: Dict[int, List[WebSocket]] = {}
+active_eval_ws_connections: Dict[int, List[WebSocket]] = {}
 
 async def add_websocket_connection(task_id: int, websocket: WebSocket):
     """
@@ -31,6 +32,20 @@ async def add_websocket_connection(task_id: int, websocket: WebSocket):
                 print(f"[Websocket] Send Log: {log_message}")
             except Exception as e:
                 print(f"Error sending initial log message to WebSocket: {e}")
+
+async def add_eval_websocket_connection(eval_task_id: int, websocket: WebSocket):
+    """
+    添加评估 WebSocket 连接到指定的任务 ID。
+    
+    :param task_id: 任务 ID
+    :param websocket: WebSocket 连接对象
+    """
+    global active_eval_ws_connections
+    # 如果任务 ID 不在字典中，则初始化一个空列表
+    if eval_task_id not in active_eval_ws_connections:
+        active_eval_ws_connections[eval_task_id] = []
+    active_eval_ws_connections[eval_task_id].append(websocket)
+    
     
 
 async def remove_websocket_connection(task_id: int, websocket: WebSocket):
@@ -47,6 +62,20 @@ async def remove_websocket_connection(task_id: int, websocket: WebSocket):
         if not active_ws_connections[task_id]:
             del active_ws_connections[task_id]
 
+async def remove_eval_websocket_connection(eval_task_id: int, websocket: WebSocket):
+    """
+    从指定的任务 ID 中移除评估 WebSocket 连接。
+    
+    :param task_id: 任务 ID
+    :param websocket: WebSocket 连接对象
+    """
+    global active_eval_ws_connections
+    if eval_task_id in active_eval_ws_connections:
+        active_eval_ws_connections[eval_task_id].remove(websocket)
+        # 如果列表为空，则删除该任务 ID 的条目
+        if not active_eval_ws_connections[eval_task_id]:
+            del active_eval_ws_connections[eval_task_id]
+
 async def send_log_to_websockets(task_id: int, log_message: str):
     """
     向指定任务 ID 的所有 WebSocket 连接发送日志消息。
@@ -60,5 +89,21 @@ async def send_log_to_websockets(task_id: int, log_message: str):
             try:
                 await websocket.send_text(log_message)
                 print(f"Sent message to WebSocket for task {task_id}: {log_message}")
+            except Exception as e:
+                print(f"Error sending message to WebSocket: {e}")
+
+async def send_eval_status_to_websockets(eval_task_id: int, log_message: str):
+    """
+    向指定评估任务 ID 的所有 WebSocket 连接发送状态消息。
+    
+    :param eval_task_id: 评估任务 ID
+    :param log_message: 状态消息内容
+    """
+    global active_eval_ws_connections
+    if eval_task_id in active_eval_ws_connections:
+        for websocket in active_eval_ws_connections[eval_task_id]:
+            try:
+                await websocket.send_text(log_message)
+                print(f"Sent message to WebSocket for eval task {eval_task_id}: {log_message}")
             except Exception as e:
                 print(f"Error sending message to WebSocket: {e}")
