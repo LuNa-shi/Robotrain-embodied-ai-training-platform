@@ -51,7 +51,7 @@ async def get_eval_task(
     - `404 Not Found`: 评估任务不存在。
     - `401 Unauthorized`: 用户未登录。
     """
-    eval_task = await eval_task_service.get_eval_task_by_id(eval_task_id, current_user.id)
+    eval_task = await eval_task_service.get_eval_task_by_id(eval_task_id)
     if not eval_task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评估任务不存在")
     return eval_task
