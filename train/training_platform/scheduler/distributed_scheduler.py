@@ -24,9 +24,31 @@ class DistributedScheduler:
         
         self.gpus_per_task = settings.SCHEDULER_GPUS_PER_TRAINER
         
+        # 添加关闭标志
+        self._shutdown_flag = False
+        
         asyncio.create_task(init_rabbitmq())
         
         print("[Scheduler] DistributedScheduler Actor initialized.")
+
+    async def shutdown(self):
+        """优雅地关闭分布式调度器，清理所有正在运行的任务"""
+        print("[DistributedScheduler] Shutdown requested...")
+        self._shutdown_flag = True
+        
+        # 清理所有正在运行的任务
+        if self.running_jobs:
+            print(f"[DistributedScheduler] Cleaning up {len(self.running_jobs)} running jobs...")
+            for task, actor in self.running_jobs:
+                try:
+                    ray.kill(actor)
+                    print(f"[DistributedScheduler] Killed actor for task {task.task_id}")
+                except Exception as e:
+                    print(f"[DistributedScheduler] Error killing actor for task {task.task_id}: {e}")
+            
+            self.running_jobs.clear()
+        
+        print("[DistributedScheduler] Shutdown completed")
 
     async def add_task(self, task_data: dict):
         task = TrainingTask(**task_data)
@@ -82,7 +104,14 @@ class DistributedScheduler:
 
     async def run(self):
         print("[Scheduler] Main loop started.")
-        while True:
-            if self.task_queue:
-                await self._launch_tasks()
-            await asyncio.sleep(5)
+        while not self._shutdown_flag:
+            try:
+                if self.task_queue:
+                    await self._launch_tasks()
+                await asyncio.sleep(5)
+            except Exception as e:
+                if not self._shutdown_flag:
+                    print(f"[DistributedScheduler] Error in main loop: {e}")
+                    await asyncio.sleep(5)
+        
+        print("[DistributedScheduler] Main loop ended")

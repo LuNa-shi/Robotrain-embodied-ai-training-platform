@@ -73,16 +73,32 @@ def env_to_policy_features(env_cfg: EnvConfig) -> dict[str, PolicyFeature]:
     # (need to also refactor preprocess_observation and externalize normalization from policies)
     policy_features = {}
     for key, ft in env_cfg.features.items():
-        if ft.type is FeatureType.VISUAL:
-            if len(ft.shape) != 3:
-                raise ValueError(f"Number of dimensions of {key} != 3 (shape={ft.shape})")
-
-            shape = get_channel_first_image_shape(ft.shape)
-            feature = PolicyFeature(type=ft.type, shape=shape)
+        # 处理字典类型的 feature（可能是从 JSON 配置加载的）
+        if isinstance(ft, dict):
+            # 从字典创建 PolicyFeature 对象
+            if 'type' in ft and 'shape' in ft:
+                feature_type = FeatureType(ft['type']) if isinstance(ft['type'], str) else ft['type']
+                feature = PolicyFeature(type=feature_type, shape=tuple(ft['shape']))
+            else:
+                # 如果字典格式不正确，跳过这个 feature
+                continue
         else:
+            # 如果已经是 PolicyFeature 对象，直接使用
             feature = ft
+        
+        # 确保 feature 有 type 属性
+        if not hasattr(feature, 'type'):
+            continue
+            
+        if feature.type is FeatureType.VISUAL:
+            if len(feature.shape) != 3:
+                raise ValueError(f"Number of dimensions of {key} != 3 (shape={feature.shape})")
 
-        policy_key = env_cfg.features_map[key]
+            shape = get_channel_first_image_shape(feature.shape)
+            feature = PolicyFeature(type=feature.type, shape=shape)
+        
+        # 使用 features_map 来映射键名
+        policy_key = env_cfg.features_map.get(key, key)
         policy_features[policy_key] = feature
 
     return policy_features

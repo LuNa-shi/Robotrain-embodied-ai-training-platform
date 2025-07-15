@@ -16,17 +16,19 @@ from training_platform.common.task_models import EvaluationTask
 from training_platform.common.rabbitmq_utils import (
     init_rabbitmq, 
     publish_status_message,
-    publish_eval_result_message
+    publish_eval_result_message,
+    send_eval_status_message
 )
 from training_platform.common.minio_utils import (
     get_minio_client, 
     download_ckpt_from_minio,
+    download_file_from_minio,
     upload_file_to_minio,
     list_objects_with_prefix
 )
 
 # 导入评估逻辑
-from training_platform.evaluator.evaluator_logic import run_lerobot_evaluation
+from training_platform.evaluator.evaluator_logic import run_lerobot_evaluation_sync
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +42,15 @@ class EvaluatorActor:
     2. 执行评估
     3. 上传评估结果
     4. 发送状态更新
+    
+    新增功能：
+    - 自动从解压缩的模型中获取训练参数
+    - 支持从JSON文件读取评估配置
     """
     
     def __init__(self, task: EvaluationTask):
         self.task = task
-        self.run_dir = os.path.join(settings.RUN_DIR_BASE, f"eval_{self.task.task_id}")
+        self.run_dir = os.path.join(settings.RUN_DIR_BASE, f"eval_{self.task.eval_task_id}")
         os.makedirs(self.run_dir, exist_ok=True)
         
         # 获取当前actor的事件循环，用于线程安全的回调
@@ -56,51 +62,51 @@ class EvaluatorActor:
         # Manager 模式确保在 Actor 启动时，异步地准备好连接
         asyncio.create_task(init_rabbitmq())
         
-        logger.info(f"[{self.task.task_id}] Evaluator Actor initialized for model evaluation.")
-        print(f"[{self.task.task_id}] Evaluator Actor initialized for model evaluation.")
+        logger.info(f"[{self.task.eval_task_id}] Evaluator Actor initialized for model evaluation.")
+        print(f"[{self.task.eval_task_id}] Evaluator Actor initialized for model evaluation.")
 
     async def _publish_status(self, status: str, message: str):
-        """发布状态更新消息到 RabbitMQ"""
+        """发布评估状态更新消息到 RabbitMQ 评估状态队列"""
         try:
-            await publish_status_message(
-                task_id=self.task.task_id,
-                user_id=self.task.user_id,
+            await send_eval_status_message(
+                eval_task_id=self.task.eval_task_id,
                 status=status,
                 message=message
             )
         except Exception as e:
-            logger.error(f"[{self.task.task_id}] Failed to publish status: {e}")
+            logger.error(f"[{self.task.eval_task_id}] Failed to publish eval status: {e}")
 
     async def _publish_eval_results(self):
         """发布评估结果消息到 RabbitMQ"""
         try:
             if self.eval_results:
                 await publish_eval_result_message(
-                    task_id=self.task.task_id,
+                    task_id=self.task.eval_task_id,
                     user_id=self.task.user_id,
-                    model_uuid=self.task.model_uuid,
+                    train_task_id=self.task.train_task_id,
                     eval_results=self.eval_results
                 )
+                logger.info(f"[{self.task.eval_task_id}] Evaluation results published to RabbitMQ")
         except Exception as e:
-            logger.error(f"[{self.task.task_id}] Failed to publish eval results: {e}")
+            logger.error(f"[{self.task.eval_task_id}] Failed to publish eval results: {e}")
 
-    async def _find_latest_checkpoint(self, train_task_id: str) -> Optional[str]:
+    async def _find_checkpoint_by_stage(self, train_task_id: str, eval_stage: int) -> Optional[str]:
         """
-        在 MinIO 中查找指定训练任务的最新 checkpoint
+        根据 eval_stage 在 MinIO 中查找指定训练任务的对应 checkpoint
         
         Args:
             train_task_id: 训练任务 ID
+            eval_stage: 评估阶段（决定选择第几大的checkpoint）
             
         Returns:
-            最新 checkpoint 的对象名称，如果没找到则返回 None
+            对应 checkpoint 的对象名称，如果没找到则返回 None
         """
-        task_id = self.task.task_id
+        task_id = self.task.eval_task_id
         
         try:
             minio_client = await get_minio_client()
             
-            # 构建搜索前缀
-            from training_platform.configs.settings import settings
+            # 构建搜索前缀 - 使用新的路径格式
             prefix = f"{settings.MINIO_CKPT_DIR}/{train_task_id}/"
             
             logger.info(f"[{task_id}] Searching for checkpoints with prefix: {prefix}")
@@ -116,8 +122,9 @@ class EvaluatorActor:
                 logger.warning(f"[{task_id}] Failed to list objects with prefix: {prefix}")
                 return None
             
+            # print(f"[{task_id}] Objects: {objects}")
             # 过滤出 checkpoint 文件并解析 step 号
-            checkpoint_pattern = re.compile(rf"{re.escape(settings.MINIO_CKPT_DIR)}/{re.escape(train_task_id)}/checkpoint_step_(\d+)\.zip$")
+            checkpoint_pattern = re.compile(rf"{settings.MINIO_CKPT_DIR}/{re.escape(train_task_id)}/checkpoint_step_(\d+)\.zip$")
             checkpoints = []
             
             for obj_name in objects:
@@ -130,87 +137,46 @@ class EvaluatorActor:
                 logger.warning(f"[{task_id}] No checkpoint files found for task {train_task_id}")
                 return None
             
-            # 按 step 排序，取最大的
+            # 按 step 排序，根据 eval_stage 选择对应大小的checkpoint
             checkpoints.sort(key=lambda x: x[0], reverse=True)
-            latest_step, latest_checkpoint = checkpoints[0]
+            
+            # eval_stage 为1表示最大的，为2表示第二大的，以此类推
+            if eval_stage <= 0 or eval_stage > len(checkpoints):
+                logger.warning(f"[{task_id}] Invalid eval_stage {eval_stage}, available checkpoints: {len(checkpoints)}")
+                # 如果eval_stage无效，使用最大的checkpoint
+                selected_step, selected_checkpoint = checkpoints[0]
+                logger.info(f"[{task_id}] Using largest checkpoint: step {selected_step}")
+            else:
+                selected_step, selected_checkpoint = checkpoints[eval_stage - 1]
+                logger.info(f"[{task_id}] Using {eval_stage}th largest checkpoint: step {selected_step}")
             
             logger.info(f"[{task_id}] Found {len(checkpoints)} checkpoints for task {train_task_id}")
-            logger.info(f"[{task_id}] Latest checkpoint: step {latest_step}, object: {latest_checkpoint}")
+            logger.info(f"[{task_id}] Selected checkpoint: step {selected_step}, object: {selected_checkpoint}")
             
-            return latest_checkpoint
+            return selected_checkpoint
             
         except Exception as e:
-            logger.error(f"[{task_id}] Error finding latest checkpoint: {e}")
+            logger.error(f"[{task_id}] Error finding checkpoint by stage: {e}")
             return None
 
     async def _get_model_path(self) -> str:
         """
-        获取模型路径。支持以下格式：
-        1. Hugging Face 模型 ID（username/model_name）
-        2. 训练任务 ID（纯数字，自动查找最新 checkpoint）
-        3. 完整的 checkpoint 路径
-        4. 简单的模型名称（向后兼容）
+        获取模型路径。基于训练任务ID自动查找最新的checkpoint。
         
         Returns:
-            模型路径（HF 模型 ID 或本地路径）
+            模型路径（本地路径）
         """
-        task_id = self.task.task_id
-        model_uuid = self.task.model_uuid
+        task_id = self.task.eval_task_id
+        train_task_id = str(self.task.train_task_id)
         
-        # 检查是否是 Hugging Face 模型 ID（格式：username/model_name）
-        if "/" in model_uuid and not os.path.exists(model_uuid) and not model_uuid.startswith("checkpoint_"):
-            logger.info(f"[{task_id}] Using Hugging Face model: {model_uuid}")
-            await self._publish_status("running", f"准备使用 Hugging Face 模型: {model_uuid}")
-            return model_uuid
+        logger.info(f"[{task_id}] Getting model path for training task: {train_task_id}")
+        await self._publish_status("running", f"正在查找训练任务 {train_task_id} 的最新模型...")
         
-        # 检查是否是训练任务 ID（纯数字）
-        if model_uuid.isdigit():
-            logger.info(f"[{task_id}] Model UUID appears to be a training task ID: {model_uuid}")
-            await self._publish_status("running", f"正在查找训练任务 {model_uuid} 的最新模型...")
-            
-            # 自动查找最新的 checkpoint
-            latest_checkpoint = await self._find_latest_checkpoint(model_uuid)
-            
-            if latest_checkpoint:
-                logger.info(f"[{task_id}] Found latest checkpoint: {latest_checkpoint}")
-                # 使用找到的最新 checkpoint 作为模型对象名称
-                model_object_name = latest_checkpoint
-            else:
-                raise RuntimeError(f"No checkpoints found for training task {model_uuid}")
-        else:
-            # 否则从 MinIO 下载模型
-            logger.info(f"[{task_id}] Processing explicit model identifier: {model_uuid}")
-            
-            # 构建模型对象名称，参考trainer的存储逻辑
-            # model_uuid 可能是以下格式之一：
-            # 1. "task_id/checkpoint_step_xxx.zip" (完整路径)
-            # 2. "checkpoint_step_xxx" (需要添加task_id前缀)
-            # 3. 简单的模型名称 (向后兼容)
-            if "/" in model_uuid:
-                # 格式1：已包含完整路径
-                model_object_name = model_uuid
-                if not model_object_name.endswith('.zip'):
-                    model_object_name += '.zip'
-            elif model_uuid.startswith("checkpoint_step_"):
-                # 格式2：需要添加task_id前缀，假设使用训练任务的ID
-                # 这里我们假设model_uuid格式为 "checkpoint_step_{step}" 
-                # 或者 "task_{train_task_id}_checkpoint_step_{step}"
-                if model_uuid.startswith("task_"):
-                    # 提取训练任务ID
-                    parts = model_uuid.split("_")
-                    if len(parts) >= 4:  # task_{id}_checkpoint_step_{step}
-                        train_task_id = parts[1]
-                        step_part = "_".join(parts[2:])  # checkpoint_step_{step}
-                        model_object_name = f"{train_task_id}/{step_part}.zip"
-                    else:
-                        raise ValueError(f"Invalid model_uuid format: {model_uuid}")
-                else:
-                    # 需要知道训练任务ID，这里假设有一个映射或使用当前task_id
-                    # 在实际应用中，可能需要从数据库查询对应的训练任务ID
-                    model_object_name = f"{task_id}/{model_uuid}.zip"
-            else:
-                # 格式3：简单名称，向后兼容
-                model_object_name = f"{model_uuid}.zip"
+        # 根据 eval_stage 查找对应的 checkpoint
+        selected_checkpoint = await self._find_checkpoint_by_stage(train_task_id, self.task.eval_stage)
+        
+        if not selected_checkpoint:
+            raise RuntimeError(f"No checkpoints found for training task {train_task_id}")
         
         # 从 MinIO 下载模型
         try:
@@ -224,13 +190,15 @@ class EvaluatorActor:
             os.makedirs(model_dir, exist_ok=True)
             
             # 下载模型文件
-            model_zip_path = os.path.join(model_dir, os.path.basename(model_object_name))
+            model_zip_path = os.path.join(model_dir, os.path.basename(selected_checkpoint))
             
-            print(f"[{task_id}] Downloading model: {model_object_name}")
-            success, message = await download_ckpt_from_minio(
+            print(f"[{task_id}] Downloading model: {selected_checkpoint}")
+            success, message = await download_file_from_minio(
                 client=minio_client,
-                download_local_path=model_zip_path,
-                ckpt_name=model_object_name
+                local_file_path=model_zip_path,
+                object_name=selected_checkpoint,
+                bucket_name=settings.MINIO_BUCKET,
+                object_dir=""  # 不添加额外前缀，因为selected_checkpoint已经包含完整路径
             )
             
             if not success:
@@ -249,13 +217,52 @@ class EvaluatorActor:
             if os.path.exists(pretrained_model_dir):
                 # 如果存在pretrained_model目录，使用它作为模型路径
                 logger.info(f"[{task_id}] Found pretrained_model directory: {pretrained_model_dir}")
-                return pretrained_model_dir
+                model_path = pretrained_model_dir
             elif os.path.exists(model_extract_dir):
                 # 否则使用解压根目录
                 logger.info(f"[{task_id}] Using extracted directory: {model_extract_dir}")
-                return model_extract_dir
+                model_path = model_extract_dir
             else:
                 raise RuntimeError(f"Model extraction failed: no valid model directory found")
+            
+            # 检查并修复配置文件中的 type 字段
+            config_path = os.path.join(model_path, "config.json")
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config_content = json.load(f)
+                    
+                    # 检查是否包含 'type' 字段
+                    if 'type' not in config_content:
+                        logger.warning(f"[{task_id}] 配置文件缺少 'type' 字段，尝试推断策略类型")
+                        
+                        # 尝试从配置内容推断策略类型
+                        if 'chunk_size' in config_content and 'n_action_steps' in config_content:
+                            config_content['type'] = 'act'
+                            logger.info(f"[{task_id}] 基于配置特征推断为 ACT 策略")
+                        elif 'horizon' in config_content and 'num_train_timesteps' in config_content:
+                            config_content['type'] = 'diffusion'
+                            logger.info(f"[{task_id}] 基于配置特征推断为 Diffusion 策略")
+                        elif 'n_heads' in config_content and 'dim_model' in config_content:
+                            config_content['type'] = 'act'
+                            logger.info(f"[{task_id}] 基于配置特征推断为 ACT 策略")
+                        else:
+                            # 默认使用 ACT
+                            config_content['type'] = 'act'
+                            logger.info(f"[{task_id}] 使用默认策略类型: ACT")
+                        
+                        # 保存修改后的配置
+                        with open(config_path, 'w', encoding='utf-8') as f:
+                            json.dump(config_content, f, indent=2)
+                        
+                        logger.info(f"[{task_id}] 已修复配置文件，添加 type 字段: {config_content['type']}")
+                    else:
+                        logger.info(f"[{task_id}] 配置文件已包含 type 字段: {config_content['type']}")
+                        
+                except Exception as e:
+                    logger.warning(f"[{task_id}] 无法读取或修改配置文件: {e}")
+            
+            return model_path
             
         except Exception as e:
             error_msg = f"Model download failed: {str(e)}"
@@ -270,8 +277,8 @@ class EvaluatorActor:
         Returns:
             上传是否成功
         """
-        task_id = self.task.task_id
-        model_uuid = self.task.model_uuid
+        task_id = self.task.eval_task_id
+        train_task_id = self.task.train_task_id
         
         try:
             logger.info(f"[{task_id}] Starting result upload...")
@@ -282,7 +289,7 @@ class EvaluatorActor:
             # 上传评估信息文件 (JSON)
             eval_info_file = os.path.join(self.run_dir, "eval_output", "eval_info.json")
             if os.path.exists(eval_info_file):
-                eval_info_object_name = f"eval_results/eval_info_{model_uuid}_{task_id}.json"
+                eval_info_object_name = f"eval_results/eval_info_train_{train_task_id}_eval_{task_id}.json"
                 
                 success, message = await upload_file_to_minio(
                     client=minio_client,
@@ -304,7 +311,7 @@ class EvaluatorActor:
                 logger.info(f"[{task_id}] Found {len(video_files)} video files to upload")
                 
                 for video_file in video_files:
-                    video_object_name = f"eval_videos/{model_uuid}_{task_id}_{video_file.name}"
+                    video_object_name = f"eval_videos/train_{train_task_id}_eval_{task_id}_{video_file.name}"
                     
                     success, message = await upload_file_to_minio(
                         client=minio_client,
@@ -338,7 +345,7 @@ class EvaluatorActor:
         Returns:
             评估结果字典
         """
-        task_id = self.task.task_id
+        task_id = self.task.eval_task_id
         
         try:
             logger.info(f"[{task_id}] Starting model evaluation...")
@@ -348,20 +355,33 @@ class EvaluatorActor:
             output_dir = os.path.join(self.run_dir, "eval_output")
             os.makedirs(output_dir, exist_ok=True)
             
-            # 准备评估配置
-            env_config = self.task.env_config.copy()
-            eval_config = self.task.eval_config.copy()
+            # 准备评估配置 - 使用新的自动配置功能
+            env_config = None
+            eval_config = None
+            
+            # 如果任务中提供了配置，则使用任务配置；否则使用自动检测
+            if hasattr(self.task, 'env_config') and self.task.env_config:
+                env_config = self.task.env_config.copy()
+                logger.info(f"[{task_id}] Using provided env_config: {env_config}")
+            else:
+                logger.info(f"[{task_id}] Will auto-detect env_config from model")
+            
+            if hasattr(self.task, 'eval_config') and self.task.eval_config:
+                eval_config = self.task.eval_config.copy()
+                logger.info(f"[{task_id}] Using provided eval_config: {eval_config}")
+            else:
+                logger.info(f"[{task_id}] Will auto-detect eval_config from model")
             
             print(f"[{task_id}] Evaluation configuration:")
             print(f"  Model path: {model_path}")
-            print(f"  Environment config: {env_config}")
-            print(f"  Evaluation config: {eval_config}")
+            print(f"  Environment config: {'Auto-detect' if env_config is None else env_config}")
+            print(f"  Evaluation config: {'Auto-detect' if eval_config is None else eval_config}")
             print(f"  Output directory: {output_dir}")
             print(f"  Max episodes rendered: {self.task.max_episodes_rendered}")
             
             # 运行评估 - 在单独线程中执行以避免阻塞 Actor
             results = await asyncio.to_thread(
-                run_lerobot_evaluation,
+                run_lerobot_evaluation_sync,
                 model_path=model_path,
                 env_config=env_config,
                 eval_config=eval_config,
@@ -369,6 +389,7 @@ class EvaluatorActor:
                 seed=self.task.seed,
                 max_episodes_rendered=self.task.max_episodes_rendered,
                 return_episode_data=self.task.return_episode_data,
+                eval_task_id=str(self.task.eval_task_id),
             )
             
             logger.info(f"[{task_id}] Evaluation completed successfully")
@@ -389,11 +410,12 @@ class EvaluatorActor:
         Returns:
             评估结果字典
         """
-        task_id = self.task.task_id
+        task_id = self.task.eval_task_id
         start_time = time.time()
         
         try:
             logger.info(f"[{task_id}] Starting evaluation pipeline...")
+            # 发送开始状态
             await self._publish_status("running", "评估任务开始")
             
             # 1. 获取模型路径
@@ -430,7 +452,7 @@ class EvaluatorActor:
 
     async def cleanup(self):
         """清理临时文件和资源"""
-        task_id = self.task.task_id
+        task_id = self.task.eval_task_id
         
         try:
             if os.path.exists(self.run_dir):
@@ -442,9 +464,9 @@ class EvaluatorActor:
     def get_status(self) -> Dict[str, Any]:
         """获取当前评估状态"""
         return {
-            "task_id": self.task.task_id,
+            "eval_task_id": self.task.eval_task_id,
+            "train_task_id": self.task.train_task_id,
             "user_id": self.task.user_id,
-            "model_uuid": self.task.model_uuid,
             "status": self.task.status,
             "eval_results": self.eval_results,
         }
@@ -452,12 +474,12 @@ class EvaluatorActor:
 
 # 便捷函数
 async def run_evaluation_actor(
-    task_id: int,
+    eval_task_id: int,
+    train_task_id: int,
+    eval_stage: int,
     user_id: int,
-    model_uuid: str,
-    model_type: str,
-    env_config: Dict[str, Any],
-    eval_config: Dict[str, Any],
+    env_config: Optional[Dict[str, Any]] = None,
+    eval_config: Optional[Dict[str, Any]] = None,
     seed: int = 1000,
     max_episodes_rendered: int = 10,
     return_episode_data: bool = False,
@@ -466,12 +488,12 @@ async def run_evaluation_actor(
     创建并运行评估 Actor 的便捷函数。
     
     Args:
-        task_id: 评估任务 ID
+        eval_task_id: 评估任务 ID
+        train_task_id: 训练任务 ID
+        eval_stage: 评估阶段
         user_id: 用户 ID
-        model_uuid: 模型 UUID
-        model_type: 模型类型
-        env_config: 环境配置
-        eval_config: 评估配置
+        env_config: 环境配置（可选，如果不提供则自动检测）
+        eval_config: 评估配置（可选，如果不提供则自动检测）
         seed: 随机种子
         max_episodes_rendered: 最大渲染剧集数
         return_episode_data: 是否返回剧集数据
@@ -481,10 +503,10 @@ async def run_evaluation_actor(
     """
     # 创建评估任务
     eval_task = EvaluationTask(
-        task_id=task_id,
+        eval_task_id=eval_task_id,
+        train_task_id=train_task_id,
+        eval_stage=eval_stage,
         user_id=user_id,
-        model_uuid=model_uuid,
-        model_type=model_type,
         env_config=env_config,
         eval_config=eval_config,
         seed=seed,
@@ -506,3 +528,55 @@ async def run_evaluation_actor(
     finally:
         # 清理资源 - 使用类型忽略来避免 Ray 类型检查问题
         ray.get(evaluator.cleanup.remote())  # type: ignore
+
+
+async def run_evaluation_actor_from_task_data(task_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    从任务数据字典直接创建并运行评估 Actor 的便捷函数。
+    
+    Args:
+        task_data: 包含评估任务信息的字典
+        
+    Returns:
+        评估结果字典
+    """
+    # 提取评估任务参数
+    eval_task_id = task_data.get("eval_task_id")
+    train_task_id = task_data.get("train_task_id")
+    eval_stage = task_data.get("eval_stage")
+    user_id = task_data.get("user_id")
+    env_config = task_data.get("env_config", None)  # 改为可选
+    eval_config = task_data.get("eval_config", None)  # 改为可选
+    seed = task_data.get("seed", 1000)
+    max_episodes_rendered = task_data.get("max_episodes_rendered", 10)
+    return_episode_data = task_data.get("return_episode_data", False)
+    
+    # 验证必需参数
+    if not all([eval_task_id, train_task_id, eval_stage, user_id]):
+        raise ValueError("Missing required parameters for evaluation task")
+    
+    # 确保类型正确
+    eval_task_id = int(eval_task_id) if eval_task_id is not None else 0
+    train_task_id = int(train_task_id) if train_task_id is not None else 0
+    eval_stage = int(eval_stage) if eval_stage is not None else 0
+    user_id = int(user_id) if user_id is not None else 0
+    
+    # 再次验证转换后的参数
+    if not all([eval_task_id, train_task_id, eval_stage, user_id]):
+        raise ValueError("Invalid parameters after type conversion")
+    
+    logger.info(f"[{eval_task_id}] Creating evaluation task from task data")
+    print(f"[{eval_task_id}] Creating evaluation task from task data")
+    
+    # 调用原有的便捷函数
+    return await run_evaluation_actor(
+        eval_task_id=eval_task_id,
+        train_task_id=train_task_id,
+        eval_stage=eval_stage,
+        user_id=user_id,
+        env_config=env_config,
+        eval_config=eval_config,
+        seed=seed,
+        max_episodes_rendered=max_episodes_rendered,
+        return_episode_data=return_episode_data
+    )
