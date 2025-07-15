@@ -30,6 +30,11 @@ class Settings:
     RABBIT_STATUS_BINDING_KEY: str = os.getenv("RABBIT_STATUS_BINDING_KEY", "status_binding_key")
     RABBIT_TRAIN_LOG_QUEUE_NAME: str = os.getenv("RABBIT_TRAIN_LOG_QUEUE_NAME", "train_log")
     RABBIT_TRAIN_LOG_BINDING_KEY: str = os.getenv("RABBIT_TRAIN_LOG_BINDING_KEY", "train_log_binding_key")
+    # 评估队列配置
+    RABBIT_EVAL_QUEUE_NAME: str = os.getenv("RABBIT_EVAL_QUEUE_NAME", "eval_request")
+    RABBIT_EVAL_BINDING_KEY: str = os.getenv("RABBIT_EVAL_BINDING_KEY", "eval_binding_key")
+    RABBIT_EVAL_STATUS_QUEUE_NAME: str = os.getenv("RABBIT_EVAL_STATUS_QUEUE_NAME", "eval_status")
+    RABBIT_EVAL_STATUS_BINDING_KEY: str = os.getenv("RABBIT_EVAL_STATUS_BINDING_KEY", "eval_status_binding_key")
 
 
     # --- 数据库相关 (即使暂时不用，也保留结构) ---

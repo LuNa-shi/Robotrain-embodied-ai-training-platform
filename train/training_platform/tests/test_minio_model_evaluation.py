@@ -345,7 +345,7 @@ async def test_model_evaluation(extract_dir: Path, checkpoint_info: Dict[str, An
     
     try:
         # 导入评估相关模块
-        from training_platform.evaluator.evaluator_logic import run_lerobot_evaluation
+        from training_platform.evaluator.evaluator_logic import run_lerobot_evaluation_sync
         
         # 查找模型文件和配置文件
         model_files = []
@@ -452,7 +452,7 @@ async def test_model_evaluation(extract_dir: Path, checkpoint_info: Dict[str, An
         try:
             # 尝试运行评估（这可能会失败，因为可能缺少环境或其他依赖）
             eval_results = await asyncio.to_thread(
-                run_lerobot_evaluation,
+                run_lerobot_evaluation_sync,
                 model_path=model_path_for_eval,
                 env_config=env_config,
                 eval_config=eval_config,

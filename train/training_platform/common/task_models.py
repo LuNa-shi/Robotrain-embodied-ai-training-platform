@@ -19,12 +19,12 @@ class TrainingTask(BaseModel):
         self.config["save_freq"] = int(self.config["steps"] / 4)
 
 class EvaluationTask(BaseModel):
-    task_id: int
+    eval_task_id: int
+    train_task_id: int
+    eval_stage: int
     user_id: int
-    model_uuid: str
-    model_type: str
-    env_config: Dict[str, Any]  # 环境配置
-    eval_config: Dict[str, Any]  # 评估配置
+    env_config: Optional[Dict[str, Any]] = None  # 环境配置（可选）
+    eval_config: Optional[Dict[str, Any]] = None  # 评估配置（可选）
     
     # 评估特定的配置
     seed: int = 1000

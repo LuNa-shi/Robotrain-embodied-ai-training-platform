@@ -1,0 +1,5 @@
+{
+    "n_episodes": 500,
+    "batch_size": 50,
+    "use_async_envs": false
+} 
