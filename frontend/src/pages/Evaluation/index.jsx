@@ -85,6 +85,7 @@ const EvaluationPage = () => {
   const [selectedEvalStage, setSelectedEvalStage] = useState(null);
   const [creatingEvaluation, setCreatingEvaluation] = useState(false);
   const [evaluationModalVisible, setEvaluationModalVisible] = useState(false);
+  const [selectedTrainTask, setSelectedTrainTask] = useState(null);
 
   useEffect(() => {
     const leftPanelWidth = 260;
@@ -150,6 +151,19 @@ const EvaluationPage = () => {
       setRecords([]);
     } finally {
       setLoadingEvaluationTasks(false);
+    }
+  };
+
+  // 获取训练任务详情
+  const fetchTrainTaskDetail = async (trainTaskId) => {
+    try {
+      const trainTaskDetail = await trainTasksAPI.getById(trainTaskId);
+      setSelectedTrainTask(trainTaskDetail);
+      return trainTaskDetail;
+    } catch (error) {
+      console.error('获取训练任务详情失败:', error);
+      message.error('获取训练任务详情失败: ' + error.message);
+      return null;
     }
   };
 
@@ -256,12 +270,26 @@ const EvaluationPage = () => {
     <List.Item
       key={record.id}
       className={`${styles.projectItem} ${selectedRecord?.id === record.id ? styles.selectedProject : ''}`}
-      onClick={() => {
+      onClick={async () => {
         setSelectedRecord(record);
         // 当选择其他项目时，退出评估模式
         if (isEvaluationMode) {
           setIsEvaluationMode(false);
           setSelectedTrainingProject(null);
+        }
+        
+        // 获取评估任务详情
+        try {
+          const evalTaskId = record.id.replace('eval-', '');
+          const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
+          setSelectedRecordDetails(evalTaskDetail);
+          // 获取训练任务详情
+          if (evalTaskDetail.train_task_id) {
+            await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
+          }
+        } catch (error) {
+          console.error('获取评估任务详情失败:', error);
+          message.error('获取评估任务详情失败: ' + error.message);
         }
       }}
     >
@@ -286,12 +314,26 @@ const EvaluationPage = () => {
     <div
       key={record.id}
       className={`${styles.projectItemHorizontal} ${selectedRecord?.id === record.id ? styles.selectedProjectHorizontal : ''}`}
-      onClick={() => {
+      onClick={async () => {
         setSelectedRecord(record);
         // 当选择其他项目时，退出评估模式
         if (isEvaluationMode) {
           setIsEvaluationMode(false);
           setSelectedTrainingProject(null);
+        }
+        
+        // 获取评估任务详情
+        try {
+          const evalTaskId = record.id.replace('eval-', '');
+          const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
+          setSelectedRecordDetails(evalTaskDetail);
+          // 获取训练任务详情
+          if (evalTaskDetail.train_task_id) {
+            await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
+          }
+        } catch (error) {
+          console.error('获取评估任务详情失败:', error);
+          message.error('获取评估任务详情失败: ' + error.message);
         }
       }}
     >
@@ -403,39 +445,61 @@ const EvaluationPage = () => {
 
     return (
       <div className={styles.rightPanel}>
-        {selectedRecord ? (
+        {selectedRecord && selectedRecordDetails ? (
           <div className={styles.videoContent}>
-            <Card 
-              title={
-                <div className={styles.videoTitle}>
-                  <VideoCameraOutlined />
-                  <span>{selectedRecord.name}</span>
-                  <StatusDisplay status={selectedRecord.status} />
+            <Card className={styles.videoCard}>
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                {/* 基本信息作为标题部分 */}
+                <div style={{ marginBottom: 24, paddingTop: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
+                  <Row gutter={0}>
+                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center', width: '100%' }}>
+                        <Text type="secondary">训练项目</Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Text strong>{selectedTrainTask ? `训练项目 ${selectedTrainTask.id}` : '加载中...'}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center', width: '100%' }}>
+                        <Text type="secondary">创建时间</Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Text>{selectedRecordDetails.create_time ? new Date(selectedRecordDetails.create_time).toLocaleString('zh-CN') : '-'}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center', width: '100%' }}>
+                        <Text type="secondary">开始时间</Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Text>{selectedRecordDetails.start_time ? new Date(selectedRecordDetails.start_time).toLocaleString('zh-CN') : '-'}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center', width: '100%' }}>
+                        <Text type="secondary">结束时间</Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Text>{selectedRecordDetails.end_time ? new Date(selectedRecordDetails.end_time).toLocaleString('zh-CN') : '-'}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
                 </div>
-              }
-              className={styles.videoCard}
-              extra={
-                <Button 
-                  type="primary" 
-                  icon={<DownloadOutlined />}
-                  onClick={() => message.info('下载视频功能待实现')}
-                >
-                  下载视频
-                </Button>
-              }
-            >
-              <div className={styles.videoContainer}>
-                <video 
-                  key={selectedRecord.videoUrl} // Use key to force re-render on source change
-                  controls 
-                  autoPlay
-                  muted
-                  className={styles.videoPlayer}
-                  poster={selectedRecord.thumbnail}
-                >
-                  <source src={selectedRecord.videoUrl} type="video/mp4" />
-                  您的浏览器不支持视频播放。
-                </video>
+                
+                {/* 仿真和视频展示区域 */}
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {selectedRecordDetails.status === 'completed' ? (
+                    <div style={{ textAlign: 'center', color: '#999' }}>
+                      {/* 这里将来可以放仿真和视频内容 */}
+                      <Text type="secondary">仿真与视频功能开发中，敬请期待！</Text>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#999' }}>
+                      <Text type="secondary">当前状态（{selectedRecordDetails.status}）暂不支持显示仿真和视频。</Text>
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
           </div>
@@ -444,8 +508,8 @@ const EvaluationPage = () => {
             <Card className={styles.emptyCard}>
               <div className={styles.emptyContent}>
                 <VideoCameraOutlined className={styles.emptyIcon} />
-                <Title level={3}>请选择测试项目</Title>
-                <Text type="secondary">从列表中选择一个测试项目来查看评估视频</Text>
+                <Title level={3}>请选择评估项目</Title>
+                <Text type="secondary">从列表中选择一个评估项目来查看详情</Text>
               </div>
             </Card>
           </div>
@@ -649,88 +713,7 @@ const EvaluationPage = () => {
         )}
       </Modal>
 
-      {/* 测试详情弹窗 */}
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BarChartOutlined style={{ color: '#1677ff' }} />
-            <span>测试详情</span>
-          </div>
-        }
-        open={!!selectedRecordDetails}
-        onCancel={() => setSelectedRecordDetails(null)}
-        footer={[
-          <Button key="close" onClick={() => setSelectedRecordDetails(null)}>
-            关闭
-          </Button>,
-          <Button key="download" type="primary" icon={<DownloadOutlined />}>
-            下载报告
-          </Button>
-        ]}
-        width={800}
-        className="evaluation-modal"
-      >
-        {selectedRecordDetails && (
-          <div>
-            <Descriptions title="基本信息" bordered column={2}>
-              <Descriptions.Item label="测试ID">{selectedRecordDetails.id}</Descriptions.Item>
-              <Descriptions.Item label="测试名称">{selectedRecordDetails.name}</Descriptions.Item>
-              <Descriptions.Item label="模型">{selectedRecordDetails.modelType}</Descriptions.Item>
-              <Descriptions.Item label="数据集">{selectedRecordDetails.dataset}</Descriptions.Item>
-              <Descriptions.Item label="开始时间">{selectedRecordDetails.startTime}</Descriptions.Item>
-              <Descriptions.Item label="持续时间">{selectedRecordDetails.duration}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <StatusDisplay status={selectedRecordDetails.status} />
-              </Descriptions.Item>
-              <Descriptions.Item label="测试用例数">{selectedRecordDetails.testCases}</Descriptions.Item>
-            </Descriptions>
 
-            <Divider />
-
-            <Descriptions title="性能指标" bordered column={2}>
-              <Descriptions.Item label="准确率">{selectedRecordDetails.accuracy}</Descriptions.Item>
-              <Descriptions.Item label="精确率">{selectedRecordDetails.precision}</Descriptions.Item>
-              <Descriptions.Item label="召回率">{selectedRecordDetails.recall}</Descriptions.Item>
-              <Descriptions.Item label="F1分数">{selectedRecordDetails.f1Score}</Descriptions.Item>
-            </Descriptions>
-
-            <Divider />
-
-            <div>
-              <Text strong>测试用例统计</Text>
-              <Row gutter={16} style={{ marginTop: 16 }}>
-                <Col span={8}>
-                  <Card size="small">
-                    <Statistic
-                      title="总用例"
-                      value={selectedRecordDetails.testCases}
-                      valueStyle={{ color: '#1890ff' }}
-                    />
-                  </Card>
-                </Col>
-                <Col span={8}>
-                  <Card size="small">
-                    <Statistic
-                      title="通过"
-                      value={selectedRecordDetails.passedCases}
-                      valueStyle={{ color: '#3f8600' }}
-                    />
-                  </Card>
-                </Col>
-                <Col span={8}>
-                  <Card size="small">
-                    <Statistic
-                      title="失败"
-                      value={selectedRecordDetails.failedCases}
-                      valueStyle={{ color: '#cf1322' }}
-                    />
-                  </Card>
-                </Col>
-              </Row>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 };
