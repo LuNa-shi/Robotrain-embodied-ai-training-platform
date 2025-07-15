@@ -36,4 +36,4 @@ EXPOSE 8000
 # fastapi dev main.py 会启动 FastAPI 应用并启用热重载
 # 注意：在生产环境中，通常会使用 uvicorn main:app --host 0.0.0.0 --port 8000
 # 因为 fastapi dev 主要是为开发便利性设计的
-CMD ["fastapi", "dev", "main.py", "--host", "0.0.0.0"]
+CMD ["fastapi", "dev", "app/main.py", "--host", "0.0.0.0"]
