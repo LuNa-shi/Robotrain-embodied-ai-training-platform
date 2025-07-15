@@ -32,6 +32,30 @@ async def get_my_eval_tasks(
     """
     return await eval_task_service.get_eval_tasks_by_user(current_user.id)
 
+@router.get("/{eval_task_id}", response_model=EvalTaskPublic, summary="获取评估任务详情")
+async def get_eval_task(
+    eval_task_id: int,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    eval_task_service: Annotated[EvalTaskService, Depends(get_train_task_service)]
+) -> EvalTaskPublic:
+    """
+    **获取评估任务详情**
+
+    返回指定评估任务的详细信息。
+
+    **路径参数:**
+    - `eval_task_id`: 评估任务的唯一标识符。
+
+    **响应:**
+    - `200 OK`: 成功获取评估任务详情。
+    - `404 Not Found`: 评估任务不存在。
+    - `401 Unauthorized`: 用户未登录。
+    """
+    eval_task = await eval_task_service.get_eval_task_by_id(eval_task_id, current_user.id)
+    if not eval_task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评估任务不存在")
+    return eval_task
+
 @router.post("/", response_model=EvalTaskPublic, summary="创建评估任务")
 async def create_eval_task(
     eval_task_create: EvalTaskCreate,
