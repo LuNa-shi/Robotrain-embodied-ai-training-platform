@@ -8,7 +8,7 @@ from typing import Optional
 from app.core.config import settings
 import json
 from uuid import uuid4
-from app.core.websocket_utils import send_log_to_websockets
+from app.core.websocket_utils import send_log_to_websockets, send_eval_status_to_websockets
 from app.core.deps import AsyncSessionLocal
 rabbit_connection: Optional[Connection] = None
 rabbit_channel: Optional[Channel] = None
@@ -96,12 +96,9 @@ async def on_status_message(message: aio_pika.IncomingMessage):
     """
     from app.service.train_task import TrainTaskService
     from app.schemas.train_task import TrainTaskUpdate
-    from app.service.train_log import TrainLogService
-    from app.models.train_log import TrainLog
     from app.core.deps import get_db
     async for session in get_db():
         train_task_service = TrainTaskService(db_session=session)
-        train_log_service = TrainLogService(db_session=session)
         try:
             # 打印接收到的消息内容
             print(f"[Status Consumer] Received message: {message.body.decode()} (Delivery Tag: {message.delivery_tag})")
@@ -162,6 +159,8 @@ async def on_eval_status_message(message: aio_pika.IncomingMessage):
 
             await eval_task_service.update_eval_task(eval_task_id, eval_task_to_update)
             # TODO:增加websocket与前端同步
+
+            await send_eval_status_to_websockets(eval_task_id, message.body.decode())
 
             # 确认消息已被处理
             await message.ack()

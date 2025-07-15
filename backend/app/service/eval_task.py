@@ -125,7 +125,7 @@ class EvalTaskService:
             print(f"评估任务 ID {eval_task_id} 不存在，无法更新")
             return None
         
-        updated_eval_task = crud_eval_task.update_eval_task(self.db_session, eval_task_id, eval_task_update)
+        updated_eval_task = await crud_eval_task.update_eval_task(self.db_session, eval_task_id, eval_task_update)
         
         await self.db_session.commit()
         await self.db_session.refresh(updated_eval_task)

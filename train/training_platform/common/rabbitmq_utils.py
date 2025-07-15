@@ -135,21 +135,21 @@ async def publish_status_message(task_id: int, user_id: int, status: str, messag
     }
     await _send_message(settings.RABBIT_STATUS_BINDING_KEY, message_body)
 
-async def publish_eval_result_message(
-    task_id: int, 
-    user_id: int, 
-    train_task_id: int, 
-    eval_results: dict
-):
-    """发布评估结果消息"""
-    message_body = {
-        "eval_task_id": task_id,
-        "user_id": user_id,
-        "train_task_id": train_task_id,
-        "eval_results": eval_results,
-        "timestamp": time.time()
-    }
-    await _send_message(settings.RABBIT_EVAL_BINDING_KEY, message_body)
+# async def publish_eval_result_message(
+    # task_id: int, 
+    # user_id: int, 
+    # train_task_id: int, 
+    # eval_results: dict
+# ):
+    # """发布评估结果消息"""
+    # message_body = {
+        # "eval_task_id": task_id,
+        # "user_id": user_id,
+        # "train_task_id": train_task_id,
+        # "eval_results": eval_results,
+        # "timestamp": time.time()
+    # }
+    # await _send_message(settings.RABBIT_EVAL_BINDING_KEY, message_body)
 
 async def start_eval_queue_consumer(on_eval_message_callback: Callable):
     """
@@ -170,24 +170,24 @@ async def start_eval_queue_consumer(on_eval_message_callback: Callable):
     except Exception as e:
         print(f"❌ 启动评估消费者失败: {e}")
 
-async def start_eval_status_queue_consumer(on_eval_status_callback: Callable):
-    """
-    启动评估状态队列消费者，监听评估状态消息
-    
-    Args:
-        on_eval_status_callback: 处理评估状态消息的回调函数
-    """
-    try:
-        manager = await _RabbitMQManager.get_instance()
-        await manager.initialize_internal()
-        queue = manager.queues.get(settings.RABBIT_EVAL_STATUS_QUEUE_NAME)
-        if not queue:
-            print(f"❌ 无法启动评估状态消费者：队列 '{settings.RABBIT_EVAL_STATUS_QUEUE_NAME}' 未找到。")
-            return
-        print(f"[*] 开始监听评估状态队列 '{queue.name}'.")
-        await queue.consume(on_eval_status_callback, no_ack=False)
-    except Exception as e:
-        print(f"❌ 启动评估状态消费者失败: {e}")
+# async def start_eval_status_queue_consumer(on_eval_status_callback: Callable):
+    # """
+    # 启动评估状态队列消费者，监听评估状态消息
+    # 
+    # Args:
+        # on_eval_status_callback: 处理评估状态消息的回调函数
+    # """
+    # try:
+        # manager = await _RabbitMQManager.get_instance()
+        # await manager.initialize_internal()
+        # queue = manager.queues.get(settings.RABBIT_EVAL_STATUS_QUEUE_NAME)
+        # if not queue:
+            # print(f"❌ 无法启动评估状态消费者：队列 '{settings.RABBIT_EVAL_STATUS_QUEUE_NAME}' 未找到。")
+            # return
+        # print(f"[*] 开始监听评估状态队列 '{queue.name}'.")
+        # await queue.consume(on_eval_status_callback, no_ack=False)
+    # except Exception as e:
+        # print(f"❌ 启动评估状态消费者失败: {e}")
 
 async def send_eval_status_message(eval_task_id: int, status: str, message: str = ""):
     """
@@ -206,20 +206,20 @@ async def send_eval_status_message(eval_task_id: int, status: str, message: str 
     }
     await _send_message(settings.RABBIT_EVAL_STATUS_BINDING_KEY, message_body)
 
-async def send_eval_task_message(eval_task_id: int, user_id: int, train_task_id: int, eval_stage: int):
-    """
-    发送评估任务消息
-    
-    Args:
-        eval_task_id: 评估任务ID
-        user_id: 用户ID
-        train_task_id: 训练任务ID
-        eval_stage: 评估阶段
-    """
-    message_body = {
-        "eval_task_id": eval_task_id,
-        "user_id": user_id,
-        "train_task_id": train_task_id,
-        "eval_stage": eval_stage
-    }
-    await _send_message(settings.RABBIT_EVAL_BINDING_KEY, message_body)
+# async def send_eval_task_message(eval_task_id: int, user_id: int, train_task_id: int, eval_stage: int):
+    # """
+    # 发送评估任务消息
+    # 
+    # Args:
+        # eval_task_id: 评估任务ID
+        # user_id: 用户ID
+        # train_task_id: 训练任务ID
+        # eval_stage: 评估阶段
+    # """
+    # message_body = {
+        # "eval_task_id": eval_task_id,
+        # "user_id": user_id,
+        # "train_task_id": train_task_id,
+        # "eval_stage": eval_stage
+    # }
+    # await _send_message(settings.RABBIT_EVAL_BINDING_KEY, message_body)

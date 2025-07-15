@@ -11,7 +11,7 @@ from training_platform.common.rabbitmq_utils import (
     close_rabbitmq, 
     start_task_queue_consumer,
     start_eval_queue_consumer,
-    start_eval_status_queue_consumer
+    # start_eval_status_queue_consumer
 )
 from training_platform.common.task_models import TrainingTask, EvaluationTask
 from training_platform.scheduler.scheduler_actor import Scheduler, TrainingScheduler, EvaluationScheduler
@@ -67,18 +67,18 @@ async def on_eval_message(message: aio_pika.IncomingMessage):
         except Exception as e:
             print(f"❌ [Eval Consumer] Error processing evaluation message: {e}")
 
-async def on_eval_status_message(message: aio_pika.IncomingMessage):
-    """处理评估状态队列消息的回调函数"""
-    async with message.process():
-        try:
-            status_data = json.loads(message.body.decode('utf-8'))
-            print(f"📊 [Eval Status Consumer] Received status update: {status_data}")
-            
+# async def on_eval_status_message(message: aio_pika.IncomingMessage):
+    # """处理评估状态队列消息的回调函数"""
+    # async with message.process():
+        # try:
+            # status_data = json.loads(message.body.decode('utf-8'))
+            # print(f"📊 [Eval Status Consumer] Received status update: {status_data}")
+            # 
             # 这里可以添加状态处理逻辑
             # 例如：更新数据库、发送WebSocket通知等
-            
-        except Exception as e:
-            print(f"❌ [Eval Status Consumer] Error processing status message: {e}")
+            # 
+        # except Exception as e:
+            # print(f"❌ [Eval Status Consumer] Error processing status message: {e}")
 
 async def start_unified_scheduler():
     """启动统一调度器（同时处理训练和评估）"""
@@ -126,9 +126,9 @@ async def main():
     )
     
     # 启动评估状态队列消费者
-    eval_status_consumer_task = asyncio.create_task(
-        start_eval_status_queue_consumer(on_eval_status_message)
-    )
+    # eval_status_consumer_task = asyncio.create_task(
+        # start_eval_status_queue_consumer(on_eval_status_message)
+    # )
     
     print("🚀 Training Platform is running with separate schedulers.")
     print("   - Training tasks → TrainingScheduler")

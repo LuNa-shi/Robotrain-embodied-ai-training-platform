@@ -15,13 +15,10 @@ from training_platform.configs.settings import settings
 from training_platform.common.task_models import EvaluationTask
 from training_platform.common.rabbitmq_utils import (
     init_rabbitmq, 
-    publish_status_message,
-    publish_eval_result_message,
     send_eval_status_message
 )
 from training_platform.common.minio_utils import (
     get_minio_client, 
-    download_ckpt_from_minio,
     download_file_from_minio,
     upload_file_to_minio,
     list_objects_with_prefix
@@ -65,30 +62,30 @@ class EvaluatorActor:
         logger.info(f"[{self.task.eval_task_id}] Evaluator Actor initialized for model evaluation.")
         print(f"[{self.task.eval_task_id}] Evaluator Actor initialized for model evaluation.")
 
-    async def _publish_status(self, status: str, message: str):
-        """发布评估状态更新消息到 RabbitMQ 评估状态队列"""
-        try:
-            await send_eval_status_message(
-                eval_task_id=self.task.eval_task_id,
-                status=status,
-                message=message
-            )
-        except Exception as e:
-            logger.error(f"[{self.task.eval_task_id}] Failed to publish eval status: {e}")
+    # async def _publish_status(self, status: str, message: str):
+        # """发布评估状态更新消息到 RabbitMQ 评估状态队列"""
+        # try:
+            # await send_eval_status_message(
+                # eval_task_id=self.task.eval_task_id,
+                # status=status,
+                # message=message
+            # )
+        # except Exception as e:
+            # logger.error(f"[{self.task.eval_task_id}] Failed to publish eval status: {e}")
 
-    async def _publish_eval_results(self):
-        """发布评估结果消息到 RabbitMQ"""
-        try:
-            if self.eval_results:
-                await publish_eval_result_message(
-                    task_id=self.task.eval_task_id,
-                    user_id=self.task.user_id,
-                    train_task_id=self.task.train_task_id,
-                    eval_results=self.eval_results
-                )
-                logger.info(f"[{self.task.eval_task_id}] Evaluation results published to RabbitMQ")
-        except Exception as e:
-            logger.error(f"[{self.task.eval_task_id}] Failed to publish eval results: {e}")
+    # async def _publish_eval_results(self):
+    #     """发布评估结果消息到 RabbitMQ"""
+    #     try:
+    #         if self.eval_results:
+    #             await publish_eval_result_message(
+    #                 task_id=self.task.eval_task_id,
+    #                 user_id=self.task.user_id,
+    #                 train_task_id=self.task.train_task_id,
+    #                 eval_results=self.eval_results
+    #             )
+    #             logger.info(f"[{self.task.eval_task_id}] Evaluation results published to RabbitMQ")
+    #     except Exception as e:
+    #         logger.error(f"[{self.task.eval_task_id}] Failed to publish eval results: {e}")
 
     async def _find_checkpoint_by_stage(self, train_task_id: str, eval_stage: int) -> Optional[str]:
         """
@@ -170,7 +167,7 @@ class EvaluatorActor:
         train_task_id = str(self.task.train_task_id)
         
         logger.info(f"[{task_id}] Getting model path for training task: {train_task_id}")
-        await self._publish_status("running", f"正在查找训练任务 {train_task_id} 的最新模型...")
+        # await self._publish_status("running", f"正在查找训练任务 {train_task_id} 的最新模型...")
         
         # 根据 eval_stage 查找对应的 checkpoint
         selected_checkpoint = await self._find_checkpoint_by_stage(train_task_id, self.task.eval_stage)
@@ -181,7 +178,7 @@ class EvaluatorActor:
         # 从 MinIO 下载模型
         try:
             logger.info(f"[{task_id}] Starting model download from MinIO...")
-            await self._publish_status("running", "开始从 MinIO 下载模型...")
+            # await self._publish_status("running", "开始从 MinIO 下载模型...")
             
             minio_client = await get_minio_client()
             
@@ -267,7 +264,7 @@ class EvaluatorActor:
         except Exception as e:
             error_msg = f"Model download failed: {str(e)}"
             logger.error(f"[{task_id}] {error_msg}")
-            await self._publish_status("failed", error_msg)
+            # await self._publish_status("failed", error_msg)
             raise
 
     async def _upload_eval_results(self) -> bool:
@@ -282,7 +279,7 @@ class EvaluatorActor:
         
         try:
             logger.info(f"[{task_id}] Starting result upload...")
-            await self._publish_status("running", "开始上传评估结果...")
+            # await self._publish_status("running", "开始上传评估结果...")
             
             minio_client = await get_minio_client()
             
@@ -332,7 +329,7 @@ class EvaluatorActor:
         except Exception as e:
             error_msg = f"Result upload failed: {str(e)}"
             logger.error(f"[{task_id}] {error_msg}")
-            await self._publish_status("failed", error_msg)
+            # await self._publish_status("failed", error_msg)
             return False
 
     async def _run_evaluation(self, model_path: str) -> Dict[str, Any]:
@@ -349,7 +346,7 @@ class EvaluatorActor:
         
         try:
             logger.info(f"[{task_id}] Starting model evaluation...")
-            await self._publish_status("running", "开始执行模型评估...")
+            # await self._publish_status("running", "开始执行模型评估...")
             
             # 创建输出目录
             output_dir = os.path.join(self.run_dir, "eval_output")
@@ -400,7 +397,7 @@ class EvaluatorActor:
         except Exception as e:
             error_msg = f"Evaluation execution failed: {str(e)}"
             logger.error(f"[{task_id}] {error_msg}")
-            await self._publish_status("failed", error_msg)
+            # await self._publish_status("failed", error_msg)
             raise
 
     async def evaluate(self) -> Dict[str, Any]:
@@ -416,7 +413,7 @@ class EvaluatorActor:
         try:
             logger.info(f"[{task_id}] Starting evaluation pipeline...")
             # 发送开始状态
-            await self._publish_status("running", "评估任务开始")
+            # await self._publish_status("running", "评估任务开始")
             
             # 1. 获取模型路径
             model_path = await self._get_model_path()
@@ -429,12 +426,12 @@ class EvaluatorActor:
             
             if upload_success:
                 # 4. 发布评估结果
-                await self._publish_eval_results()
+                # await self._publish_eval_results()
                 
                 # 5. 更新任务状态为完成
                 elapsed_time = time.time() - start_time
                 completion_msg = f"评估任务完成，耗时 {elapsed_time:.2f} 秒"
-                await self._publish_status("completed", completion_msg)
+                # await self._publish_status("completed", completion_msg)
                 
                 logger.info(f"[{task_id}] Evaluation pipeline completed successfully")
                 print(f"[{task_id}] {completion_msg}")
@@ -447,7 +444,7 @@ class EvaluatorActor:
             elapsed_time = time.time() - start_time
             error_msg = f"评估任务失败: {str(e)} (耗时 {elapsed_time:.2f} 秒)"
             logger.error(f"[{task_id}] {error_msg}")
-            await self._publish_status("failed", error_msg)
+            # await self._publish_status("failed", error_msg)
             raise
 
     async def cleanup(self):
