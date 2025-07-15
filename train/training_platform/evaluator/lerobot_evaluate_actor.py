@@ -16,7 +16,8 @@ from training_platform.common.task_models import EvaluationTask
 from training_platform.common.rabbitmq_utils import (
     init_rabbitmq, 
     publish_status_message,
-    publish_eval_result_message
+    publish_eval_result_message,
+    send_eval_status_message
 )
 from training_platform.common.minio_utils import (
     get_minio_client, 
@@ -65,29 +66,27 @@ class EvaluatorActor:
         print(f"[{self.task.eval_task_id}] Evaluator Actor initialized for model evaluation.")
 
     async def _publish_status(self, status: str, message: str):
-        """发布状态更新消息到 RabbitMQ"""
+        """发布评估状态更新消息到 RabbitMQ 评估状态队列"""
         try:
-            await publish_status_message(
-                task_id=self.task.eval_task_id,
-                user_id=self.task.user_id,
+            await send_eval_status_message(
+                eval_task_id=self.task.eval_task_id,
                 status=status,
                 message=message
             )
         except Exception as e:
-            logger.error(f"[{self.task.eval_task_id}] Failed to publish status: {e}")
+            logger.error(f"[{self.task.eval_task_id}] Failed to publish eval status: {e}")
 
     async def _publish_eval_results(self):
         """发布评估结果消息到 RabbitMQ"""
         try:
             if self.eval_results:
-                # 暂时注释掉，避免发送日志信息
-                # await publish_eval_result_message(
-                #     task_id=self.task.eval_task_id,
-                #     user_id=self.task.user_id,
-                #     train_task_id=self.task.train_task_id,
-                #     eval_results=self.eval_results
-                # )
-                logger.info(f"[{self.task.eval_task_id}] Evaluation results ready (not publishing to RabbitMQ)")
+                await publish_eval_result_message(
+                    task_id=self.task.eval_task_id,
+                    user_id=self.task.user_id,
+                    train_task_id=self.task.train_task_id,
+                    eval_results=self.eval_results
+                )
+                logger.info(f"[{self.task.eval_task_id}] Evaluation results published to RabbitMQ")
         except Exception as e:
             logger.error(f"[{self.task.eval_task_id}] Failed to publish eval results: {e}")
 

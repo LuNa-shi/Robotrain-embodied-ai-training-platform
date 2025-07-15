@@ -19,6 +19,7 @@ class _MinIOManager:
     def __init__(self):
         self.client: Optional[Minio] = None
         self._is_connecting = False
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     @classmethod
     async def get_instance(cls) -> '_MinIOManager':
@@ -28,46 +29,60 @@ class _MinIOManager:
                     cls._instance = cls()
         return cls._instance
 
-    async def get_client_internal(self) -> Minio:
-        if self.client is None:
-            async with self._lock:
-                if self.client is None:
-                    if self._is_connecting:
-                        while self._is_connecting:
-                            await asyncio.sleep(0.1)
-                        return self.client
-                    self._is_connecting = True
-                    try:
-                        print(f"💡 正在连接到 MinIO 服务器: {settings.MINIO_URL} ...")
-                        client = Minio(
-                            endpoint=settings.MINIO_URL,
-                            access_key=settings.MINIO_ACCESS_KEY,
-                            secret_key=settings.MINIO_SECRET_KEY,
-                            secure=False
-                        )
-                        await client.list_buckets()
-                        self.client = client
-                        print("✅ 成功连接到 MinIO 服务器！")
-                    except Exception as e:
-                        print(f"❌ 连接 MinIO 失败: {e}")
-                        self.client = None
-                        raise
-                    finally:
-                        self._is_connecting = False
+    async def get_client(self) -> Optional[Minio]:
+        current_loop = asyncio.get_running_loop()
         
-        if not self.client:
-            raise ConnectionError("无法建立 MinIO 连接")
+        # 如果客户端不存在或者运行在不同的事件循环中，需要重新创建
+        if (self.client is None or 
+            self._loop is None or 
+            self._loop != current_loop):
+            
+            await self._create_client_for_loop(current_loop)
+        
         return self.client
 
-# --- 以下是你原有的函数，我们保持接口不变，但内部实现调用Manager ---
+    async def _create_client_for_loop(self, loop: asyncio.AbstractEventLoop):
+        """为特定的事件循环创建MinIO客户端"""
+        try:
+            print(f"💡 为当前事件循环创建新的MinIO客户端...")
+            
+            # 关闭旧客户端（如果存在）
+            if self.client:
+                try:
+                    if hasattr(self.client, '_http_session') and self.client._http_session:
+                        await self.client._http_session.close()
+                except Exception as e:
+                    print(f"警告：关闭旧MinIO客户端时出错: {e}")
 
-# 包装 connect_minio 和 get_minio_client
+            # 为当前循环创建新客户端
+            endpoint = f"{settings.MINIO_SERVER}:{settings.MINIO_PORT}"
+            self.client = Minio(
+                endpoint=endpoint,
+                access_key=settings.MINIO_ACCESS_KEY,
+                secret_key=settings.MINIO_SECRET_KEY,
+                secure=False  # 默认使用非安全连接
+            )
+            self._loop = loop
+            
+            print(f"✅ MinIO 客户端已为当前事件循环创建成功")
+            
+        except Exception as e:
+            print(f"❌ 创建 MinIO 客户端失败: {e}")
+            self.client = None
+            self._loop = None
+            raise
+
+# 兼容性函数
 async def connect_minio() -> Optional[Minio]:
+    """
+    连接到 MinIO，自动处理事件循环兼容性。
+    返回 MinIO 客户端或 None（如果连接失败）
+    """
     try:
         manager = await _MinIOManager.get_instance()
-        return await manager.get_client_internal()
+        return await manager.get_client()
     except Exception as e:
-        print(f"connect_minio 最终失败: {e}")
+        print(f"❌ 连接 MinIO 失败: {e}")
         return None
 
 async def get_minio_client() -> Optional[Minio]:
