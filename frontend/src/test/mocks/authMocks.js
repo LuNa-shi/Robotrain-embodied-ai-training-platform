@@ -1,18 +1,21 @@
 // Mock JWT token - 使用更远的未来过期时间
-export const mockValidToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwicm9sZSI6InVzZXIiLCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc1MjUwMDAwMCwiaWF0IjoxNzUyNTAwMDAwfQ.mock_signature';
+// 修复JWT格式，使其与后端实际生成的格式匹配
+// 后端只使用 'sub' 字段存储用户名，并添加 'exp' 和 'iat' 字段
+// 使用一个非常远的未来时间，确保测试时不会过期
+export const mockValidToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0dXNlciIsImV4cCI6MjUyNDYwODAwMCwiaWF0IjoxNzUyNTAwMDAwfQ.mock_signature';
 
-export const mockExpiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwicm9sZSI6InVzZXIiLCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTYzNTY4MDAwMCwiaWF0IjoxNjM1NjgwMDAwfQ.expired_signature';
+export const mockExpiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0dXNlciIsImV4cCI6MTYzNTY4MDAwMCwiaWF0IjoxNjM1NjgwMDAwfQ.expired_signature';
 
 export const mockInvalidToken = 'invalid.token.format';
 
-// Mock user info
+// Mock user info - 更新字段名以匹配JWT标准
 export const mockUserInfo = {
   id: 1,
   username: 'testuser',
   role: 'user',
   isAdmin: false,
-  exp: 1735680000,
-  iat: 1735680000
+  exp: 2524608000, // 2050年的某个时间
+  iat: 1752500000
 };
 
 export const mockAdminUserInfo = {
@@ -20,8 +23,8 @@ export const mockAdminUserInfo = {
   username: 'admin',
   role: 'admin',
   isAdmin: true,
-  exp: 1735680000,
-  iat: 1735680000
+  exp: 2524608000, // 2050年的某个时间
+  iat: 1752500000
 };
 
 // Mock API responses
