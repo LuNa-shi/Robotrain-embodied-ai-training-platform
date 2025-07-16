@@ -15,7 +15,8 @@ import {
   Timeline,
   Alert,
   Spin,
-  Badge
+  Badge,
+  App
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -247,6 +248,7 @@ const StepProgressBar = ({ steps, logFreq, currentStep, status }) => {
 };
 
 const ProjectProgressPage = () => {
+  const { message, modal } = App.useApp();
   const { trainingId } = useParams();
   const navigate = useNavigate();
   const [projectData, setProjectData] = useState(null);
@@ -258,6 +260,7 @@ const ProjectProgressPage = () => {
   const [wsConnected, setWsConnected] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
   const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const logContainerRef = useRef(null);
   const callbacksSetRef = useRef(false);
   const [latestEpoch, setLatestEpoch] = useState(0);
@@ -597,15 +600,30 @@ const ProjectProgressPage = () => {
     }
 }, [downloading, projectData?.id]);
 
-  const handleDelete = async () => {
+
+
+  const handleDeleteClick = () => {
     if (!projectData?.id) return;
-    try {
-      await deleteTrainTask(projectData.id);
-      message.success('删除成功');
-      navigate('/project-center');
-    } catch (err) {
-      message.error(err.message || '删除失败');
-    }
+    modal.confirm({
+      title: '确认删除',
+      content: '删除后数据无法恢复，确定要删除该训练项目吗？',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      centered: true, // 新增，弹窗居中
+      onOk: async () => {
+        setDeleting(true);
+        try {
+          await deleteTrainTask(projectData.id);
+          message.success('训练项目删除成功');
+          navigate('/project-center');
+        } catch (err) {
+          message.error(err.message || '删除失败');
+        } finally {
+          setDeleting(false);
+        }
+      },
+    });
   };
 
 
@@ -673,7 +691,12 @@ const ProjectProgressPage = () => {
             {downloading ? '下载中...' : '下载模型'}
           </Button>
 
-          <Button icon={<DeleteOutlined />} danger onClick={handleDelete}>
+          <Button 
+            icon={<DeleteOutlined />} 
+            danger 
+            loading={deleting}
+            onClick={handleDeleteClick}
+          >
             删除
           </Button>
         </div>

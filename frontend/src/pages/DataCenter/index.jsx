@@ -89,6 +89,7 @@ const DataCenterPage = () => {
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
+      centered: true,
       onOk: async () => {
         setDeletingId(record.id);
         try {

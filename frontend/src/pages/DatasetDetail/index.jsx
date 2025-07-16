@@ -149,6 +149,7 @@ const DatasetDetailContent = () => {
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
+      centered: true,
       onOk: async () => {
         setDeleting(true);
         try {

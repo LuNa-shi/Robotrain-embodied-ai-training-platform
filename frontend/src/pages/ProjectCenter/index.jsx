@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col, message, Spin } from 'antd';
+import { Typography, Card, Tag, Button, Tooltip, Space, Dropdown, Row, Col, message, Spin, App } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   InfoCircleOutlined,
@@ -32,12 +32,14 @@ const StatusDisplay = ({ status }) => {
 };
 
 const ProjectCenterPage = () => {
+  const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const [trainingRecords, setTrainingRecords] = useState(defaultTrainingRecords);
   const [loading, setLoading] = useState(false);
   const [modelTypes, setModelTypes] = useState([]);
   const [modelTypesLoading, setModelTypesLoading] = useState(false);
   const [downloadingStates, setDownloadingStates] = useState({});
+  const [deletingId, setDeletingId] = useState(null);
 
   // 获取模型类型列表
   const fetchModelTypes = async () => {
@@ -153,14 +155,29 @@ const ProjectCenterPage = () => {
     }
   }, [downloadingStates]);
 
-  const handleDelete = async (taskId) => {
-    try {
-      await deleteTrainTask(taskId);
-      message.success('删除成功');
-      fetchTrainingTasks(); // Refresh the list after successful deletion
-    } catch (err) {
-      message.error(err.message || '删除失败');
-    }
+
+
+  const handleDeleteClick = (record) => {
+    modal.confirm({
+      title: '确认删除',
+      content: '删除后数据无法恢复，确定要删除该训练项目吗？',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      centered: true, // 新增，弹窗居中
+      onOk: async () => {
+        setDeletingId(record.id);
+        try {
+          await deleteTrainTask(record.id);
+          message.success('训练项目删除成功');
+          fetchTrainingTasks(); // Refresh the list after successful deletion
+        } catch (err) {
+          message.error(err.message || '删除失败');
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   
@@ -248,9 +265,10 @@ const ProjectCenterPage = () => {
                     type="text" 
                     shape="circle" 
                     icon={<DeleteOutlined />} 
+                    loading={deletingId === record.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(record.id);
+                      handleDeleteClick(record);
                     }}
                     aria-label="删除项目"
                   />
