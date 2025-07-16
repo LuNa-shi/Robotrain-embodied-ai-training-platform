@@ -15,6 +15,7 @@ class Settings:
     MINIO_DATASET_DIR: str = os.getenv("MINIO_DATASET_DIR", "datasets")
     MINIO_MODEL_DIR: str = os.getenv("MINIO_MODEL_DIR", "models")
     MINIO_CKPT_DIR: str = os.getenv("MINIO_CKPT_DIR", "checkpoints")  # 新增检查点目录
+    MINIO_EVAL_DIR: str = os.getenv("MINIO_EVAL_DIR", "eval_videos")  # 新增评估目录
 
     # --- RabbitMQ 消息队列相关 ---
     RABBITMQ_SERVER: str = os.getenv("RABBITMQ_SERVER", "localhost")

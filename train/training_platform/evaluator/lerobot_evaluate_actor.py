@@ -285,21 +285,21 @@ class EvaluatorActor:
             
             # 上传评估信息文件 (JSON)
             eval_info_file = os.path.join(self.run_dir, "eval_output", "eval_info.json")
-            if os.path.exists(eval_info_file):
-                eval_info_object_name = f"eval_results/eval_info_train_{train_task_id}_eval_{task_id}.json"
-                
-                success, message = await upload_file_to_minio(
-                    client=minio_client,
-                    upload_file_local_path=eval_info_file,
-                    filename=eval_info_object_name,
-                    bucket_name=settings.MINIO_BUCKET,
-                    object_dir="eval_results"
-                )
-                
-                if success:
-                    logger.info(f"[{task_id}] Evaluation info uploaded: {eval_info_object_name}")
-                else:
-                    logger.warning(f"[{task_id}] Failed to upload eval info: {message}")
+            # if os.path.exists(eval_info_file):
+                # eval_info_object_name = f"eval_results/eval_info_train_{train_task_id}_eval_{task_id}.json"
+                # 
+                # success, message = await upload_file_to_minio(
+                    # client=minio_client,
+                    # upload_file_local_path=eval_info_file,
+                    # filename=eval_info_object_name,
+                    # bucket_name=settings.MINIO_BUCKET,
+                    # object_dir="eval_results"
+                # )
+                # 
+                # if success:
+                    # logger.info(f"[{task_id}] Evaluation info uploaded: {eval_info_object_name}")
+                # else:
+                    # logger.warning(f"[{task_id}] Failed to upload eval info: {message}")
             
             # 上传视频文件
             videos_dir = os.path.join(self.run_dir, "eval_output", "videos")
@@ -308,14 +308,14 @@ class EvaluatorActor:
                 logger.info(f"[{task_id}] Found {len(video_files)} video files to upload")
                 
                 for video_file in video_files:
-                    video_object_name = f"eval_videos/train_{train_task_id}_eval_{task_id}_{video_file.name}"
+                    video_object_name = f"{task_id}/{video_file.name}"
                     
                     success, message = await upload_file_to_minio(
                         client=minio_client,
                         upload_file_local_path=str(video_file),
                         filename=video_object_name,
                         bucket_name=settings.MINIO_BUCKET,
-                        object_dir="eval_videos"
+                        object_dir=settings.MINIO_EVAL_DIR 
                     )
                     
                     if success:
