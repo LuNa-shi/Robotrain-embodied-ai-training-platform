@@ -37,10 +37,13 @@ import {
   VideoCameraOutlined,
   EyeOutlined,
   PlusOutlined,
-  RobotOutlined
+  RobotOutlined,
+  WifiOutlined,
+  DisconnectOutlined
 } from '@ant-design/icons';
 import styles from './Evaluation.module.css';
 import { trainTasksAPI, evalTasksAPI } from '@/utils/api';
+import evaluationStatusWebSocket, { EvaluationStatusWebSocket } from '@/utils/evalWebSocket';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -113,6 +116,57 @@ const EvaluationPage = () => {
   // 删除评估任务相关状态
   const [deletingEvaluation, setDeletingEvaluation] = useState(false); // 删除状态
 
+  // WebSocket状态管理
+  const [websocketStatus, setWebsocketStatus] = useState('Disconnected');
+  const [websocketMessage, setWebsocketMessage] = useState('');
+  const [websocketError, setWebsocketError] = useState(null);
+
+  // 保存上一次的数据快照，用于智能对比
+  const previousRecordsRef = useRef([]);
+  const selectedRecordIdRef = useRef(null);
+  const updateCountRef = useRef(0); // 记录更新次数，用于调试
+  
+  // 管理多个WebSocket连接
+  const activeWebSocketsRef = useRef(new Map()); // 存储活跃的WebSocket连接
+  
+  // 调试函数：输出当前WebSocket连接状态
+  const debugWebSocketConnections = () => {
+    const activeWebSockets = activeWebSocketsRef.current;
+    console.log('🔌 [DEBUG] === WebSocket连接状态调试报告 ===');
+    console.log('🔌 [DEBUG] 当前活跃连接数:', activeWebSockets.size);
+    
+    if (activeWebSockets.size > 0) {
+      console.log('🔌 [DEBUG] 活跃连接详情:');
+      activeWebSockets.forEach((ws, taskId) => {
+        console.log(`  - 评估任务 ${taskId}:`, {
+          连接状态: ws.getStatus(),
+          是否连接: ws.isConnected(),
+          WebSocket实例: ws
+        });
+      });
+    } else {
+      console.log('🔌 [DEBUG] 当前没有活跃的WebSocket连接');
+    }
+    
+    // 输出records中的状态信息
+    console.log('🔌 [DEBUG] 当前评估任务状态:');
+    records.forEach(record => {
+      const evalTaskId = record.id.replace('eval-', '');
+      const hasWebSocket = activeWebSockets.has(parseInt(evalTaskId));
+      console.log(`  - ${record.name}: ${record.status} ${hasWebSocket ? '(有WebSocket连接)' : '(无WebSocket连接)'}`);
+    });
+    
+    console.log('🔌 [DEBUG] === 调试报告结束 ===');
+  };
+  
+  // 将调试函数暴露到全局，方便在控制台调用
+  useEffect(() => {
+    window.debugWebSocketConnections = debugWebSocketConnections;
+    return () => {
+      delete window.debugWebSocketConnections;
+    };
+  }, [records]);
+
   useEffect(() => {
     const leftPanelWidth = 260;
     const layoutGap = 24;
@@ -125,24 +179,20 @@ const EvaluationPage = () => {
       }
     };
     
-    // 获取评估任务列表
-    fetchEvaluationTasks();
+    // 获取评估任务列表并建立WebSocket连接
+    fetchEvaluationTasksAndSetupWebSockets();
     
     // 默认选择"发起评估"项
     setIsEvaluationMode(true);
     setSelectedRecord(null);
     fetchCompletedTrainingProjects();
     
-    // 设置定时器，每30秒刷新一次评估任务列表，确保状态及时更新
-    const intervalId = setInterval(() => {
-      fetchEvaluationTasks();
-    }, 30000);
-    
     window.addEventListener('resize', checkLayout);
     setTimeout(checkLayout, 0); // 首次渲染后测量一次
     return () => {
       window.removeEventListener('resize', checkLayout);
-      clearInterval(intervalId);
+      // 组件卸载时断开所有WebSocket连接
+      disconnectAllWebSockets();
     };
   }, []);
 
@@ -156,36 +206,331 @@ const EvaluationPage = () => {
     };
   }, [currentVideoUrl]);
 
-  // 获取评估任务列表
-  const fetchEvaluationTasks = async () => {
+  // 智能对比两个记录数组，找出变化的部分
+  const compareRecords = (oldRecords, newRecords) => {
+    const changes = {
+      added: [],
+      updated: [],
+      removed: [],
+      unchanged: []
+    };
+
+    // 创建ID映射，便于快速查找
+    const oldMap = new Map(oldRecords.map(record => [record.id, record]));
+    const newMap = new Map(newRecords.map(record => [record.id, record]));
+
+    // 检查新增的记录
+    for (const newRecord of newRecords) {
+      if (!oldMap.has(newRecord.id)) {
+        changes.added.push(newRecord);
+      }
+    }
+
+    // 检查删除的记录
+    for (const oldRecord of oldRecords) {
+      if (!newMap.has(oldRecord.id)) {
+        changes.removed.push(oldRecord);
+      }
+    }
+
+    // 检查更新的记录
+    for (const newRecord of newRecords) {
+      const oldRecord = oldMap.get(newRecord.id);
+      if (oldRecord) {
+        // 比较关键字段是否发生变化
+        const hasChanged = 
+          oldRecord.status !== newRecord.status ||
+          oldRecord.videoNames.length !== newRecord.videoNames.length ||
+          oldRecord.evalStage !== newRecord.evalStage ||
+          oldRecord.trainTaskId !== newRecord.trainTaskId;
+        
+        if (hasChanged) {
+          changes.updated.push({ old: oldRecord, new: newRecord });
+        } else {
+          changes.unchanged.push(newRecord);
+        }
+      }
+    }
+
+    return changes;
+  };
+
+  // 断开所有WebSocket连接
+  const disconnectAllWebSockets = () => {
+    const activeWebSockets = activeWebSocketsRef.current;
+    activeWebSockets.forEach((ws, evalTaskId) => {
+      console.log(`断开评估任务 ${evalTaskId} 的WebSocket连接`);
+      ws.disconnect();
+    });
+    activeWebSockets.clear();
+  };
+
+  // 为单个评估任务建立WebSocket连接
+  const setupWebSocketForTask = (evalTaskId) => {
+    const activeWebSockets = activeWebSocketsRef.current;
+    
+    // 如果已经存在连接，先断开
+    if (activeWebSockets.has(evalTaskId)) {
+      console.log(`评估任务 ${evalTaskId} 的WebSocket连接已存在，先断开`);
+      activeWebSockets.get(evalTaskId).disconnect();
+      activeWebSockets.delete(evalTaskId);
+    }
+    
+    // 创建新的WebSocket连接
+    const ws = new EvaluationStatusWebSocket();
+    ws.connect(evalTaskId);
+    
+    // 设置消息处理
+    ws.onMessage(async (wsMessage) => {
+      try {
+        const data = JSON.parse(wsMessage);
+        console.log(`收到评估任务 ${evalTaskId} 的WebSocket消息:`, data);
+        
+        // 直接获取最新详情，不比较状态
+        try {
+          const updatedEvalTaskDetail = await evalTasksAPI.getById(evalTaskId);
+          console.log(`评估任务 ${evalTaskId} 获取最新详情:`, updatedEvalTaskDetail);
+          
+          // 更新records中的状态
+          setRecords(prevRecords => {
+            const updatedRecords = prevRecords.map(item => {
+              const itemId = item.id.replace('eval-', '');
+              if (itemId === evalTaskId.toString()) {
+                return { ...item, status: updatedEvalTaskDetail.status };
+              }
+              return item;
+            });
+
+            const isCurrentSelectedTask = selectedRecordIdRef.current === `eval-${evalTaskId}`;
+            
+            // 检查当前选中的项目
+            console.log(`🔍 [DEBUG] 检查是否需要更新右侧详情:`, {
+              selectedRecordId: selectedRecordIdRef.current, // 使用 ref 的当前值
+              evalTaskId: evalTaskId,
+              selectedRecordIdType: typeof selectedRecord?.id,
+              evalTaskIdType: typeof evalTaskId,
+              isCurrentSelectedTask: selectedRecord?.id === `eval-${evalTaskId}`
+            });
+            
+            // 检查是否是当前选中的项目（通过selectedRecord判断）
+            
+            if (isCurrentSelectedTask) {
+              console.log(`✅ [DEBUG] 是当前选中的项目，更新右侧详情`);
+              // 使用setTimeout确保在下一个事件循环中更新，避免状态更新冲突
+              setTimeout(() => {
+                setSelectedRecordDetails(updatedEvalTaskDetail);
+              }, 0);
+            } else {
+              console.log(`❌ [DEBUG] 不是当前选中的项目，不更新右侧详情`);
+            }
+            
+            return updatedRecords;
+          });
+          
+          // 如果状态已完成或失败，断开WebSocket连接
+          if (updatedEvalTaskDetail.status === 'completed' || updatedEvalTaskDetail.status === 'failed') {
+            console.log(`评估任务 ${evalTaskId} 状态为 ${updatedEvalTaskDetail.status}，断开WebSocket连接`);
+            ws.disconnect();
+            activeWebSockets.delete(evalTaskId);
+            
+            if (updatedEvalTaskDetail.status === 'completed') {
+              message.success(`评估任务 ${evalTaskId} 已完成！`);
+            } else {
+              message.error(`评估任务 ${evalTaskId} 失败！`);
+            }
+          } else {
+            console.log(`评估任务 ${evalTaskId} 状态为 ${updatedEvalTaskDetail.status}，继续保持WebSocket连接`);
+          }
+        } catch (error) {
+          console.error(`获取评估任务 ${evalTaskId} 详情失败:`, error);
+          message.error(`获取评估任务详情失败: ${error.message}`);
+        }
+      } catch (e) {
+        console.error(`解析评估任务 ${evalTaskId} 的WebSocket消息失败:`, e);
+        message.error('WebSocket消息解析失败');
+      }
+    });
+    
+    ws.onOpen(() => {
+      console.log(`评估任务 ${evalTaskId} 的WebSocket连接成功`);
+    });
+    
+    ws.onClose(() => {
+      console.log(`🔌 [DEBUG] 评估任务 ${evalTaskId} 的WebSocket连接关闭`);
+      activeWebSockets.delete(evalTaskId);
+      console.log(`🔌 [DEBUG] 连接关闭后，当前活跃连接数: ${activeWebSockets.size}`);
+    });
+    
+    ws.onError((error) => {
+      console.error(`评估任务 ${evalTaskId} 的WebSocket连接错误:`, error);
+      activeWebSockets.delete(evalTaskId);
+    });
+    
+    // 保存连接
+    activeWebSockets.set(evalTaskId, ws);
+    console.log(`🔌 [DEBUG] 为评估任务 ${evalTaskId} 建立WebSocket连接`);
+    console.log(`🔌 [DEBUG] 当前活跃连接数: ${activeWebSockets.size}`);
+    
+    // 输出当前所有活跃连接
+    console.log('🔌 [DEBUG] 当前所有活跃WebSocket连接:');
+    activeWebSockets.forEach((ws, taskId) => {
+      console.log(`  - 评估任务 ${taskId}: ${ws.getStatus()}`);
+    });
+  };
+
+  // 获取评估任务列表并建立WebSocket连接
+  const fetchEvaluationTasksAndSetupWebSockets = async () => {
     try {
       setLoadingEvaluationTasks(true);
+      
       const data = await evalTasksAPI.getMyTasks();
       
       // 转换后端数据为前端显示格式
       const evaluationRecords = data.map(task => {
-        // 调试：打印每个任务的状态
-        console.log(`评估任务 ${task.id} 的状态:`, task.status);
-        
         return {
           id: `eval-${task.id}`,
           name: `评估任务 ${task.id}`,
           status: task.status,
-          videoNames: task.video_names || [], // 保留视频名称列表用于详情页
+          videoNames: task.video_names || [],
           evalStage: task.eval_stage,
           trainTaskId: task.train_task_id,
           originalData: task
         };
       });
-      
+
       setRecords(evaluationRecords);
-      console.log('获取评估任务成功:', evaluationRecords);
+      previousRecordsRef.current = evaluationRecords;
+      console.log('首次加载评估任务:', evaluationRecords.length, '个任务');
+      
+      // 记录需要建立WebSocket连接的任务
+      const tasksToConnect = [];
+      
+      // 为pending和running状态的任务建立WebSocket连接
+      evaluationRecords.forEach(record => {
+        const evalTaskId = record.id.replace('eval-', '');
+        if (record.status === 'pending' || record.status === 'running') {
+          tasksToConnect.push({
+            id: evalTaskId,
+            name: record.name,
+            status: record.status
+          });
+          setupWebSocketForTask(parseInt(evalTaskId));
+        }
+      });
+      
+      // 延迟输出WebSocket连接状态，确保连接建立完成
+      setTimeout(() => {
+        const activeWebSockets = activeWebSocketsRef.current;
+        console.log('🔌 [DEBUG] WebSocket连接状态报告:');
+        console.log('🔌 [DEBUG] 需要建立连接的任务:', tasksToConnect);
+        console.log('🔌 [DEBUG] 当前活跃的WebSocket连接数量:', activeWebSockets.size);
+        
+        if (activeWebSockets.size > 0) {
+          console.log('🔌 [DEBUG] 已建立的WebSocket连接详情:');
+          activeWebSockets.forEach((ws, taskId) => {
+            console.log(`  - 评估任务 ${taskId}:`, {
+              连接状态: ws.getStatus(),
+              是否连接: ws.isConnected(),
+              WebSocket实例: ws
+            });
+          });
+        } else {
+          console.log('🔌 [DEBUG] 当前没有活跃的WebSocket连接');
+        }
+        
+        // 输出所有评估任务的状态分布
+        const statusDistribution = {};
+        evaluationRecords.forEach(record => {
+          const status = record.status;
+          statusDistribution[status] = (statusDistribution[status] || 0) + 1;
+        });
+        console.log('🔌 [DEBUG] 评估任务状态分布:', statusDistribution);
+        
+      }, 2000); // 延迟2秒，确保WebSocket连接建立完成
+      
     } catch (err) {
       console.error('获取评估任务失败:', err);
       message.error('获取评估任务失败: ' + err.message);
       setRecords([]);
     } finally {
       setLoadingEvaluationTasks(false);
+    }
+  };
+
+  // 获取评估任务列表（智能更新版本）
+  const fetchEvaluationTasks = async (showLoading = true) => {
+    try {
+      // 只有在需要显示加载状态时才设置loading
+      if (showLoading) {
+        setLoadingEvaluationTasks(true);
+      }
+      
+      const data = await evalTasksAPI.getMyTasks();
+      
+      // 转换后端数据为前端显示格式
+      const evaluationRecords = data.map(task => {
+        return {
+          id: `eval-${task.id}`,
+          name: `评估任务 ${task.id}`,
+          status: task.status,
+          videoNames: task.video_names || [],
+          evalStage: task.eval_stage,
+          trainTaskId: task.train_task_id,
+          originalData: task
+        };
+      });
+
+      // 获取上一次的数据快照
+      const previousRecords = previousRecordsRef.current;
+      
+      // 如果是第一次加载或者没有之前的数据，直接设置
+      if (previousRecords.length === 0) {
+        setRecords(evaluationRecords);
+        previousRecordsRef.current = evaluationRecords;
+        console.log('首次加载评估任务:', evaluationRecords.length, '个任务');
+        return;
+      }
+
+      // 智能对比数据变化
+      const changes = compareRecords(previousRecords, evaluationRecords);
+      
+      // 记录更新统计
+      updateCountRef.current++;
+      console.log(`第${updateCountRef.current}次智能更新:`, {
+        新增: changes.added.length,
+        更新: changes.updated.length,
+        删除: changes.removed.length,
+        不变: changes.unchanged.length
+      });
+
+      // 只有当有变化时才更新状态
+      if (changes.added.length > 0 || changes.updated.length > 0 || changes.removed.length > 0) {
+        setRecords(evaluationRecords);
+        previousRecordsRef.current = evaluationRecords;
+        
+        // 如果有状态变化，给出提示
+        const statusChanges = changes.updated.filter(change => 
+          change.old.status !== change.new.status
+        );
+        
+        if (statusChanges.length > 0) {
+          statusChanges.forEach(change => {
+            console.log(`评估任务 ${change.new.name} 状态从 ${change.old.status} 变为 ${change.new.status}`);
+          });
+        }
+      } else {
+        console.log('数据无变化，跳过更新');
+      }
+      
+    } catch (err) {
+      console.error('获取评估任务失败:', err);
+      message.error('获取评估任务失败: ' + err.message);
+      setRecords([]);
+    } finally {
+      // 只有在之前设置了loading时才清除loading
+      if (showLoading) {
+        setLoadingEvaluationTasks(false);
+      }
     }
   };
 
@@ -329,8 +674,8 @@ const EvaluationPage = () => {
           
           message.success('评估任务删除成功！');
           
-          // 重新获取评估任务列表
-          await fetchEvaluationTasks();
+          // 重新获取评估任务列表并建立WebSocket连接
+          await fetchEvaluationTasksAndSetupWebSockets();
           
           // 重置选中状态
           setSelectedRecord(null);
@@ -382,8 +727,8 @@ const EvaluationPage = () => {
       
       message.success(`评估任务 ${createdTask.id} 创建成功！`);
       
-          // 重新获取评估任务列表
-    await fetchEvaluationTasks();
+          // 重新获取评估任务列表并建立WebSocket连接
+    await fetchEvaluationTasksAndSetupWebSockets();
     
     // 关闭弹窗并重置状态
     setEvaluationModalVisible(false);
@@ -429,6 +774,7 @@ const EvaluationPage = () => {
       className={`${styles.projectItem} ${selectedRecord?.id === record.id ? styles.selectedProject : ''}`}
       onClick={async () => {
         setSelectedRecord(record);
+        selectedRecordIdRef.current = record.id;
         // 当选择其他项目时，退出评估模式
         if (isEvaluationMode) {
           setIsEvaluationMode(false);
@@ -440,14 +786,7 @@ const EvaluationPage = () => {
           const evalTaskId = record.id.replace('eval-', '');
           const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
           setSelectedRecordDetails(evalTaskDetail);
-          // 更新左侧列表中对应项目的状态，确保数据一致性
-          setRecords(prevRecords =>
-            prevRecords.map(item =>
-              item.id === record.id
-                ? { ...item, status: evalTaskDetail.status }
-                : item
-            )
-          );
+          
           // 获取训练任务详情
           if (evalTaskDetail.train_task_id) {
             await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
@@ -482,6 +821,7 @@ const EvaluationPage = () => {
       className={`${styles.projectItemHorizontal} ${selectedRecord?.id === record.id ? styles.selectedProjectHorizontal : ''}`}
       onClick={async () => {
         setSelectedRecord(record);
+        selectedRecordIdRef.current = record.id;
         // 当选择其他项目时，退出评估模式
         if (isEvaluationMode) {
           setIsEvaluationMode(false);
@@ -493,14 +833,7 @@ const EvaluationPage = () => {
           const evalTaskId = record.id.replace('eval-', '');
           const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
           setSelectedRecordDetails(evalTaskDetail);
-          // 更新左侧列表中对应项目的状态，确保数据一致性
-          setRecords(prevRecords =>
-            prevRecords.map(item =>
-              item.id === record.id
-                ? { ...item, status: evalTaskDetail.status }
-                : item
-            )
-          );
+          
           // 获取训练任务详情
           if (evalTaskDetail.train_task_id) {
             await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
@@ -557,6 +890,7 @@ const EvaluationPage = () => {
       onClick={() => {
         setIsEvaluationMode(true);
         setSelectedRecord(null);
+        selectedRecordIdRef.current = null;
         fetchCompletedTrainingProjects();
       }}
     >
