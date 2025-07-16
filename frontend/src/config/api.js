@@ -78,6 +78,9 @@ export const API_ENDPOINTS = {
     create: '/api/eval_tasks/', // 创建评估任务
     getMyTasks: '/api/eval_tasks/me', // 获取当前用户的评估任务列表
     getById: (taskId) => `/api/eval_tasks/${taskId}`, // 获取评估任务详情
+    getVideo: (evalTaskId, videoName) => `/api/eval_tasks/${evalTaskId}/${videoName}`, // 获取评估视频
+    downloadVideo: (evalTaskId, videoName) => `/api/eval_tasks/${evalTaskId}/${videoName}`, // 下载评估视频
+    delete: (evalTaskId) => `/api/eval_tasks/${evalTaskId}`, // 删除评估任务
   },
   
   // 其他API端点可以在这里添加

@@ -540,6 +540,139 @@ export const evalTasksAPI = {
       throw error;
     }
   },
+
+  /**
+   * 获取评估任务的视频文件
+   * @param {number} evalTaskId 评估任务ID
+   * @param {string} videoName 视频文件名
+   * @returns {Promise<Blob>} 视频文件blob
+   */
+  getVideo: async (evalTaskId, videoName) => {
+    try {
+      // 创建专门用于文件下载的axios实例
+      const downloadApi = axios.create({
+        baseURL: apiConfig.baseURL,
+        timeout: 60000, // 文件下载需要更长的超时时间
+        withCredentials: apiConfig.withCredentials,
+        responseType: 'blob', // 设置响应类型为blob以处理文件下载
+      });
+
+      // 添加请求拦截器
+      downloadApi.interceptors.request.use(
+        (config) => {
+          const token = localStorage.getItem('token');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          return config;
+        },
+        (error) => {
+          console.error('下载请求拦截器错误:', error);
+          return Promise.reject(error);
+        }
+      );
+
+      const response = await downloadApi.get(API_ENDPOINTS.evalTasks.getVideo(evalTaskId, videoName));
+      return response.data;
+    } catch (error) {
+      console.error('获取评估视频失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 下载评估任务的视频文件
+   * @param {number} evalTaskId 评估任务ID
+   * @param {string} videoName 视频文件名
+   * @returns {Promise<Object>} 包含blob和文件名的对象
+   */
+  downloadVideo: async (evalTaskId, videoName) => {
+    try {
+      // 创建专门用于文件下载的axios实例
+      const downloadApi = axios.create({
+        baseURL: apiConfig.baseURL,
+        timeout: 60000, // 文件下载需要更长的超时时间
+        withCredentials: apiConfig.withCredentials,
+        responseType: 'blob', // 设置响应类型为blob以处理文件下载
+      });
+
+      // 添加请求拦截器
+      downloadApi.interceptors.request.use(
+        (config) => {
+          const token = localStorage.getItem('token');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          return config;
+        },
+        (error) => {
+          console.error('下载请求拦截器错误:', error);
+          return Promise.reject(error);
+        }
+      );
+
+      // 添加响应拦截器
+      downloadApi.interceptors.response.use(
+        (response) => {
+          return response;
+        },
+        (error) => {
+          console.error('下载响应错误:', error);
+          
+          if (error.response?.status === 401) {
+            return Promise.reject(new Error('用户未登录，请重新登录'));
+          }
+          if (error.response?.status === 403) {
+            return Promise.reject(new Error('权限不足，无法下载该视频文件'));
+          }
+          if (error.response?.status === 404) {
+            return Promise.reject(new Error('评估任务或视频文件不存在'));
+          }
+          
+          const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || '下载失败';
+          return Promise.reject(new Error(errorMessage));
+        }
+      );
+
+      const response = await downloadApi.get(API_ENDPOINTS.evalTasks.downloadVideo(evalTaskId, videoName));
+      
+      // 从响应头中获取文件名
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = videoName; // 默认使用原始文件名
+      
+      if (contentDisposition) {
+        // 使用更健壮的正则来匹配文件名，以防有其他参数
+        const filenameMatch = contentDisposition.match(/filename\*?=['"]?([^'";]+)['"]?/);
+        if (filenameMatch && filenameMatch[1]) {
+          // 解码UTF-8格式的文件名
+          filename = decodeURIComponent(filenameMatch[1]);
+        }
+      }
+      
+      return {
+        blob: response.data,
+        filename: filename,
+      };
+
+    } catch (error) {
+      console.error('下载视频文件失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 删除评估任务
+   * @param {number} evalTaskId 评估任务ID
+   * @returns {Promise<void>}
+   */
+  delete: async (evalTaskId) => {
+    try {
+      await api.delete(API_ENDPOINTS.evalTasks.delete(evalTaskId));
+    } catch (error) {
+      console.error('删除评估任务失败:', error);
+      throw error;
+    }
+  },
 };
 
 export async function deleteTrainTask(taskId) {
