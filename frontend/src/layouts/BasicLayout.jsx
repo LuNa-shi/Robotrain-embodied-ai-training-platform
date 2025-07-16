@@ -59,14 +59,14 @@ const BasicLayout = () => {
     { key: '/training', icon: <RocketOutlined />, label: '发起训练' },
     { key: '/project-center', icon: <PlaySquareOutlined />, label: '项目中心' },
     { key: '/evaluation', icon: <BarChartOutlined />, label: '模型评估' },
-    ...(userInfo?.isAdmin ? [
-      { type: 'divider' },
-      { key: '/data-management', icon: <ControlOutlined />, label: '数据管理' },
-      { key: '/project-management', icon: <AppstoreOutlined />, label: '项目管理' },
-    ] : []),
+    // ...(userInfo?.isAdmin ? [
+    //   { type: 'divider' },
+    //   { key: '/data-management', icon: <ControlOutlined />, label: '数据管理' },
+    //   { key: '/project-management', icon: <AppstoreOutlined />, label: '项目管理' },
+    // ] : []),
     { type: 'divider' },
     { key: '/profile', icon: <UserOutlined />, label: '个人资料' },
-    { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
+    // { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
   ];
 
   const handleMenuClick = ({ key }) => navigate(key);
@@ -154,9 +154,9 @@ const BasicLayout = () => {
             <Button type="text" icon={<QuestionCircleOutlined />} onClick={handleHelpClick}>
               文档帮助
             </Button>
-            <Tooltip title="设置">
+            {/* <Tooltip title="设置">
               <Button shape="circle" icon={<SettingOutlined />} onClick={() => navigate('/settings')} />
-            </Tooltip>
+            </Tooltip> */}
             <Tooltip title="个人资料">
               <Avatar icon={<UserOutlined />} onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} />
             </Tooltip>
