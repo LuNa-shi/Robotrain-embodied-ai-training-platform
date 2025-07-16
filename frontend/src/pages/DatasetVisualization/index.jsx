@@ -423,6 +423,21 @@ const DatasetVisualizationPage = () => {
       }
     };
 
+    // 如果有错误，优先显示错误信息
+    if (loadError) {
+        return (
+            <div className={styles.visualizationPage}>
+                <div className={styles.contentWrapper} style={{ textAlign: 'center', paddingTop: '100px' }}>
+                    <div className={styles.errorContainer}>
+                        <span className={styles.errorIcon}>⚠️</span>
+                        <div className={styles.errorText}>{loadError}</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 如果数据未加载完成，显示加载状态
     if (!isMotionDataLoaded) {
         return (
             <div className={styles.visualizationPage}>
@@ -534,7 +549,7 @@ const DatasetVisualizationPage = () => {
                         </div>
                     </div>
                     <div className={styles.videoContainer}>
-                        <video ref={videoRef} src={videoUrl} controls className={styles.videoPlayer}>
+                        <video ref={videoRef} src={videoUrl} controls className={styles.videoPlayer} data-testid="video-player">
                             您的浏览器不支持视频播放。
                         </video>
                     </div>
