@@ -68,16 +68,6 @@ const StatusDisplay = ({ status }) => {
     running: { color: 'processing', text: '进行中', icon: <ClockCircleOutlined /> },
     failed: { color: 'error', text: '失败', icon: <CloseCircleOutlined /> },
     pending: { color: 'default', text: '等待中', icon: <ClockCircleOutlined /> },
-    // 添加更多可能的状态值
-    'completed': { color: 'success', text: '已完成', icon: <CheckCircleOutlined /> },
-    'running': { color: 'processing', text: '进行中', icon: <ClockCircleOutlined /> },
-    'failed': { color: 'error', text: '失败', icon: <CloseCircleOutlined /> },
-    'pending': { color: 'default', text: '等待中', icon: <ClockCircleOutlined /> },
-    // 大写版本
-    'COMPLETED': { color: 'success', text: '已完成', icon: <CheckCircleOutlined /> },
-    'RUNNING': { color: 'processing', text: '进行中', icon: <ClockCircleOutlined /> },
-    'FAILED': { color: 'error', text: '失败', icon: <CloseCircleOutlined /> },
-    'PENDING': { color: 'default', text: '等待中', icon: <ClockCircleOutlined /> },
   };
   
   const { color, text, icon } = statusMap[normalizedStatus] || statusMap[status] || { 
