@@ -9,6 +9,7 @@ import functools
 from pathlib import Path
 import subprocess
 import json
+import glob
 
 from training_platform.configs.settings import settings
 from training_platform.common.task_models import TrainingTask
@@ -16,7 +17,7 @@ from training_platform.common.rabbitmq_utils import init_rabbitmq, send_log_mess
 from training_platform.common.minio_utils import get_minio_client, upload_ckpt_to_minio, download_ckpt_from_minio, download_dataset_from_minio
 
 # 导入我们的新训练逻辑
-from training_platform.trainer.lerobot_trainer_logic import run_lerobot_training
+# from training_platform.trainer.lerobot_trainer_logic import run_lerobot_training
 from lerobot.common.utils.train_utils import TrainPipelineConfig
 
 @ray.remote
@@ -30,55 +31,83 @@ class TrainerActor:
         self.loop = asyncio.get_running_loop()
         
         # 添加一个集合来跟踪正在进行的异步任务
-        self.pending_uploads = set()
+        # self.pending_uploads = set()
 
         # Manager 模式确保在 Actor 启动时，异步地准备好连接
         asyncio.create_task(init_rabbitmq())
         
         print(f"[{self.task.task_id}] Trainer Actor initialized for real training.")
 
-    async def _log_callback(self, step: int, metrics: dict):
-        """异步日志回调，发送消息到 RabbitMQ。"""
-        # 从 metrics 字典中提取关键信息
-        loss = metrics.get('loss', 0.0)
-        # 你可以添加任何你想从 lerobot tracker 中记录的指标
-        log_msg = f"Step {step}: loss={loss:.4f}, lr={metrics.get('lr', 0.0):.1e}"
-        await send_log_message(
-            task_id=self.task.task_id,
-            epoch=step, # 在我们的平台中，step 等同于 epoch
-            loss=loss,
-            accuracy=-1.0, # lerobot 通常不直接报告 accuracy，设为-1
-            log_message=log_msg
-        )
+    # async def _log_callback(self, step: int, metrics: dict):
+    #     """异步日志回调，发送消息到 RabbitMQ。"""
+    #     # 从 metrics 字典中提取关键信息
+    #     loss = metrics.get('loss', 0.0)
+    #     # 你可以添加任何你想从 lerobot tracker 中记录的指标
+    #     log_msg = f"Step {step}: loss={loss:.4f}, lr={metrics.get('lr', 0.0):.1e}"
+    #     await send_log_message(
+    #         task_id=self.task.task_id,
+    #         epoch=step, # 在我们的平台中，step 等同于 epoch
+    #         loss=loss,
+    #         accuracy=-1.0, # lerobot 通常不直接报告 accuracy，设为-1
+    #         log_message=log_msg
+    #     )
 
-    async def _save_checkpoint_callback(self, step: int, checkpoint_dir: str):
-        """异步保存回调，将 checkpoint 目录压缩并上传到 MinIO。"""
+    # async def _save_checkpoint_callback(self, step: int, checkpoint_dir: str):
+    #     """异步保存回调，将 checkpoint 目录压缩并上传到 MinIO。"""
+    #     try:
+    #         print(f"[{self.task.task_id}] Compressing checkpoint dir: {checkpoint_dir}")
+    #         # 将 checkpoint 目录打包成 zip 文件
+    #         zip_base_name = os.path.join(self.run_dir, f"checkpoint_step_{step}")
+    #         zip_path = shutil.make_archive(zip_base_name, 'zip', checkpoint_dir)
+            
+    #         # 上传到 MinIO
+    #         minio_client = await get_minio_client()
+    #         object_name = f"{self.task.task_id}/checkpoint_step_{step}.zip"
+    #         print(f"[{self.task.task_id}] upload checkpoint_object_name: {object_name}")
+    #         await upload_ckpt_to_minio(
+    #             client=minio_client,
+    #             ckpt_file_local_path=zip_path,
+    #             filename=object_name,
+    #         )
+    #         print(f"[{self.task.task_id}] Checkpoint for step {step} uploaded to MinIO.")
+    #         # 清理本地的 zip 文件
+    #         os.remove(zip_path)
+
+    #     except Exception as e:
+    #         print(f"❌ [{self.task.task_id}] Failed to upload checkpoint for step {step}: {e}")
+    #     finally:
+    #         # 从待处理集合中移除任务
+    #         if step in self.pending_uploads:
+    #             self.pending_uploads.remove(step)
+
+    async def _upload_checkpoint_to_minio(self, step: int, checkpoint_dir: str):
+        """将单个本地 checkpoint 目录压缩并上传到 MinIO"""
         try:
-            print(f"[{self.task.task_id}] Compressing checkpoint dir: {checkpoint_dir}")
-            # 将 checkpoint 目录打包成 zip 文件
+            print(f"[{self.task.task_id}] Compressing and uploading checkpoint dir: {checkpoint_dir}")
             zip_base_name = os.path.join(self.run_dir, f"checkpoint_step_{step}")
             zip_path = shutil.make_archive(zip_base_name, 'zip', checkpoint_dir)
-            
-            # 上传到 MinIO
+            checkpoint_path = Path(checkpoint_dir)
             minio_client = await get_minio_client()
             object_name = f"{self.task.task_id}/checkpoint_step_{step}.zip"
-            print(f"[{self.task.task_id}] upload checkpoint_object_name: {object_name}")
-            await upload_ckpt_to_minio(
-                client=minio_client,
-                ckpt_file_local_path=zip_path,
-                filename=object_name,
-            )
+            print(f"[{self.task.task_id}] Uploading checkpoint object: {object_name}")
+            await upload_ckpt_to_minio(client=minio_client, 
+                                       ckpt_file_local_path=zip_path, 
+                                       filename=object_name)
             print(f"[{self.task.task_id}] Checkpoint for step {step} uploaded to MinIO.")
-            # 清理本地的 zip 文件
-            os.remove(zip_path)
-
+            
         except Exception as e:
             print(f"❌ [{self.task.task_id}] Failed to upload checkpoint for step {step}: {e}")
         finally:
-            # 从待处理集合中移除任务
-            if step in self.pending_uploads:
-                self.pending_uploads.remove(step)
-    
+            # 清理本地的 zip 文件
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+            if zip_path and checkpoint_path.exists():
+                try:
+                    shutil.rmtree(checkpoint_path)
+                    print(f"🧹 [{self.task.task_id}] Cleaned up local checkpoint directory: {checkpoint_path}")
+                except OSError as e:
+                    print(f"⚠️ [{self.task.task_id}] Error removing checkpoint directory {checkpoint_path}: {e}")
+            
     def _determine_base_config_path(self) -> str:
         # 这个方法保持不变
         user_conf = self.task.config
@@ -131,6 +160,11 @@ class TrainerActor:
         task_id = self.task.task_id
         print(f"[{task_id}] Starting REAL training slice: step {start_step} -> {end_step}")
 
+        gpu_ids = ray.get_gpu_ids()
+        num_gpus = len(gpu_ids)
+        if num_gpus == 0:
+            raise RuntimeError(f"TrainerActor for task {task_id} was not allocated any GPUs.")
+        print(f"[{task_id}] Actor has been allocated {num_gpus} GPU(s): {gpu_ids}")
         try:
             minio_client = await get_minio_client()
             
@@ -144,12 +178,7 @@ class TrainerActor:
                 
                 # 从嵌套的 config 中获取 repo_id
                 dataset_conf = self.task.config.get("dataset", {})
-                # repo_id = dataset_conf.get("repo_id")
-                # if not repo_id:
-                    # raise ValueError("dataset.repo_id not found in task config.")
-                
-                # 在 MinIO 中，路径通常不带组织名，例如 'aloha_sim_insertion_human.zip'
-                # minio_object_name = f"{repo_id.split('/')[-1]}.zip"
+
                 dataset_object_name = f"{self.task.dataset_uuid}.zip"
                 
                 success, _ = await download_dataset_from_minio(
@@ -163,25 +192,23 @@ class TrainerActor:
                 shutil.unpack_archive(dataset_zip_path, local_dataset_dir)
                 os.remove(dataset_zip_path)
 
-                # 添加调试代码
-                print(f"[{task_id}] --- Verifying dataset structure ---")
-                for root, dirs, files in os.walk(local_dataset_dir):
-                    # 只打印两层深度
-                    level = root.replace(local_dataset_dir, '').count(os.sep)
-                    if level < 3:
-                        indent = ' ' * 4 * (level)
-                        print(f'{indent}{os.path.basename(root)}/')
-                        sub_indent = ' ' * 4 * (level + 1)
-                        for f in files[:3]: # 只看几个文件
-                            print(f'{sub_indent}{f}')
-                print(f"[{task_id}] --- End of structure verification ---")
+                # print(f"[{task_id}] --- Verifying dataset structure ---")
+                # for root, dirs, files in os.walk(local_dataset_dir):
+                #     # 只打印两层深度
+                #     level = root.replace(local_dataset_dir, '').count(os.sep)
+                #     if level < 3:
+                #         indent = ' ' * 4 * (level)
+                #         print(f'{indent}{os.path.basename(root)}/')
+                #         sub_indent = ' ' * 4 * (level + 1)
+                #         for f in files[:3]: # 只看几个文件
+                #             print(f'{sub_indent}{f}')
+                # print(f"[{task_id}] --- End of structure verification ---")
 
             # 2. 下载上一个 checkpoint 从minio 下载到本地
             checkpoint_extract_dir = None  # 用于存储checkpoint解压目录
             if start_step > 0:
                 print(f"[{task_id}] Downloading previous checkpoint to resume training...")
-                # 假设 Scheduler 知道上一个 checkpoint 的 step
-                # 我们需要找到上一个保存的 checkpoint step
+
                 prev_save_step = (start_step // self.task.config.get("save_freq", 1000)) * self.task.config.get("save_freq", 1000)
                 if prev_save_step > 0:
                     checkpoint_zip_path = os.path.join(self.run_dir, f"checkpoint_step_{prev_save_step}.zip")
@@ -234,15 +261,15 @@ class TrainerActor:
                 training_config = self.task.config
                 base_config_path = self._determine_base_config_path()
             
-            # 准备线程安全的回调函数
-            def sync_log_callback(step, metrics):
-                asyncio.run_coroutine_threadsafe(self._log_callback(step, metrics), self.loop)
+            # # 准备线程安全的回调函数
+            # def sync_log_callback(step, metrics):
+            #     asyncio.run_coroutine_threadsafe(self._log_callback(step, metrics), self.loop)
 
-            def sync_save_callback(step, ckpt_dir):
-                # 将任务添加到待处理集合
-                self.pending_uploads.add(step)
-                # 提交异步任务
-                asyncio.run_coroutine_threadsafe(self._save_checkpoint_callback(step, ckpt_dir), self.loop)
+            # def sync_save_callback(step, ckpt_dir):
+            #     # 将任务添加到待处理集合
+            #     self.pending_uploads.add(step)
+            #     # 提交异步任务
+            #     asyncio.run_coroutine_threadsafe(self._save_checkpoint_callback(step, ckpt_dir), self.loop)
 
             # 在一个单独的线程中运行同步的训练代码，防止阻塞 Actor
             # final_step = await asyncio.to_thread(
@@ -256,31 +283,70 @@ class TrainerActor:
                 # sync_log_callback,
                 # sync_save_callback,
             # )
-            final_step = await run_lerobot_training(
-                base_config_path=base_config_path,
-                user_override_config=training_config,  # 使用确定的配置
-                run_dir=self.run_dir,
-                task_id=self.task.task_id,
-                start_step=start_step,
-                end_step=end_step,
-                log_callback=sync_log_callback,
-                save_callback=sync_save_callback,
+            # final_step = await run_lerobot_training(
+            #     base_config_path=base_config_path,
+            #     user_override_config=training_config,  # 使用确定的配置
+            #     run_dir=self.run_dir,
+            #     task_id=self.task.task_id,
+            #     start_step=start_step,
+            #     end_step=end_step,
+            #     log_callback=sync_log_callback,
+            #     save_callback=sync_save_callback,
+            # )
+
+            logic_script_path = Path(__file__).parent / "lerobot_trainer_logic.py"
+
+            # 准备传递给脚本的参数
+            # 将 user_override_config 字典转为 JSON 字符串
+            user_override_config_str = json.dumps(training_config)
+
+            cmd = [
+                "torchrun",
+                f"--nproc_per_node={num_gpus}",
+                str(logic_script_path),
+                f"--base_config_path={base_config_path}",
+                f"--run_dir={self.run_dir}",
+                f"--task_id={task_id}",
+                f"--start_step={start_step}",
+                f"--end_step={end_step}",
+                f"--user_override_config={user_override_config_str}"
+            ]
+            
+            print(f"[{task_id}] Executing command: {' '.join(cmd)}")
+
+            # 执行命令并实时打印输出
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
 
-            # 等待所有异步上传任务完成
-            print(f"[{task_id}] Training completed. Waiting for {len(self.pending_uploads)} pending uploads...")
-            while self.pending_uploads:
-                await asyncio.sleep(0.1)  # 短暂等待
-            print(f"[{task_id}] All uploads completed.")
+            async def log_stream(stream, prefix):
+                async for line in stream: print(f"[{task_id}-{prefix}] {line.decode().strip()}")
+            
+            await asyncio.gather(log_stream(process.stdout, "stdout"), log_stream(process.stderr, "stderr"))
+            await process.wait()
+            
+            if process.returncode != 0:
+                raise RuntimeError(f"Training subprocess failed with exit code {process.returncode}")
 
-            # 检查是否训练完成，并上传最终模型
-            # total_steps = training_config.get('steps', 100000)  # 使用确定的配置
-            # if final_step >= total_steps:
-            #      print(f"[{task_id}] Final step reached. Uploading final model.")
-            #      await self._save_checkpoint_callback(final_step, 
-            #         os.path.join(self.run_dir, "checkpoints", f"{final_step:06d}"))
+            # HIGHLIGHT: 4. 训练结束后，扫描并上传本次产生的 Checkpoint
+            print(f"[{task_id}] Scanning for new checkpoints to upload...")
+            checkpoint_base_dir = Path(self.run_dir) / "checkpoints"
+            if checkpoint_base_dir.exists():
+                all_ckpts = sorted(glob.glob(str(checkpoint_base_dir / "[0-9]*")), key=os.path.getmtime)
+                new_ckpts_to_upload = [d for d in all_ckpts if start_step < int(Path(d).name) <= end_step]
+                
+                # 如果最终的 step 被保存，也加入上传列表
+                final_ckpt_dir = checkpoint_base_dir / f"{end_step:06d}"
+                if final_ckpt_dir.exists() and str(final_ckpt_dir) not in new_ckpts_to_upload:
+                    new_ckpts_to_upload.append(str(final_ckpt_dir))
 
-            return final_step
+                for ckpt_dir in set(new_ckpts_to_upload):
+                    step = int(Path(ckpt_dir).name)
+                    await self._upload_checkpoint_to_minio(step, ckpt_dir)
+
+            return end_step
 
         except Exception as e:
             print(f"❌ [{task_id}] Training failed with an exception: {e}")
