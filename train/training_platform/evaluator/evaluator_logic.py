@@ -92,43 +92,43 @@ async def create_eval_result_zip(output_dir: str, eval_task_id: str) -> str:
     return str(zip_path)
 
 
-async def upload_eval_result_to_minio(zip_file_path: str, eval_task_id: str) -> Tuple[bool, str]:
-    """
-    将评估结果zip文件上传到minio。
-    
-    Args:
-        zip_file_path: 本地zip文件路径
-        eval_task_id: 评估任务ID
-        
-    Returns:
-        (success, message): 上传结果和消息
-    """
-    try:
+# async def upload_eval_result_to_minio(zip_file_path: str, eval_task_id: str) -> Tuple[bool, str]:
+    # """
+    # 将评估结果zip文件上传到minio。
+    # 
+    # Args:
+        # zip_file_path: 本地zip文件路径
+        # eval_task_id: 评估任务ID
+        # 
+    # Returns:
+        # (success, message): 上传结果和消息
+    # """
+    # try:
         # 获取minio客户端
-        client = await get_minio_client()
-        if not client:
-            return False, "无法连接到MinIO服务器"
-        
+        # client = await get_minio_client()
+        # if not client:
+            # return False, "无法连接到MinIO服务器"
+        # 
         # 上传到 evals/{eval_task_id}/result.zip
-        success, result = await upload_file_to_minio(
-            client=client,
-            upload_file_local_path=zip_file_path,
-            filename="result.zip",
-            bucket_name=settings.MINIO_BUCKET,
-            object_dir=f"evals/{eval_task_id}"
-        )
-        
-        if success:
-            logger.info(f"评估结果已成功上传到MinIO: {result}")
-            return True, result
-        else:
-            logger.error(f"上传到MinIO失败: {result}")
-            return False, result
-            
-    except Exception as e:
-        error_msg = f"上传评估结果到MinIO时发生错误: {e}"
-        logger.error(error_msg)
-        return False, error_msg
+        # success, result = await upload_file_to_minio(
+            # client=client,
+            # upload_file_local_path=zip_file_path,
+            # filename="result.zip",
+            # bucket_name=settings.MINIO_BUCKET,
+            # object_dir=f"evals/{eval_task_id}"
+        # )
+        # 
+        # if success:
+            # logger.info(f"评估结果已成功上传到MinIO: {result}")
+            # return True, result
+        # else:
+            # logger.error(f"上传到MinIO失败: {result}")
+            # return False, result
+            # 
+    # except Exception as e:
+        # error_msg = f"上传评估结果到MinIO时发生错误: {e}"
+        # logger.error(error_msg)
+        # return False, error_msg
 
 
 def load_env_config_from_model(model_path: str) -> Dict[str, Any]:
@@ -898,44 +898,44 @@ async def run_lerobot_evaluation(
             logger.info(f"评估信息已保存到: {eval_info_path}")
             
             # 如果提供了eval_task_id，则打包并上传到minio
-            if eval_task_id:
-                logger.info(f"开始打包评估结果并上传到minio，任务ID: {eval_task_id}")
-                try:
+            # if eval_task_id:
+                # logger.info(f"开始打包评估结果并上传到minio，任务ID: {eval_task_id}")
+                # try:
                     # 创建zip文件
-                    zip_file_path = await create_eval_result_zip(str(cfg.output_dir), eval_task_id)
-                    
+                    # zip_file_path = await create_eval_result_zip(str(cfg.output_dir), eval_task_id)
+                    # 
                     # 上传到minio
-                    success, message = await upload_eval_result_to_minio(zip_file_path, eval_task_id)
-                    
-                    if success:
-                        logger.info(f"评估结果已成功上传到minio: {message}")
-                        info["minio_upload"] = {
-                            "success": True,
-                            "path": message,
-                            "zip_file": zip_file_path
-                        }
-                    else:
-                        logger.error(f"上传到minio失败: {message}")
-                        info["minio_upload"] = {
-                            "success": False,
-                            "error": message,
-                            "zip_file": zip_file_path
-                        }
-                        
+                    # success, message = await upload_eval_result_to_minio(zip_file_path, eval_task_id)
+                    # 
+                    # if success:
+                        # logger.info(f"评估结果已成功上传到minio: {message}")
+                        # info["minio_upload"] = {
+                            # "success": True,
+                            # "path": message,
+                            # "zip_file": zip_file_path
+                        # }
+                    # else:
+                        # logger.error(f"上传到minio失败: {message}")
+                        # info["minio_upload"] = {
+                            # "success": False,
+                            # "error": message,
+                            # "zip_file": zip_file_path
+                        # }
+                        # 
                     # 清理本地zip文件（可选）
-                    try:
-                        Path(zip_file_path).unlink()
-                        logger.info(f"已清理本地zip文件: {zip_file_path}")
-                    except Exception as e:
-                        logger.warning(f"清理本地zip文件失败: {e}")
-                        
-                except Exception as e:
-                    error_msg = f"打包或上传评估结果时发生错误: {e}"
-                    logger.error(error_msg)
-                    info["minio_upload"] = {
-                        "success": False,
-                        "error": error_msg
-                    }
+                    # try:
+                        # Path(zip_file_path).unlink()
+                        # logger.info(f"已清理本地zip文件: {zip_file_path}")
+                    # except Exception as e:
+                        # logger.warning(f"清理本地zip文件失败: {e}")
+                        # 
+                # except Exception as e:
+                    # error_msg = f"打包或上传评估结果时发生错误: {e}"
+                    # logger.error(error_msg)
+                    # info["minio_upload"] = {
+                        # "success": False,
+                        # "error": error_msg
+                    # }
         
         return info
         
