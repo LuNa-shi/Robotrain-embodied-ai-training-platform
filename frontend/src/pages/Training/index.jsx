@@ -38,63 +38,6 @@ const { Option } = Select;
 const { TextArea } = Input;
 const { Step } = Steps;
 
-// 模拟数据集列表
-const mockDatasets = [
-  {
-    id: 1,
-    dataset_name: '工业机器人视觉数据集',
-    description: '包含多种工业场景的机器人视觉图像，用于目标检测、抓取定位和路径规划训练',
-    owner_id: 1,
-    dataset_uuid: 'ds-20250625-001',
-    uploaded_at: '2025-06-25T10:30:15.000Z',
-    size: '2.5GB',
-    samples: 15000
-  },
-  {
-    id: 2,
-    dataset_name: '机械臂动作控制数据',
-    description: '机械臂运动轨迹和关节角度数据，用于机器人动作控制和轨迹优化训练',
-    owner_id: 1,
-    dataset_uuid: 'ds-20250624-007',
-    uploaded_at: '2025-06-24T18:45:00.000Z',
-    size: '1.8GB',
-    samples: 12000
-  },
-  {
-    id: 3,
-    dataset_name: '机器人语音指令数据集',
-    description: '机器人语音交互数据，包含指令识别、语音合成和对话管理训练数据',
-    owner_id: 1,
-    dataset_uuid: 'ds-20250623-003',
-    uploaded_at: '2025-06-23T09:12:55.000Z',
-    size: '3.2GB',
-    samples: 25000
-  },
-  {
-    id: 4,
-    dataset_name: '移动机器人导航数据',
-    description: '包含激光雷达、摄像头、IMU等多种传感器的机器人导航和避障数据',
-    owner_id: 1,
-    dataset_uuid: 'ds-20250622-011',
-    uploaded_at: '2025-06-22T22:05:10.000Z',
-    size: '4.1GB',
-    samples: 18000
-  },
-  {
-    id: 5,
-    dataset_name: '机器人安全监控数据',
-    description: '机器人工作环境安全监控数据，用于异常检测和安全预警模型训练',
-    owner_id: 1,
-    dataset_uuid: 'ds-20250621-005',
-    uploaded_at: '2025-06-21T14:20:30.000Z',
-    size: '1.5GB',
-    samples: 8000
-  }
-];
-
-// 默认的模型列表（作为备用）
-const defaultModels = [];
-
 const TrainingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,7 +47,7 @@ const TrainingPage = () => {
   const [trainingForm] = Form.useForm();
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [datasets, setDatasets] = useState([]);
-  const [availableModels, setAvailableModels] = useState(defaultModels);
+  const [availableModels, setAvailableModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState(null);
@@ -129,18 +72,7 @@ const TrainingPage = () => {
     } catch (err) {
       console.error('获取数据集列表失败:', err);
       message.error('获取数据集列表失败: ' + err.message);
-      // 如果获取失败，使用静态数据作为备用
-      setDatasets(mockDatasets);
-      // 检查URL参数，自动选中数据集（静态数据）
-      const params = new URLSearchParams(location.search);
-      const datasetId = params.get('datasetId');
-      if (datasetId) {
-        const found = mockDatasets.find(ds => String(ds.id) === String(datasetId));
-        if (found) {
-          setSelectedDataset(found);
-          setCurrentStep(1);
-        }
-      }
+      setDatasets([]);
     } finally {
       setLoading(false);
     }
@@ -162,7 +94,6 @@ const TrainingPage = () => {
     } catch (err) {
       console.error('获取模型类型列表失败:', err);
       message.error('获取模型类型列表失败: ' + err.message);
-      // 如果获取失败，使用空列表
       setAvailableModels([]);
     } finally {
       setModelsLoading(false);
