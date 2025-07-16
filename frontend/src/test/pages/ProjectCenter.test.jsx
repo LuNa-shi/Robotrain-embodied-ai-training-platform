@@ -3,8 +3,6 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
-// 直接从 antd 导入 message，以便我们可以 spyOn 它
-import { message } from 'antd';
 import ProjectCenterPage from '@/pages/ProjectCenter';
 import {
   mockModelTypesResponse,
@@ -42,6 +40,31 @@ vi.mock('@ant-design/icons', () => ({
   ClockCircleOutlined: () => <span>ClockIcon</span>,
   PlusOutlined: () => <span>PlusIcon</span>,
 }));
+
+// 核心修改：从 DataCenter.test.jsx 复制过来的、证明可行的 antd mock 方案
+const mockMessage = {
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+};
+
+const mockModal = {
+  confirm: vi.fn(),
+};
+
+vi.mock('antd', async (importOriginal) => {
+  const actual = await importOriginal();
+  const MockApp = ({ children }) => children;
+  MockApp.useApp = () => ({
+    message: mockMessage,
+    notification: vi.fn(),
+    modal: mockModal, // 返回我们定义的 mockModal
+  });
+  return {
+    ...actual,
+    App: MockApp,
+  };
+});
 
 const mockCreateObjectURL = vi.fn();
 const mockRevokeObjectURL = vi.fn();
@@ -88,14 +111,14 @@ describe('ProjectCenter Page', () => {
 
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(vi.fn());
 
-    // 在这里直接 spyOn antd 的 message 对象
-    vi.spyOn(message, 'success').mockImplementation(vi.fn());
-    vi.spyOn(message, 'error').mockImplementation(vi.fn());
-    vi.spyOn(message, 'info').mockImplementation(vi.fn());
-
+    // 清理我们定义的 mock 对象
     mockNavigate.mockClear();
     mockCreateObjectURL.mockClear();
     mockRevokeObjectURL.mockClear();
+    mockMessage.success.mockClear();
+    mockMessage.info.mockClear();
+    mockMessage.error.mockClear();
+    mockModal.confirm.mockClear();
 
     const api = await import('@/utils/api');
     mockGetTasksAPI = api.trainTasksAPI.getMyTasks;
@@ -115,9 +138,12 @@ describe('ProjectCenter Page', () => {
   });
 
   const renderProjectCenter = async () => {
+    const antd = await import('antd');
     return render(
       <BrowserRouter>
+        <antd.App>
           <ProjectCenterPage />
+        </antd.App>
       </BrowserRouter>
     );
   };
@@ -198,7 +224,7 @@ describe('ProjectCenter Page', () => {
       await vi.advanceTimersByTimeAsync(500);
 
       await waitFor(() => {
-        expect(message.success).toHaveBeenCalledWith('模型文件下载成功');
+        expect(mockMessage.success).toHaveBeenCalledWith('模型文件下载成功');
       });
       
       expect(downloadButton).toBeEnabled();
@@ -207,10 +233,33 @@ describe('ProjectCenter Page', () => {
       expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-file-url-12345');
     });
 
-    it('点击删除按钮应该删除训练任务并刷新列表', async () => {
+    it('点击删除按钮应该显示确认对话框', async () => {
+      const card1 = await screen.findByText('训练项目 1').then(e => e.closest('.ant-card'));
+      const deleteButton = await within(card1).findByRole('button', { name: "删除项目" });
+
+      await user.click(deleteButton);
+
+      expect(mockModal.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ 
+          title: '确认删除',
+          content: '删除后数据无法恢复，确定要删除该训练项目吗？',
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消'
+        })
+      );
+    });
+
+    it('确认删除应该调用删除API并刷新列表', async () => {
       mockDeleteTaskAPI.mockResolvedValue(mockDeleteTaskResponse);
       const remainingTasks = mockTrainingTasksResponse.filter(task => task.id !== 1);
       mockGetTasksAPI.mockResolvedValueOnce(remainingTasks);
+      
+      // Mock modal.confirm 来模拟用户确认删除
+      mockModal.confirm.mockImplementation(config => {
+        if (config.onOk) config.onOk();
+      });
+
       const card1 = await screen.findByText('训练项目 1').then(e => e.closest('.ant-card'));
       const deleteButton = await within(card1).findByRole('button', { name: "删除项目" });
 
@@ -221,7 +270,7 @@ describe('ProjectCenter Page', () => {
       });
 
       expect(mockDeleteTaskAPI).toHaveBeenCalledWith('1');
-      expect(message.success).toHaveBeenCalledWith('删除成功');
+      expect(mockMessage.success).toHaveBeenCalledWith('训练项目删除成功');
       expect(mockGetTasksAPI).toHaveBeenCalledTimes(2); 
       expect(screen.getByText('训练项目 2')).toBeInTheDocument();
     });
@@ -233,8 +282,8 @@ describe('ProjectCenter Page', () => {
       mockGetTasksAPI.mockRejectedValue(new Error('获取失败'));
       await renderProjectCenter();
       await waitFor(() => {
-        // 关键修复：使用 message 而不是 mockMessage
-        expect(message.error).toHaveBeenCalledWith('获取训练项目列表失败: 获取失败');
+        // 关键修复：使用 mockMessage 而不是 message
+        expect(mockMessage.error).toHaveBeenCalledWith('获取训练项目列表失败: 获取失败');
       });
     });
 
@@ -246,8 +295,8 @@ describe('ProjectCenter Page', () => {
       const downloadButtons = await screen.findAllByRole('button', { name: "下载模型" });
       await user.click(downloadButtons[0]);
       await waitFor(() => {
-        // 关键修复：使用 message 而不是 mockMessage
-        expect(message.error).toHaveBeenCalledWith('下载失败: 下载失败');
+        // 关键修复：使用 mockMessage 而不是 message
+        expect(mockMessage.error).toHaveBeenCalledWith('下载失败: 下载失败');
       });
     });
 
@@ -255,12 +304,18 @@ describe('ProjectCenter Page', () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
       mockDeleteTaskAPI.mockRejectedValue(new Error('删除失败'));
+      
+      // Mock modal.confirm 来模拟用户确认删除
+      mockModal.confirm.mockImplementation(config => {
+        if (config.onOk) config.onOk();
+      });
+      
       await renderProjectCenter();
       const deleteButtons = await screen.findAllByRole('button', { name: "删除项目" });
       await user.click(deleteButtons[0]);
       await waitFor(() => {
-        // 关键修复：使用 message 而不是 mockMessage
-        expect(message.error).toHaveBeenCalledWith('删除失败');
+        // 关键修复：使用 mockMessage 而不是 message
+        expect(mockMessage.error).toHaveBeenCalledWith('删除失败');
       });
     });
   });

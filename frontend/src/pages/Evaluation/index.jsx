@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
+  App,
   Typography, 
   Card, 
   Button, 
   Space, 
   Table, 
   Tag, 
-  Modal, 
+  Modal,
   Row, 
   Col, 
-  message, 
   Tooltip,
   Dropdown,
   Divider,
@@ -20,7 +20,8 @@ import {
   Avatar,
   Badge,
   Spin,
-  Radio
+  Radio,
+  Select
 } from 'antd';
 import {
   DownloadOutlined,
@@ -56,17 +57,30 @@ const getModelTypeName = (modelTypeId) => {
 
 // 根据状态返回不同的Tag和Icon
 const StatusDisplay = ({ status }) => {
+  // 调试：打印接收到的状态值
+  console.log('StatusDisplay 接收到的状态:', status, '类型:', typeof status);
+  
+  // 标准化状态值（转换为小写）
+  const normalizedStatus = typeof status === 'string' ? status.toLowerCase() : status;
+  
   const statusMap = {
     completed: { color: 'success', text: '已完成', icon: <CheckCircleOutlined /> },
     running: { color: 'processing', text: '进行中', icon: <ClockCircleOutlined /> },
     failed: { color: 'error', text: '失败', icon: <CloseCircleOutlined /> },
     pending: { color: 'default', text: '等待中', icon: <ClockCircleOutlined /> },
   };
-  const { color, text, icon } = statusMap[status] || { color: 'default', text: '未知', icon: <ClockCircleOutlined /> };
+  
+  const { color, text, icon } = statusMap[normalizedStatus] || statusMap[status] || { 
+    color: 'default', 
+    text: `未知状态(${status})`, 
+    icon: <ClockCircleOutlined /> 
+  };
+  
   return <Tag icon={icon} color={color}>{text}</Tag>;
 };
 
 const EvaluationPage = () => {
+  const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const [records, setRecords] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -86,6 +100,18 @@ const EvaluationPage = () => {
   const [creatingEvaluation, setCreatingEvaluation] = useState(false);
   const [evaluationModalVisible, setEvaluationModalVisible] = useState(false);
   const [selectedTrainTask, setSelectedTrainTask] = useState(null);
+  
+  // 视频播放相关状态
+  const [currentVideoBlob, setCurrentVideoBlob] = useState(null);
+  const [currentVideoName, setCurrentVideoName] = useState(null);
+  const [loadingVideo, setLoadingVideo] = useState(false);
+  const [loadingVideoName, setLoadingVideoName] = useState(null); // 记录正在加载的视频名称
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0); // 当前选中的视频索引
+  const [downloadingVideo, setDownloadingVideo] = useState(false); // 下载状态
+  const [currentVideoUrl, setCurrentVideoUrl] = useState(null); // 当前视频的Blob URL
+  
+  // 删除评估任务相关状态
+  const [deletingEvaluation, setDeletingEvaluation] = useState(false); // 删除状态
 
   useEffect(() => {
     const leftPanelWidth = 260;
@@ -107,10 +133,28 @@ const EvaluationPage = () => {
     setSelectedRecord(null);
     fetchCompletedTrainingProjects();
     
+    // 设置定时器，每30秒刷新一次评估任务列表，确保状态及时更新
+    const intervalId = setInterval(() => {
+      fetchEvaluationTasks();
+    }, 30000);
+    
     window.addEventListener('resize', checkLayout);
     setTimeout(checkLayout, 0); // 首次渲染后测量一次
-    return () => window.removeEventListener('resize', checkLayout);
+    return () => {
+      window.removeEventListener('resize', checkLayout);
+      clearInterval(intervalId);
+    };
   }, []);
+
+  // 清理Blob URL的useEffect
+  useEffect(() => {
+    return () => {
+      // 组件卸载时清理Blob URL
+      if (currentVideoUrl) {
+        URL.revokeObjectURL(currentVideoUrl);
+      }
+    };
+  }, [currentVideoUrl]);
 
   // 获取评估任务列表
   const fetchEvaluationTasks = async () => {
@@ -119,29 +163,20 @@ const EvaluationPage = () => {
       const data = await evalTasksAPI.getMyTasks();
       
       // 转换后端数据为前端显示格式
-      const evaluationRecords = data.map(task => ({
-        id: `eval-${task.id}`,
-        name: `评估任务 ${task.id}`,
-        modelType: '待获取', // 这里需要根据train_task_id获取训练任务信息
-        dataset: '待获取', // 这里需要根据train_task_id获取数据集信息
-        startTime: new Date(task.create_time).toLocaleString('zh-CN'),
-        duration: task.end_time ? 
-          `${Math.round((new Date(task.end_time) - new Date(task.start_time)) / 60000)}m` : 
-          '进行中...',
-        status: task.status,
-        accuracy: 'N/A', // 评估结果需要从其他地方获取
-        precision: 'N/A',
-        recall: 'N/A',
-        f1Score: 'N/A',
-        testCases: 0, // 这些信息需要从评估结果中获取
-        passedCases: 0,
-        failedCases: 0,
-        videoUrl: 'https://example.com/video1.mp4', // 模拟视频URL
-        thumbnail: 'https://via.placeholder.com/300x200/1890ff/ffffff?text=评估任务',
-        evalStage: task.eval_stage,
-        trainTaskId: task.train_task_id,
-        originalData: task
-      }));
+      const evaluationRecords = data.map(task => {
+        // 调试：打印每个任务的状态
+        console.log(`评估任务 ${task.id} 的状态:`, task.status);
+        
+        return {
+          id: `eval-${task.id}`,
+          name: `评估任务 ${task.id}`,
+          status: task.status,
+          videoNames: task.video_names || [], // 保留视频名称列表用于详情页
+          evalStage: task.eval_stage,
+          trainTaskId: task.train_task_id,
+          originalData: task
+        };
+      });
       
       setRecords(evaluationRecords);
       console.log('获取评估任务成功:', evaluationRecords);
@@ -195,6 +230,128 @@ const EvaluationPage = () => {
     } finally {
       setLoadingTrainingProjects(false);
     }
+  };
+
+  // 处理视频播放
+  const handlePlayVideo = async (videoName) => {
+    if (!selectedRecordDetails) {
+      message.error('评估任务详情未加载');
+      return;
+    }
+
+    try {
+      setLoadingVideo(true);
+      setLoadingVideoName(videoName);
+      setCurrentVideoName(videoName);
+      
+      // 更新当前视频索引
+      const videoIndex = selectedRecordDetails.video_names?.findIndex(name => name === videoName);
+      if (videoIndex !== -1) {
+        setCurrentVideoIndex(videoIndex);
+      }
+      
+      // 获取视频文件
+      const evalTaskId = selectedRecordDetails.id;
+      console.log('正在获取视频:', { evalTaskId, videoName });
+      
+      const videoBlob = await evalTasksAPI.getVideo(evalTaskId, videoName);
+      console.log('获取到视频文件:', videoBlob);
+      
+      setCurrentVideoBlob(videoBlob);
+      // 创建Blob URL
+      const blobUrl = URL.createObjectURL(videoBlob);
+      setCurrentVideoUrl(blobUrl);
+    } catch (error) {
+      console.error('获取视频失败:', error);
+      message.error('获取视频失败: ' + error.message);
+    } finally {
+      setLoadingVideo(false);
+      setLoadingVideoName(null);
+    }
+  };
+
+  // 处理视频下载
+  const handleDownloadVideo = async () => {
+    if (!currentVideoName || !selectedRecordDetails) {
+      message.error('请先选择要下载的视频');
+      return;
+    }
+
+    try {
+      setDownloadingVideo(true);
+      
+      const evalTaskId = selectedRecordDetails.id;
+      console.log('正在下载视频:', { evalTaskId, videoName: currentVideoName });
+      
+      const { blob, filename } = await evalTasksAPI.downloadVideo(evalTaskId, currentVideoName);
+      
+      // 创建下载链接
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      message.success(`视频 ${filename} 下载成功！`);
+    } catch (error) {
+      console.error('下载视频失败:', error);
+      message.error('下载视频失败: ' + error.message);
+    } finally {
+      setDownloadingVideo(false);
+    }
+  };
+
+  // 处理删除评估任务
+  const handleDeleteEvaluation = () => {
+    if (!selectedRecordDetails) {
+      message.error('评估任务详情未加载');
+      return;
+    }
+
+    modal.confirm({
+      title: '确认删除',
+      content: '删除后数据无法恢复，确定要删除该评估任务吗？',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      centered: true,
+      onOk: async () => {
+        try {
+          setDeletingEvaluation(true);
+          
+          const evalTaskId = selectedRecordDetails.id;
+          console.log('正在删除评估任务:', evalTaskId);
+          
+          await evalTasksAPI.delete(evalTaskId);
+          
+          message.success('评估任务删除成功！');
+          
+          // 重新获取评估任务列表
+          await fetchEvaluationTasks();
+          
+          // 重置选中状态
+          setSelectedRecord(null);
+          setSelectedRecordDetails(null);
+          setSelectedTrainTask(null);
+          setCurrentVideoName(null);
+          setCurrentVideoBlob(null);
+          setCurrentVideoUrl(null);
+          
+          // 自动切换到"发起评估"模式
+          setIsEvaluationMode(true);
+          fetchCompletedTrainingProjects();
+          
+        } catch (error) {
+          console.error('删除评估任务失败:', error);
+          message.error('删除评估任务失败: ' + error.message);
+        } finally {
+          setDeletingEvaluation(false);
+        }
+      },
+    });
   };
 
   // 处理发起评估
@@ -283,10 +440,24 @@ const EvaluationPage = () => {
           const evalTaskId = record.id.replace('eval-', '');
           const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
           setSelectedRecordDetails(evalTaskDetail);
+          // 更新左侧列表中对应项目的状态，确保数据一致性
+          setRecords(prevRecords =>
+            prevRecords.map(item =>
+              item.id === record.id
+                ? { ...item, status: evalTaskDetail.status }
+                : item
+            )
+          );
           // 获取训练任务详情
           if (evalTaskDetail.train_task_id) {
             await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
           }
+          
+          // 重置视频相关状态，不自动播放任何视频
+          setCurrentVideoIndex(0);
+          setCurrentVideoName(null);
+          setCurrentVideoBlob(null);
+          setCurrentVideoUrl(null);
         } catch (error) {
           console.error('获取评估任务详情失败:', error);
           message.error('获取评估任务详情失败: ' + error.message);
@@ -297,12 +468,7 @@ const EvaluationPage = () => {
         <div className={styles.projectInfo}>
           <div className={styles.projectName}>{record.name}</div>
           <div className={styles.projectMeta}>
-            <Text type="secondary">{record.modelType}</Text>
             <StatusDisplay status={record.status} />
-          </div>
-          <div className={styles.projectStats}>
-            <Text type="secondary">准确率: {record.accuracy}</Text>
-            <Text type="secondary">• {record.testCases} 用例</Text>
           </div>
         </div>
       </div>
@@ -327,10 +493,24 @@ const EvaluationPage = () => {
           const evalTaskId = record.id.replace('eval-', '');
           const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
           setSelectedRecordDetails(evalTaskDetail);
+          // 更新左侧列表中对应项目的状态，确保数据一致性
+          setRecords(prevRecords =>
+            prevRecords.map(item =>
+              item.id === record.id
+                ? { ...item, status: evalTaskDetail.status }
+                : item
+            )
+          );
           // 获取训练任务详情
           if (evalTaskDetail.train_task_id) {
             await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
           }
+          
+          // 重置视频相关状态，不自动播放任何视频
+          setCurrentVideoIndex(0);
+          setCurrentVideoName(null);
+          setCurrentVideoBlob(null);
+          setCurrentVideoUrl(null);
         } catch (error) {
           console.error('获取评估任务详情失败:', error);
           message.error('获取评估任务详情失败: ' + error.message);
@@ -339,7 +519,6 @@ const EvaluationPage = () => {
     >
       <div className={styles.projectName}>{record.name}</div>
       <div className={styles.projectMeta}>
-        <Text type="secondary">{record.modelType}</Text>
         <StatusDisplay status={record.status} />
       </div>
     </div>
@@ -450,37 +629,53 @@ const EvaluationPage = () => {
             <Card className={styles.videoCard}>
               <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 {/* 基本信息作为标题部分 */}
-                <div style={{ marginBottom: 24, paddingTop: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ flexShrink: 0, marginBottom: 16, paddingTop: 12, paddingBottom: 12, borderBottom: '1px solid #f0f0f0' }}>
                   <Row gutter={0}>
-                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <Col span={4} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <div style={{ textAlign: 'center', width: '100%' }}>
-                        <Text type="secondary">训练项目</Text>
-                        <div style={{ marginTop: 4 }}>
-                          <Text strong>{selectedTrainTask ? `训练项目 ${selectedTrainTask.id}` : '加载中...'}</Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>训练项目</Text>
+                        <div style={{ marginTop: 2 }}>
+                          <Text strong style={{ fontSize: '13px' }}>{selectedTrainTask ? `训练项目 ${selectedTrainTask.id}` : '加载中...'}</Text>
                         </div>
                       </div>
                     </Col>
-                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <Col span={4} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <div style={{ textAlign: 'center', width: '100%' }}>
-                        <Text type="secondary">创建时间</Text>
-                        <div style={{ marginTop: 4 }}>
-                          <Text>{selectedRecordDetails.create_time ? new Date(selectedRecordDetails.create_time).toLocaleString('zh-CN') : '-'}</Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>创建时间</Text>
+                        <div style={{ marginTop: 2 }}>
+                          <Text style={{ fontSize: '12px' }}>{selectedRecordDetails.create_time ? new Date(selectedRecordDetails.create_time).toLocaleString('zh-CN') : '-'}</Text>
                         </div>
                       </div>
                     </Col>
-                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <Col span={4} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <div style={{ textAlign: 'center', width: '100%' }}>
-                        <Text type="secondary">开始时间</Text>
-                        <div style={{ marginTop: 4 }}>
-                          <Text>{selectedRecordDetails.start_time ? new Date(selectedRecordDetails.start_time).toLocaleString('zh-CN') : '-'}</Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>开始时间</Text>
+                        <div style={{ marginTop: 2 }}>
+                          <Text style={{ fontSize: '12px' }}>{selectedRecordDetails.start_time ? new Date(selectedRecordDetails.start_time).toLocaleString('zh-CN') : '-'}</Text>
                         </div>
                       </div>
                     </Col>
-                    <Col span={6} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <Col span={4} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <div style={{ textAlign: 'center', width: '100%' }}>
-                        <Text type="secondary">结束时间</Text>
-                        <div style={{ marginTop: 4 }}>
-                          <Text>{selectedRecordDetails.end_time ? new Date(selectedRecordDetails.end_time).toLocaleString('zh-CN') : '-'}</Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>结束时间</Text>
+                        <div style={{ marginTop: 2 }}>
+                          <Text style={{ fontSize: '12px' }}>{selectedRecordDetails.end_time ? new Date(selectedRecordDetails.end_time).toLocaleString('zh-CN') : '-'}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={4} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center', width: '100%' }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>视频数量</Text>
+                        <div style={{ marginTop: 2 }}>
+                          <Text strong style={{ fontSize: '13px' }}>{selectedRecordDetails.video_names ? selectedRecordDetails.video_names.length : 0}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={4} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center', width: '100%' }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>评估阶段</Text>
+                        <div style={{ marginTop: 2 }}>
+                          <Text strong style={{ fontSize: '13px' }}>{selectedRecordDetails.eval_stage || '-'}</Text>
                         </div>
                       </div>
                     </Col>
@@ -488,15 +683,197 @@ const EvaluationPage = () => {
                 </div>
                 
                 {/* 仿真和视频展示区域 */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px', minHeight: 0, overflow: 'hidden' }}>
                   {selectedRecordDetails.status === 'completed' ? (
-                    <div style={{ textAlign: 'center', color: '#999' }}>
-                      {/* 这里将来可以放仿真和视频内容 */}
-                      <Text type="secondary">仿真与视频功能开发中，敬请期待！</Text>
+                    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                      {/* 视频播放器和选择器 */}
+                      {selectedRecordDetails.video_names && selectedRecordDetails.video_names.length > 0 ? (
+                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                          {/* 视频选择器 */}
+                          <div style={{ flexShrink: 0, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                              <Title level={4} style={{ margin: 0 }}>
+                                <VideoCameraOutlined style={{ marginRight: 8 }} />
+                                评估视频 ({selectedRecordDetails.video_names.length} 个)
+                              </Title>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <Dropdown
+                                  menu={{
+                                    items: selectedRecordDetails.video_names.map((videoName, index) => ({
+                                      key: index,
+                                      label: videoName,
+                                      onClick: () => {
+                                        setCurrentVideoIndex(index);
+                                        handlePlayVideo(videoName);
+                                      }
+                                    }))
+                                  }}
+                                  placement="bottomRight"
+                                >
+                                  <Button
+                                    icon={<VideoCameraOutlined />}
+                                    size="middle"
+                                    style={{ minWidth: '100px' }}
+                                  >
+                                    选择视频
+                                  </Button>
+                                </Dropdown>
+                                <Button
+                                  type="primary"
+                                  icon={<DownloadOutlined />}
+                                  onClick={handleDownloadVideo}
+                                  loading={downloadingVideo}
+                                  disabled={!currentVideoName}
+                                  title="下载当前视频"
+                                  size="middle"
+                                  style={{ minWidth: '100px' }}
+                                >
+                                  下载视频
+                                </Button>
+                                <Button
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  onClick={handleDeleteEvaluation}
+                                  loading={deletingEvaluation}
+                                  title="删除评估任务"
+                                  size="middle"
+                                  style={{ minWidth: '100px' }}
+                                >
+                                  删除
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* 视频播放器 */}
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', marginTop: 8 }}>
+                            {loadingVideo ? (
+                              <div style={{ textAlign: 'center', padding: '20px' }}>
+                                <Spin size="large" />
+                                <div style={{ marginTop: '12px' }}>
+                                  <Text>正在加载视频...</Text>
+                                </div>
+                              </div>
+                            ) : currentVideoUrl ? (
+                              <div style={{ textAlign: 'center', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, width: '100%' }}>
+                                  <video
+                                    controls
+                                    style={{ 
+                                      maxWidth: '100%', 
+                                      maxHeight: '100%',
+                                      width: 'auto',
+                                      height: 'auto',
+                                      borderRadius: '8px',
+                                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                                      objectFit: 'contain'
+                                    }}
+                                    onError={(e) => {
+                                      console.error('视频播放错误:', e);
+                                      message.error('视频播放失败，请检查视频文件或网络连接');
+                                      setCurrentVideoBlob(null);
+                                      setCurrentVideoUrl(null);
+                                    }}
+                                    onLoadStart={() => {
+                                      console.log('开始加载视频:', currentVideoName);
+                                    }}
+                                    onCanPlay={() => {
+                                      console.log('视频可以播放:', currentVideoName);
+                                    }}
+                                  >
+                                    <source src={currentVideoUrl} type="video/mp4" />
+                                    您的浏览器不支持视频播放。
+                                  </video>
+                                </div>
+                                <div style={{ flexShrink: 0, marginTop: '8px' }}>
+                                  <Text type="secondary">当前播放: {currentVideoName}</Text>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ textAlign: 'center', color: '#999', width: '100%' }}>
+                                <VideoCameraOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                                <div>
+                                  <Text type="secondary" style={{ fontSize: '18px' }}>请选择一个视频进行查看</Text>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                          {/* 删除按钮 */}
+                          <div style={{ flexShrink: 0, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                              <Title level={4} style={{ margin: 0 }}>
+                                <VideoCameraOutlined style={{ marginRight: 8 }} />
+                                评估视频 (0 个)
+                              </Title>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <Button
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  onClick={handleDeleteEvaluation}
+                                  loading={deletingEvaluation}
+                                  title="删除评估任务"
+                                  size="middle"
+                                  style={{ minWidth: '100px' }}
+                                >
+                                  删除
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* 提示信息 */}
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', marginTop: 8 }}>
+                            <div style={{ textAlign: 'center', color: '#999', width: '100%' }}>
+                              <VideoCameraOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                              <div>
+                                <Text type="secondary">暂无评估视频</Text>
+                                <br />
+                                <Text type="secondary">该评估任务暂未生成视频文件</Text>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div style={{ textAlign: 'center', color: '#999' }}>
-                      <Text type="secondary">当前状态（{selectedRecordDetails.status}）暂不支持显示仿真和视频。</Text>
+                    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                      {/* 删除按钮 */}
+                      <div style={{ flexShrink: 0, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                          <Title level={4} style={{ margin: 0 }}>
+                            <ClockCircleOutlined style={{ marginRight: 8 }} />
+                            评估状态
+                          </Title>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button
+                              danger
+                              icon={<DeleteOutlined />}
+                              onClick={handleDeleteEvaluation}
+                              loading={deletingEvaluation}
+                              title="删除评估任务"
+                              size="middle"
+                              style={{ minWidth: '100px' }}
+                            >
+                              删除
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 提示信息 */}
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', marginTop: 8 }}>
+                        <div style={{ textAlign: 'center', color: '#999', width: '100%' }}>
+                          <ClockCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                          <div>
+                            <Text type="secondary">当前状态（{selectedRecordDetails.status}）暂不支持显示仿真和视频。</Text>
+                            <br />
+                            <Text type="secondary">请等待评估任务完成后查看视频结果</Text>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -534,7 +911,7 @@ const EvaluationPage = () => {
                 <div className={styles.panelTitle}>
                   <ExperimentOutlined />
                   <span>测试项目</span>
-                  <Badge count={records.length} style={{ backgroundColor: '#52c41a' }} />
+                  <Badge count={records.length} style={{ backgroundColor: '#52c41a', borderRadius: '50%' }} />
                 </div>
               }
               className={styles.projectPanel}
@@ -563,7 +940,7 @@ const EvaluationPage = () => {
                 <div className={styles.panelTitle}>
                   <ExperimentOutlined />
                   <span>测试项目</span>
-                  <Badge count={records.length} style={{ backgroundColor: '#52c41a' }} />
+                  <Badge count={records.length} style={{ backgroundColor: '#52c41a', borderRadius: '50%' }} />
                 </div>
               }
               className={styles.projectPanel}
@@ -712,6 +1089,8 @@ const EvaluationPage = () => {
           </div>
         )}
       </Modal>
+
+
 
 
     </div>
