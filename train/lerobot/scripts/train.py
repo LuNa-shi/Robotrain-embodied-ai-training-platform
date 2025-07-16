@@ -124,6 +124,16 @@ def train(cfg: TrainPipelineConfig):
     device = get_safe_torch_device(cfg.policy.device, log=True)
     torch.backends.cudnn.benchmark = True
     torch.backends.cuda.matmul.allow_tf32 = True
+    
+    # 启用torch.compile相关的优化
+    if hasattr(cfg.policy, 'use_compile') and cfg.policy.use_compile:
+        # 设置torch.compile相关的环境变量和优化
+        torch.backends.cuda.enable_flash_sdp(True)
+        torch.backends.cuda.enable_mem_efficient_sdp(True)
+        torch.backends.cuda.enable_math_sdp(True)
+        # 启用标量输出捕获，避免.item()导致的图断点
+        torch._dynamo.config.capture_scalar_outputs = True
+        logging.info("已启用torch.compile相关的CUDA优化和标量输出捕获")
 
     logging.info("Creating dataset")
     dataset = make_dataset(cfg)

@@ -145,6 +145,14 @@ def make_policy(
     policy.to(cfg.device)
     assert isinstance(policy, nn.Module)
 
-    # policy = torch.compile(policy, mode="reduce-overhead")
+    # 启用torch.compile加速训练
+    if hasattr(cfg, 'use_compile') and cfg.use_compile:
+        import torch
+        logging.info(f"启用torch.compile加速训练，模式: {getattr(cfg, 'compile_mode', 'reduce-overhead')}")
+        policy = torch.compile(
+            policy, 
+            mode=getattr(cfg, 'compile_mode', 'reduce-overhead'),
+            fullgraph=getattr(cfg, 'compile_fullgraph', False)
+        )
 
     return policy
