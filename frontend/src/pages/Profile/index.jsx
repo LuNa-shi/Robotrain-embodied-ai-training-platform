@@ -10,9 +10,8 @@ import {
   Upload, 
   Row, 
   Col, 
-  Statistic,
   Tag,
-  message,
+  App,
   Space
 } from 'antd';
 import { 
@@ -32,6 +31,8 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const Profile = () => {
+  const { message: contextMessage } = App.useApp();
+  const message = contextMessage || require('antd').message;
   const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -62,12 +63,7 @@ const Profile = () => {
     }
   }, [userInfo]);
 
-  const stats = [
-    { title: '上传数据集', value: 25, suffix: '个' },
-    { title: '训练模型', value: 12, suffix: '个' },
-    { title: '运行时长', value: 168, suffix: '小时' },
-    { title: '成功率', value: 95.8, suffix: '%' }
-  ];
+
 
   const handleEdit = () => {
     form.setFieldsValue(userData);
@@ -78,12 +74,11 @@ const Profile = () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      setTimeout(() => {
-        setUserData({ ...userData, ...values });
-        setEditing(false);
-        setLoading(false);
-        message.success('个人资料更新成功！');
-      }, 1000);
+      // 直接同步保存
+      setUserData({ ...userData, ...values });
+      setEditing(false);
+      setLoading(false);
+      message.success('个人资料更新成功！');
     } catch (error) {
       console.log('验证失败:', error);
     }
@@ -179,42 +174,6 @@ const Profile = () => {
             </div>
           </Form>
         </Card>
-
-        {/* 使用统计卡片 */}
-        <Card
-          className={styles.statsCard}
-          title={<div className={styles.statsTitle}>使用统计</div>}
-        >
-          <Row gutter={[16, 16]}>
-            {stats.map((stat, index) => (
-              <Col xs={12} key={index}>
-                <div className={styles.statItem}>
-                  <span className={styles.statLabel}>{stat.title}：</span>
-                  <span className={styles.statValue}>{stat.value}{stat.suffix}</span>
-                </div>
-              </Col>
-            ))}
-          </Row>
-        </Card>
-
-        {/* 调试信息卡片 - 仅在开发环境显示 */}
-        {import.meta.env.DEV && (
-          <Card
-            className={styles.statsCard}
-            title={<div className={styles.statsTitle}>调试信息（仅开发环境）</div>}
-          >
-            <div style={{ fontSize: '12px', fontFamily: 'monospace' }}>
-              <p><strong>Redux Store 用户信息:</strong></p>
-              <pre style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px', overflow: 'auto' }}>
-                {JSON.stringify(userInfo, null, 2)}
-              </pre>
-              <p style={{ marginTop: '16px' }}><strong>本地用户数据:</strong></p>
-              <pre style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px', overflow: 'auto' }}>
-                {JSON.stringify(userData, null, 2)}
-              </pre>
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   );
