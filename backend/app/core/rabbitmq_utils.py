@@ -156,7 +156,12 @@ async def on_eval_status_message(message: aio_pika.IncomingMessage):
             eval_task_to_update: EvalTaskUpdate = EvalTaskUpdate(
                 status=status
             )
-
+            old_eval_task = await eval_task_service.get_eval_task_by_id(eval_task_id)
+            if status == "completed" or status == "failed": 
+                eval_task_to_update.end_time = datetime.now(timezone.utc)
+            if status == "running" and old_eval_task.status != "running":
+                eval_task_to_update.start_time = datetime.now(timezone.utc)
+                
             await eval_task_service.update_eval_task(eval_task_id, eval_task_to_update)
             # TODO:增加websocket与前端同步
 
