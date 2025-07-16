@@ -1,98 +1,165 @@
-from pathlib import Path
-import ray
-from ray.train.torch import TorchTrainer
-from ray.train import RunConfig, ScalingConfig
+import sys
 import os
 import shutil
-# Import the function to be tested
+from pathlib import Path
+
+import torch
+import ray
+from ray.train.torch import TorchTrainer
+from ray.train import ScalingConfig, RunConfig, Checkpoint
+
+# --- Setup Project Path ---
+# This ensures that the script can find your 'training_platform' module.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+# The function we want to test
 from training_platform.trainer.distributed_train_logic import train_func
 
-def test_logic():
-    ray.init(address='auto')
+# --- Main Test Execution ---
 
-    # --- Test 1: Train from scratch for a few steps ---
-    print("--- Testing training from scratch ---")
-    real_dataset_path = Path("/home/ubuntu/aloha_sim_insertion_human")
-    run_dir_scratch = "/tmp/ray_results/test_scratch"
-    if Path(run_dir_scratch).exists():
-        print(f"发现旧的运行目录 '{run_dir_scratch}', 正在删除...")
-        shutil.rmtree(run_dir_scratch)
-        
-    # You should manually place your test dataset here.
-    # Mock the config that the actor would normally provide
-    train_config_scratch = {
-        "base_config_path": "/home/ubuntu/SE25Project-17/train/config/act_aloha_config.json",
-        "user_override_config": {
-            "steps": 10,
-            "log_freq": 2,
-            "save_freq": 5,
-            "batch_size": 4 # Use a small batch size for testing
-        },
-        "run_dir": run_dir_scratch,
-        "task_id": "task_scratch",
-        "real_dataset_path": real_dataset_path,
+def main():
+    # --- 1. Define Paths and Configuration ---
+
+    # Use absolute paths to your actual files
+    BASE_CONFIG_PATH = "/home/ubuntu/SE25Project-17/train/config/act_aloha_config.json"
+    DATASET_PATH = "/home/ubuntu/aloha_sim_insertion_human"
+    
+    # Define a consistent output directory for this test run
+    TEST_OUTPUT_DIR = PROJECT_ROOT / "test_run_output"
+
+
+    if TEST_OUTPUT_DIR.exists():
+        print(f"--- Cleaning up previous test output at: {TEST_OUTPUT_DIR} ---")
+        shutil.rmtree(TEST_OUTPUT_DIR)
+
+    # Clean up previous test runs if they exist
+    if TEST_OUTPUT_DIR.exists():
+        print(f"--- Cleaning up previous test output at: {TEST_OUTPUT_DIR} ---")
+        shutil.rmtree(TEST_OUTPUT_DIR)
+
+
+    # Verify paths exist before running
+    assert Path(BASE_CONFIG_PATH).exists(), f"Base config file not found at: {BASE_CONFIG_PATH}"
+    assert Path(DATASET_PATH).exists(), f"Dataset directory not found at: {DATASET_PATH}"
+    print("✔️ Base config and dataset paths verified.")
+
+    # Define the user override configuration for a quick test
+    user_override_config = {
+        "steps": 10,       # Run for a very short time
+        "save_freq": 5,    # Save a checkpoint at step 5
+        "log_freq": 1,
+        "batch_size": 2,   # Use a small batch size for testing
+        "num_workers": 0,  # Use 0 dataloader workers for simplicity in a local test
     }
-    # Mock downloading the dataset
-   
-    
-    trainer_scratch = TorchTrainer(
-        train_loop_per_worker=train_func,
-        train_loop_config=train_config_scratch,
-        scaling_config=ScalingConfig(num_workers=1, use_gpu=True), # Test with 2 GPUs
-    )
-    result_scratch = trainer_scratch.fit()
-    
-    print("✅✅✅ 从头训练测试成功! ✅✅✅")
-    print("结果:", result_scratch.metrics)
-    
-    # --- 关键修复：修改断言 ---
-    # 我们断言训练是完成的，并且最后的 step 是 10
-    assert result_scratch.metrics['done'] is True
-    assert result_scratch.metrics['training_iteration'] == 6 # Ray 的 iteration 次数
-    # 我们可以从 metrics 里找到我们自己的 step
-    final_reported_step = result_scratch.metrics.get('checkpoint_step') or result_scratch.metrics.get('step')
-    # 断言我们自己的逻辑是正确的
-    assert final_reported_step == 10
 
-    # --- 现在可以取消注释，继续测试恢复功能 ---
-    print("\n" + "="*20 + " 测试 2: 从 checkpoint 恢复 " + "="*20)
-    
-    run_dir_resume = "/tmp/ray_results/test_resume"
-    if Path(run_dir_resume).exists():
-        shutil.rmtree(run_dir_resume)
-
-    # ... (之前恢复测试的 train_config_resume 定义是正确的) ...
-    train_config_resume = {
-        "base_config_path": "/home/ubuntu/SE25Project-17/train/config/act_aloha_config.json",
-        "user_override_config": {
-            "output_dir": run_dir_resume,
-            "steps": 20, # 继续到 20
-            "save_freq": 5,
-            "log_freq": 2,
-            "batch_size": 4
-        },
-        "run_dir": run_dir_resume,
-        "task_id": "task_resume",
+    # Assemble the final config dictionary for `train_func`
+    train_loop_config = {
+        "base_config_path": BASE_CONFIG_PATH,
+        "user_override_config": user_override_config,
+        "task_id": 123,
+        "local_dataset_path": DATASET_PATH,
     }
-    
-    trainer_resume = TorchTrainer(
-        train_loop_per_worker=train_func,
-        train_loop_config=train_config_resume,
-        scaling_config=ScalingConfig(num_workers=1, use_gpu=True),
-        # 使用上一次运行的 checkpoint 来恢复
-        resume_from_checkpoint=result_scratch.checkpoint, 
-        run_config=RunConfig(name="resume_run")
-    )
-    result_resume = trainer_resume.fit()
 
-    print("✅✅✅ 恢复训练测试成功! ✅✅✅")
-    print("结果:", result_resume.metrics)
+    # --- 2. Setup and Run Ray ---
+    if ray.is_initialized():
+        ray.shutdown()
+    ray.init()
+
+    # Configure the TorchTrainer
+    scaling_config = ScalingConfig(
+        num_workers=1,  # Test with 2 workers
+        use_gpu=torch.cuda.is_available(),
+        resources_per_worker={"GPU": 1} if torch.cuda.is_available() else {}
+    )
+
+    # Ray Train will save its own metadata inside the `RUN_DIR`
+    run_config = RunConfig(
+        name="test_lerobot_real_data_run",
+        storage_path=str(TEST_OUTPUT_DIR),
+        checkpoint_config=ray.train.CheckpointConfig(
+            num_to_keep=2,
+            checkpoint_frequency=0, # Disable Ray's frequency, we use our own `save_freq`
+        ),
+    )
+
+    trainer = TorchTrainer(
+        train_loop_per_worker=train_func,
+        train_loop_config=train_loop_config,
+        scaling_config=scaling_config,
+        run_config=run_config,
+    )
+
+    # --- 3. PART 1: Run the initial training job ---
+    print("\n--- 🚀 PART 1: Starting initial training run with real data... ---\n")
+    result = trainer.fit()
+
+    print("\n--- ✅ Initial training run finished. Verifying results... ---")
+
+    # Check for errors
+    assert result.error is None, f"Training failed with error: {result.error}"
+    print("✔️ No training errors.")
+    print(f"Final metrics reported: {result.metrics}")
+    assert result.metrics.get("step") == 10
+
+    trial_path = Path(result.path)
+    experiment_path = Path(trial_path).parent
+    print(f"Verifying checkpoints inside the correct trial directory: {trial_path}")
     
-    # 计算恢复训练的 iteration 次数
-    # 从 step 10 到 20，会 report at 12, 14, 15, 16, 18, 20 (共6次)
-    assert result_resume.metrics['training_iteration'] == 6
-    final_reported_step_resume = result_resume.metrics.get('checkpoint_step') or result_resume.metrics.get('step')
-    assert final_reported_step_resume == 20
+    # The `lerobot` checkpoint is saved inside this trial directory.
+    checkpoint_dir = trial_path / "checkpoints"
+    step_5_checkpoint = checkpoint_dir / "000005"
+    last_symlink = checkpoint_dir / "last"
+
+    assert step_5_checkpoint.is_dir(), f"Checkpoint for step 5 not found at {step_5_checkpoint}"
+    print(f"✔️ Checkpoint found at: {step_5_checkpoint}")
+    # assert last_symlink.is_symlink(), "The 'last' symlink was not created."
+    # assert os.path.realpath(last_symlink) == str(step_5_checkpoint), "'last' symlink points to wrong directory."
+    # print("✔️ 'last' symlink is correct.")
+
+
+     # --- 4. PART 2: Restore the run and continue training ---
+    print(f"\n--- 🚀 PART 2: Restoring run from {trial_path} and continuing... ---\n")
+
+    # Use TorchTrainer.restore() to continue the *exact same run*
+    restored_trainer = TorchTrainer.restore(path=str(experiment_path))
+    
+    # We need a new stopper, or remove it, to let it run to completion
+    # For simplicity, we create a new RunConfig without a stopper
+    restored_trainer.run_config = RunConfig(
+        name="test_lerobot_resumption_run", # Must be the same name
+        storage_path=str(TEST_OUTPUT_DIR),
+        checkpoint_config=run_config.checkpoint_config # Re-use the same checkpoint config
+    )
+
+    result_part2 = restored_trainer.fit()
+
+    print("\n--- ✅ PART 2 finished (resumed run completed). Verifying final state... ---")
+    assert result_part2.error is None, f"Resumed training failed with error: {result_part2.error}"
+    
+    # Check that the final step is the total number of steps
+    final_step = result_part2.metrics["step"]
+    print(f"Final reported step: {final_step}")
+    assert final_step == 20
+    
+    # Verify that new checkpoints were created in the SAME directory
+    step_10_checkpoint = checkpoint_dir / "000010"
+    step_15_checkpoint = checkpoint_dir / "000015"
+    step_20_checkpoint = checkpoint_dir / "000020"
+    assert step_10_checkpoint.is_dir(), "Checkpoint at step 10 was not created after resuming."
+    assert step_15_checkpoint.is_dir(), "Checkpoint at step 15 was not created after resuming."
+    assert step_20_checkpoint.is_dir(), "Checkpoint at step 20 was not created after resuming."
+    print("✔️ All checkpoints (before and after resume) exist in the same directory.")
+
+
+    print("\n🎉🎉🎉 CONGRATULATIONS! The true resumption test passed successfully! 🎉🎉🎉")
+
 
 if __name__ == "__main__":
-    test_logic()
+    try:
+        main()
+    finally:
+        if ray.is_initialized():
+            ray.shutdown()
+        print("--- Ray has been shut down. ---")

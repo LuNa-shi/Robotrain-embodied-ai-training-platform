@@ -12,12 +12,17 @@ import os
 from training_platform.configs.settings import settings
 
 # 配置日志
+# 创建日志目录
+import os
+log_dir = os.path.join(os.getcwd(), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('training.log')
+        logging.FileHandler(os.path.join(log_dir, 'training.log'))
     ]
 )
 
@@ -73,8 +78,14 @@ def prepare_config(
         if key == "resume":  # 跳过resume，因为我们已经处理了
             continue
         if isinstance(value, dict):
-            # 对于嵌套字典，我们只添加顶层键，让配置文件处理细节
-            logging.warning(f"Skipping nested config {key}={value} - use config file instead")
+            # 对于嵌套字典，我们需要将其展平为点分隔的格式
+            for nested_key, nested_value in value.items():
+                if isinstance(nested_value, dict):
+                    # 处理更深层的嵌套
+                    for deep_key, deep_value in nested_value.items():
+                        overrides.append(f"--{key}.{nested_key}.{deep_key}={deep_value}")
+                else:
+                    overrides.append(f"--{key}.{nested_key}={nested_value}")
         else:
             overrides.append(f"--{key}={value}")
     
