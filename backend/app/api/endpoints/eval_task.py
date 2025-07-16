@@ -128,6 +128,29 @@ async def create_eval_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="创建评估任务失败")
     return train_task
 
+@router.delete("/{eval_task_id}", summary="删除评估任务")
+async def delete_eval_task(
+    eval_task_id: int,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    eval_task_service: Annotated[EvalTaskService, Depends(get_train_task_service)]
+) -> None:
+    """
+    **删除评估任务**
+
+    删除指定的评估任务。
+
+    **路径参数:**
+    - `eval_task_id`: 评估任务的唯一标识符。
+
+    **响应:**
+    - `204 No Content`: 成功删除评估任务。
+    - `404 Not Found`: 评估任务不存在。
+    - `401 Unauthorized`: 用户未登录。
+    """
+    success = await eval_task_service.delete_eval_task_for_user(eval_task_id, current_user)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评估任务不存在或无法删除")
+    return None
 # @router.get("/{eval_task_id}/download", summary="下载评估任务结果")
 # async def download_eval_task_result(
     # eval_task_id: int,

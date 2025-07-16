@@ -96,6 +96,8 @@ class EvalTaskService:
         if not success:
             print(f"删除训练任务 ID {eval_task_id} 失败")
             return False
+
+        # 记得在minio中删除视频文件
         
         # 提交事务
         await self.db_session.commit()
