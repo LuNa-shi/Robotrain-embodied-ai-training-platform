@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
+  App,
   Typography, 
   Card, 
   Button, 
@@ -14,7 +15,6 @@ import {
   Col,
   Statistic,
   Alert,
-  Modal
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -32,7 +32,8 @@ import styles from './DatasetDetail.module.css';
 
 const { Title, Text, Paragraph } = Typography;
 
-const DatasetDetailPage = () => {
+const DatasetDetailContent = () => {
+  const { message, modal } = App.useApp();
   const { datasetId } = useParams();
   const navigate = useNavigate();
   const [dataset, setDataset] = useState(null);
@@ -142,7 +143,7 @@ const DatasetDetailPage = () => {
 
   // 处理删除数据集
   const handleDelete = () => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '删除后数据无法恢复，确定要删除该数据集吗？',
       okText: '删除',
@@ -271,6 +272,14 @@ const DatasetDetailPage = () => {
         </Card>
       </div>
     </div>
+  );
+};
+
+const DatasetDetailPage = () => {
+  return (
+    <App>
+      <DatasetDetailContent />
+    </App>
   );
 };
 
