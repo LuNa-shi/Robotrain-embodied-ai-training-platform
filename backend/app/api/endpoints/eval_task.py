@@ -9,6 +9,7 @@ from app.service.eval_task import EvalTaskService
 from app.schemas.eval_task import EvalTaskCreate, EvalTaskPublic
 from app.core.security import get_current_user
 from app.models.user import AppUser
+from app.core.minio_utils import get_sub_file_of_eval_task_dir, get_minio_client
 import os
 # 创建路由实例
 router = APIRouter()
@@ -54,7 +55,25 @@ async def get_eval_task(
     eval_task = await eval_task_service.get_eval_task_by_id(eval_task_id)
     if not eval_task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评估任务不存在")
-    return eval_task
+    
+    eval_task_public = EvalTaskPublic(
+        id=eval_task.id,
+        owner_id=eval_task.owner_id,
+        train_task_id=eval_task.train_task_id,
+        eval_stage=eval_task.eval_stage,
+        status=eval_task.status,
+        create_time=eval_task.create_time,
+        start_time=eval_task.start_time,
+        end_time=eval_task.end_time
+    )
+    
+    # 去minio里查找所有的视频文件名
+    minio_client = await get_minio_client()
+    sub_files = await get_sub_file_of_eval_task_dir(eval_task_id, minio_client)
+    if sub_files is not None:
+        eval_task_public.video_names = sub_files
+    
+    return eval_task_public
 
 @router.post("/", response_model=EvalTaskPublic, summary="创建评估任务")
 async def create_eval_task(

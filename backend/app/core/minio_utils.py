@@ -1,7 +1,8 @@
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from miniopy_async import Minio
+from miniopy_async.api import ListObjects
 from miniopy_async.error import S3Error
 import mimetypes
 import threading
@@ -58,6 +59,46 @@ async def connect_minio()->Optional[Minio]:
         print(f"连接 MinIO 失败: {e}")
     except Exception as e:
         print(f"发生错误: {e}")
+    
+
+async def get_sub_file_of_eval_task_dir(
+    eval_task_id: int,
+    client: Minio
+) -> Optional[List[str]]:
+    """
+    获取指定评估任务目录下的所有子文件名。
+
+    Args:
+        eval_task_id (int): 评估任务的唯一标识符。
+        client (Minio): 已连接的 MinIO 客户端实例。
+
+    Returns:
+        Optional[List[str]]: 返回子文件名列表，如果目录不存在或发生错误则返回 None。
+    """
+    if not client:
+        print("MinIO 客户端未初始化，请先连接。")
+        return None
+    
+    try:
+        # 构造评估任务目录路径
+        eval_task_dir = f"{settings.MINIO_EVAL_DIR}/{eval_task_id}/"
+        # 列出目录下的所有对象
+        objects: ListObjects = client.list_objects(
+            bucket_name=settings.MINIO_BUCKET,
+            prefix=eval_task_dir,
+            recursive=True
+        )
+        obj_iter = objects.gen_iterator()
+        # 提取文件名
+        sub_files = []
+        async for obj in obj_iter: # 直接遍历 objects 对象，它本身就是异步可迭代的
+            if obj.object_name != eval_task_dir:
+                sub_files.append(obj.object_name.split('/')[-1])
+        
+        return sub_files if sub_files else None
+    except S3Error as e:
+        print(f"获取评估任务目录下的子文件失败: {e}")
+        return None
     
 async def upload_dataset_to_minio(
     client: Minio,
