@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import List, Optional, Tuple
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
@@ -98,6 +99,38 @@ async def get_sub_file_of_eval_task_dir(
         return sub_files if sub_files else None
     except S3Error as e:
         print(f"获取评估任务目录下的子文件失败: {e}")
+        return None
+    
+async def get_tempo_url_of_eval_file(
+    client: Minio,
+    eval_task_id: int,
+    file_name: str
+) -> Optional[str]:
+    """
+    获取指定评估任务文件的临时访问 URL。
+    Args:
+        client (Minio): 已连接的 MinIO 客户端实例。
+        eval_task_id (int): 评估任务的唯一标识符。
+        file_name (str): 要获取临时 URL 的文件名。
+    Returns:
+        Optional[str]: 返回临时访问 URL，如果文件不存在或发生错误则返回 None。
+    """
+    if not client:
+        print("MinIO 客户端未初始化，请先连接。")
+        return None
+    
+    try:
+        # 构造对象名称
+        object_name = f"{settings.MINIO_EVAL_DIR}/{eval_task_id}/{file_name}"
+        # 生成临时 URL，有效期为 1 小时
+        url = await client.presigned_get_object(
+            bucket_name=settings.MINIO_BUCKET,
+            object_name=object_name,
+            expires=timedelta(hours=1)  # 设置 URL 有效期为 1 小时
+        )
+        return url
+    except S3Error as e:
+        print(f"获取临时 URL 失败: {e}")
         return None
     
 async def upload_dataset_to_minio(

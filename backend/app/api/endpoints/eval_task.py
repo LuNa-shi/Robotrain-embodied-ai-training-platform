@@ -9,7 +9,7 @@ from app.service.eval_task import EvalTaskService
 from app.schemas.eval_task import EvalTaskCreate, EvalTaskPublic
 from app.core.security import get_current_user
 from app.models.user import AppUser
-from app.core.minio_utils import get_sub_file_of_eval_task_dir, get_minio_client
+from app.core.minio_utils import get_sub_file_of_eval_task_dir, get_minio_client, get_tempo_url_of_eval_file
 import os
 # 创建路由实例
 router = APIRouter()
@@ -75,6 +75,34 @@ async def get_eval_task(
     
     return eval_task_public
 
+@router.get("/{eval_task_id}/{video_name}", summary="获取评估任务视频")
+async def get_eval_task_video(
+    eval_task_id: int,
+    video_name: str,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    eval_task_service: Annotated[EvalTaskService, Depends(get_train_task_service)]
+) -> str:
+    """
+    **获取评估任务视频**
+
+    返回指定评估任务的视频文件。
+
+    **路径参数:**
+    - `eval_task_id`: 评估任务的唯一标识符。
+    - `video_name`: 视频文件名。
+
+    **响应:**
+    - `200 OK`: 成功获取视频文件。
+    - `404 Not Found`: 视频文件不存在。
+    - `401 Unauthorized`: 用户未登录。
+    """
+    minio_client = await get_minio_client()
+    file_path = await get_tempo_url_of_eval_file(minio_client, eval_task_id, video_name)
+    if not file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="视频文件不存在")
+    
+    return file_path
+
 @router.post("/", response_model=EvalTaskPublic, summary="创建评估任务")
 async def create_eval_task(
     eval_task_create: EvalTaskCreate,
@@ -100,27 +128,27 @@ async def create_eval_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="创建评估任务失败")
     return train_task
 
-@router.get("/{eval_task_id}/download", summary="下载评估任务结果")
-async def download_eval_task_result(
-    eval_task_id: int,
-    current_user: Annotated[AppUser, Depends(get_current_user)],
-    eval_task_service: Annotated[EvalTaskService, Depends(get_train_task_service)]
-) -> FileResponse:
-    """
-    **下载评估任务结果**
-
-    下载指定评估任务的结果文件。
-
-    **路径参数:**
-    - `eval_task_id`: 评估任务的唯一标识符。
-
-    **响应:**
-    - `200 OK`: 成功下载评估任务结果。
-    - `404 Not Found`: 评估任务不存在。
-    - `401 Unauthorized`: 用户未登录。
-    """
-    file_path = await eval_task_service.download_eval_task_result(eval_task_id, current_user.id)
-    if not file_path:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评估任务结果文件不存在")
-    
-    return FileResponse(file_path, background=BackgroundTask(os.remove, file_path))
+# @router.get("/{eval_task_id}/download", summary="下载评估任务结果")
+# async def download_eval_task_result(
+    # eval_task_id: int,
+    # current_user: Annotated[AppUser, Depends(get_current_user)],
+    # eval_task_service: Annotated[EvalTaskService, Depends(get_train_task_service)]
+# ) -> FileResponse:
+    # """
+    # **下载评估任务结果**
+# 
+    # 下载指定评估任务的结果文件。
+# 
+    # **路径参数:**
+    # - `eval_task_id`: 评估任务的唯一标识符。
+# 
+    # **响应:**
+    # - `200 OK`: 成功下载评估任务结果。
+    # - `404 Not Found`: 评估任务不存在。
+    # - `401 Unauthorized`: 用户未登录。
+    # """
+    # file_path = await eval_task_service.download_eval_task_result(eval_task_id, current_user.id)
+    # if not file_path:
+        # raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评估任务结果文件不存在")
+    # 
+    # return FileResponse(file_path, background=BackgroundTask(os.remove, file_path))
