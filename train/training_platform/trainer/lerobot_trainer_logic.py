@@ -141,6 +141,29 @@ def prepare_config(
 
     logging.info("Successfully created final training configuration.")
     logging.info(pformat(cfg.to_dict()))
+
+    # HIGHLIGHT: Write key config info to a JSON file for the actor
+    # This acts as a contract between the training logic and the actor.
+    if not is_distributed or dist.get_rank() == 0:
+        config_info = {
+            # Convert Path object to string for JSON serialization
+            "output_dir": str(cfg.output_dir), 
+            "steps": cfg.steps,
+            "save_freq": cfg.save_freq,
+            "log_freq": cfg.log_freq,
+            "batch_size": cfg.batch_size, # per-device batch size
+        }
+        
+        # Use a standardized filename
+        config_file_path = Path(run_dir) / "training_config_info.json"
+        try:
+            with open(config_file_path, 'w') as f:
+                json.dump(config_info, f, indent=2)
+            logging.info(f"Training config info saved to: {config_file_path}")
+        except Exception as e:
+            # This is important for debugging if something goes wrong.
+            logging.error(f"Failed to save training config info to {config_file_path}: {e}")
+
     return cfg
 
 # TODO resume the previous training state, reserve and restore the training state --resume

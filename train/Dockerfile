@@ -47,4 +47,6 @@ RUN apt install -y mesa-common-dev \
 
 COPY . .
 
+ENV PYTHONPATH=/app
+
 CMD ["python", "run_platform.py"]

@@ -330,21 +330,61 @@ class TrainerActor:
             if process.returncode != 0:
                 raise RuntimeError(f"Training subprocess failed with exit code {process.returncode}")
 
-            # HIGHLIGHT: 4. 训练结束后，扫描并上传本次产生的 Checkpoint
-            print(f"[{task_id}] Scanning for new checkpoints to upload...")
-            checkpoint_base_dir = Path(self.run_dir) / "checkpoints"
-            if checkpoint_base_dir.exists():
+            # HIGHLIGHT: 4. Read config from the sidecar file and upload checkpoints
+            print(f"[{task_id}] Training subprocess finished. Reading config info...")
+            
+            checkpoint_base_dir = None
+            config_info_path = Path(self.run_dir) / "training_config_info.json"
+
+            if not config_info_path.exists():
+                print(f"⚠️ [{task_id}] Warning: Could not find '{config_info_path}'.")
+                print(f"[{task_id}] Falling back to run_dir for checkpoints. This may not find them.")
+                checkpoint_base_dir = Path(self.run_dir) / "checkpoints"
+            else:
+                try:
+                    with open(config_info_path, 'r') as f:
+                        config_info = json.load(f)
+                    
+                    # This is the correct, dynamically determined output directory
+                    output_dir = config_info.get("output_dir")
+                    if not output_dir:
+                        raise ValueError("'output_dir' not found in config_info.json")
+                        
+                    checkpoint_base_dir = Path(output_dir) / "checkpoints"
+                    print(f"[{task_id}] Successfully read config. Checkpoint base dir: {checkpoint_base_dir}")
+
+                except (json.JSONDecodeError, ValueError) as e:
+                    print(f"❌ [{task_id}] Failed to read or parse '{config_info_path}': {e}")
+                    # In a production system, you might want to raise an exception here.
+                    # For now, we'll print an error and stop the upload process for this slice.
+                    return end_step # Or raise an exception
+
+            print(f"[{task_id}] Scanning for new checkpoints to upload in '{checkpoint_base_dir}'...")
+            
+            if checkpoint_base_dir and checkpoint_base_dir.exists():
+                # The rest of the logic can remain the same, as it now uses the correct base path.
                 all_ckpts = sorted(glob.glob(str(checkpoint_base_dir / "[0-9]*")), key=os.path.getmtime)
-                new_ckpts_to_upload = [d for d in all_ckpts if start_step < int(Path(d).name) <= end_step]
                 
-                # 如果最终的 step 被保存，也加入上传列表
+                # Filter for checkpoints created within the current training slice
+                new_ckpts_to_upload = [
+                    d for d in all_ckpts if start_step < int(Path(d).name) <= end_step
+                ]
+                
+                # Ensure the final step's checkpoint is included if it was saved
                 final_ckpt_dir = checkpoint_base_dir / f"{end_step:06d}"
                 if final_ckpt_dir.exists() and str(final_ckpt_dir) not in new_ckpts_to_upload:
                     new_ckpts_to_upload.append(str(final_ckpt_dir))
 
-                for ckpt_dir in set(new_ckpts_to_upload):
-                    step = int(Path(ckpt_dir).name)
-                    await self._upload_checkpoint_to_minio(step, ckpt_dir)
+                if not new_ckpts_to_upload:
+                    print(f"[{task_id}] No new checkpoints found in the range ({start_step}, {end_step}].")
+                else:
+                    print(f"[{task_id}] Found {len(set(new_ckpts_to_upload))} new checkpoint(s) to upload.")
+                    for ckpt_dir in set(new_ckpts_to_upload):
+                        step = int(Path(ckpt_dir).name)
+                        await self._upload_checkpoint_to_minio(step, ckpt_dir)
+            else:
+                print(f"[{task_id}] Checkpoint directory '{checkpoint_base_dir}' does not exist. No checkpoints to upload.")
+
 
             return end_step
 
