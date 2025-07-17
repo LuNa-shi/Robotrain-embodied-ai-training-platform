@@ -11,7 +11,9 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "zip:coverage": "bestzip coverage-report.zip coverage/",
+    "report": "npm run test:coverage && npm run zip:coverage"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
@@ -44,6 +46,7 @@
     "@vitejs/plugin-react": "^4.4.1",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
+    "bestzip": "^2.2.1",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",

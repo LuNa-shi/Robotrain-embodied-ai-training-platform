@@ -59,6 +59,14 @@ const HomePage = () => {
       message.error('只支持上传ZIP格式的文件！');
       return Upload.LIST_IGNORE;
     }
+    
+    // 检查文件大小限制 (500MB)
+    const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+    if (file.size > maxSize) {
+      message.error('文件大小不能超过500MB！');
+      return Upload.LIST_IGNORE;
+    }
+    
     return false;
   };
 
@@ -115,7 +123,27 @@ const HomePage = () => {
               <TextArea rows={4} placeholder="请输入数据集描述" showCount maxLength={500} />
             </Form.Item>
             <Form.Item label="上传数据文件">
-              <Dragger name="file" fileList={fileList} beforeUpload={beforeUpload} onChange={handleFileChange} className={styles.modalDragger} data-testid="file-dragger-input" />
+              <Dragger 
+                name="file" 
+                fileList={fileList} 
+                beforeUpload={beforeUpload} 
+                onChange={handleFileChange} 
+                className={styles.modalDragger} 
+                data-testid="file-dragger-input"
+                showUploadList={false}
+              >
+                <div className={styles.modalDraggerContent}>
+                  <InboxOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
+                  <div className={styles.modalDraggerText}>
+                    <p style={{ fontSize: '16px', fontWeight: '500', color: '#262626', margin: '0 0 8px 0' }}>
+                      点击或拖拽文件到此区域上传
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#666', margin: '0 0 8px 0' }}>
+                      支持ZIP格式，文件大小不能超过500MB
+                    </p>
+                  </div>
+                </div>
+              </Dragger>
               {fileList.length > 0 && (<div className={styles.selectedFile}><Text type="secondary">已选择文件: {fileList[0].name}</Text></div>)}
             </Form.Item>
             <Form.Item>

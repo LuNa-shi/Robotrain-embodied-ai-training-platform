@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import HomePage from '@/pages/Home';
-import { mockUploadResponse, createMockFile, createMockNonZipFile } from '../mocks/homeMocks';
+import { mockUploadResponse, createMockFile, createMockNonZipFile, createMockLargeFile, createMockMaxSizeFile } from '../mocks/homeMocks';
 
 // --- Mocks ---
 vi.mock('@/utils/api', () => ({
@@ -177,6 +177,28 @@ describe('Home Page', () => {
       await waitFor(() => {
           expect(mockMessage.error).toHaveBeenCalledWith('只支持上传ZIP格式的文件！');
       });
+    });
+
+    // 3. 文件大小限制测试
+    it('应该在选择超过500MB的文件时显示错误', async () => {
+      const fileInput = screen.getByTestId('file-dragger-input');
+      await user.upload(fileInput, createMockLargeFile());
+      
+      await waitFor(() => {
+          expect(mockMessage.error).toHaveBeenCalledWith('文件大小不能超过500MB！');
+      });
+    });
+
+    it('应该允许选择刚好500MB的文件', async () => {
+      const fileInput = screen.getByTestId('file-dragger-input');
+      await user.upload(fileInput, createMockMaxSizeFile());
+      
+      // 不应该显示错误消息
+      await waitFor(() => {
+          expect(mockMessage.error).not.toHaveBeenCalledWith('文件大小不能超过500MB！');
+      });
+      // 应该显示已选择的文件
+      expect(await screen.findByText('已选择文件: max-size.zip')).toBeInTheDocument();
     });
   });
 
