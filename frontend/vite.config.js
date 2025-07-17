@@ -71,7 +71,7 @@ export default defineConfig({
         // 排除不需要统计覆盖率的文件
         'src/store/**',
         'src/pages/NotFound/**',
-        'src/pages/Help/**',
+        'src/pages/Training/VerticalTimeline.jsx',
         // 新增：排除指定组件和工具
         'src/components/AuthProvider.jsx',
         'src/components/RobotSimulation.jsx',
