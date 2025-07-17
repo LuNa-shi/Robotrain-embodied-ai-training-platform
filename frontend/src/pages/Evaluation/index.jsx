@@ -1092,6 +1092,7 @@ const EvaluationPage = () => {
                               <div style={{ textAlign: 'center', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, width: '100%' }}>
                                   <video
+                                    data-testid="video-player"
                                     controls
                                     style={{ 
                                       maxWidth: '100%', 
