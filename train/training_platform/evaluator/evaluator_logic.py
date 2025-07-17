@@ -741,9 +741,9 @@ async def run_lerobot_evaluation(
         评估结果字典
     """
     # 设置MUJOCO_GL环境变量为osmesa以支持无头渲染
-    # import os
-    # os.environ["MUJOCO_GL"] = "osmesa"
-    # logger.info("设置MUJOCO_GL环境变量为osmesa")
+    import os
+    os.environ["MUJOCO_GL"] = "osmesa"
+    logger.info("设置MUJOCO_GL环境变量为osmesa")
     
     logger.info("开始准备评估配置...")
     
