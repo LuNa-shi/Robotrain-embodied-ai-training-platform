@@ -184,39 +184,6 @@ const Help = () => {
           </Col>
         </Row>
       </div>
-      
-      {/* 底部统计信息 */}
-      <Card className={styles.statsCard}>
-        <Row style={{ width: '100%' }}>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 40 }}>
-            <span className={styles.statTitle}>活跃用户</span>
-          </Col>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 40 }}>
-            <span className={styles.statTitle}>成功训练</span>
-          </Col>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 40 }}>
-            <span className={styles.statTitle}>系统可用性</span>
-          </Col>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 40 }}>
-            <span className={styles.statTitle}>技术支持</span>
-          </Col>
-        </Row>
-        <Divider style={{ margin: '0' }} />
-        <Row style={{ width: '100%' }}>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 48 }}>
-            <span className={styles.statValue} style={{ color: '#1677ff' }}>1000+</span>
-          </Col>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 48 }}>
-            <span className={styles.statValue} style={{ color: '#52c41a' }}>5000+</span>
-          </Col>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 48 }}>
-            <span className={styles.statValue} style={{ color: '#faad14' }}>99.9%</span>
-          </Col>
-          <Col style={{ width: '25%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 48 }}>
-            <span className={styles.statValue} style={{ color: '#722ed1' }}>24/7</span>
-          </Col>
-        </Row>
-      </Card>
     </div>
   );
 };

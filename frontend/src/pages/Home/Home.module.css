@@ -120,7 +120,7 @@ body, #root, .homePageLayout {
   /* 移除 border 相关样式 */
   /* border: 2px dashed #1890ff !important; */
   /* border-radius: 8px !important; */
-  background: #fafafa !important;
+  background: transparent !important;
   margin: 0 auto !important;
   padding: 32px 0 24px 0 !important;
   width: 100%;
@@ -144,6 +144,19 @@ body, #root, .homePageLayout {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  padding: 20px;
+}
+
+.modalDraggerText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.modalDraggerText p {
+  text-align: center;
+  margin: 0;
 }
 
 .modalDraggerText {

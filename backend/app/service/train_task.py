@@ -180,9 +180,9 @@ class TrainTaskService:
         # 提交事务后刷新训练任务对象以获取最新数据
         await self.db_session.refresh(updated_train_task)
 
-        if not updated_train_task:
-            print(f"训练任务 ID {train_task_id} 更新失败")
-            return None
+        # if not updated_train_task:
+        #     print(f"训练任务 ID {train_task_id} 更新失败")
+        #     return None
         # 刷新训练任务对象以获取最新数据
     
         return updated_train_task

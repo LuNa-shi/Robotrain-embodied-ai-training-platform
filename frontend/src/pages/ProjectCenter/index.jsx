@@ -12,7 +12,7 @@ import {
   PlusOutlined
 } from '@ant-design/icons';
 import styles from './ProjectCenter.module.css';
-import { trainTasksAPI, modelsAPI, deleteTrainTask } from '@/utils/api';
+import { trainTasksAPI, modelsAPI, deleteTrainTask, datasetsAPI } from '@/utils/api';
 
 const { Title, Text } = Typography;
 
@@ -64,10 +64,22 @@ const ProjectCenterPage = () => {
       const data = await trainTasksAPI.getMyTasks();
       
       // 将后端数据格式转换为前端需要的格式
-      const formattedRecords = data.map(task => {
+      const formattedRecords = await Promise.all(data.map(async task => {
         // 获取模型类型名称
         const modelType = modelTypes.find(mt => mt.id === task.model_type_id);
         const modelTypeName = modelType ? modelType.type_name : '未知模型';
+        
+        // 获取数据集名称
+        let datasetName = '未指定数据集';
+        if (task.dataset_id) {
+          try {
+            const datasetDetail = await datasetsAPI.getById(task.dataset_id);
+            datasetName = datasetDetail.dataset_name || `数据集 ${task.dataset_id}`;
+          } catch (err) {
+            console.error('获取数据集详情失败:', err);
+            datasetName = `数据集 ${task.dataset_id}`;
+          }
+        }
         
         // 计算训练时长
         let duration = 'N/A';
@@ -94,7 +106,7 @@ const ProjectCenterPage = () => {
           id: task.id.toString(),
           name: `训练项目 ${task.id}`,
           modelType: modelTypeName,
-          dataset: task.dataset_id ? `数据集 ${task.dataset_id}` : '未指定数据集',
+          dataset: datasetName,
           startTime: new Date(task.create_time).toLocaleString('zh-CN'),
           duration: duration,
           status: task.status,
@@ -102,7 +114,7 @@ const ProjectCenterPage = () => {
           // 保存原始数据用于后续操作
           originalData: task
         };
-      });
+      }));
       
       setTrainingRecords(formattedRecords);
       console.log('获取训练项目列表成功:', formattedRecords);

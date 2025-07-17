@@ -56,6 +56,17 @@ const getModelTypeName = (modelTypeId) => {
   return modelTypeMap[modelTypeId] || '未知模型类型';
 };
 
+// 评估阶段数值到百分比显示文本的映射
+const getEvalStageDisplayText = (evalStage) => {
+  const stageMap = {
+    1: '100% 训练进度',
+    2: '75% 训练进度',
+    3: '50% 训练进度',
+    4: '25% 训练进度'
+  };
+  return stageMap[evalStage] || `未知阶段(${evalStage})`;
+};
+
 
 
 // 根据状态返回不同的Tag和Icon
@@ -1009,7 +1020,7 @@ const EvaluationPage = () => {
                       <div style={{ textAlign: 'center', width: '100%' }}>
                         <Text type="secondary" style={{ fontSize: '12px' }}>评估阶段</Text>
                         <div style={{ marginTop: 2 }}>
-                          <Text strong style={{ fontSize: '13px' }}>{selectedRecordDetails.eval_stage || '-'}</Text>
+                          <Text strong style={{ fontSize: '13px' }}>{selectedRecordDetails.eval_stage ? getEvalStageDisplayText(selectedRecordDetails.eval_stage) : '-'}</Text>
                         </div>
                       </div>
                     </Col>
@@ -1092,6 +1103,7 @@ const EvaluationPage = () => {
                               <div style={{ textAlign: 'center', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, width: '100%' }}>
                                   <video
+                                    data-testid="video-player"
                                     controls
                                     style={{ 
                                       maxWidth: '100%', 
@@ -1323,6 +1335,12 @@ const EvaluationPage = () => {
               setSelectedTrainingProject(null);
               setSelectedEvalStage(null);
             }}
+            className={styles.evaluationModalButton}
+            style={{ 
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+              border: '1px solid #d9d9d9',
+              color: '#595959'
+            }}
           >
             取消
           </Button>,
@@ -1332,7 +1350,7 @@ const EvaluationPage = () => {
             loading={creatingEvaluation}
             disabled={!selectedEvalStage || creatingEvaluation}
             onClick={handleStartEvaluation}
-            style={{ backgroundColor: '#1677ff', borderColor: '#1677ff' }}
+            className={styles.evaluationModalButton}
           >
             发起评估
           </Button>
@@ -1372,7 +1390,7 @@ const EvaluationPage = () => {
                         color: selectedEvalStage === 1 ? '#1677ff' : '#000000'
                       }}
                     >
-                      25% 训练进度
+                      100% 训练进度
                     </Radio.Button>
                   </Col>
                   <Col span={12}>
@@ -1386,7 +1404,7 @@ const EvaluationPage = () => {
                         color: selectedEvalStage === 2 ? '#1677ff' : '#000000'
                       }}
                     >
-                      50% 训练进度
+                      75% 训练进度
                     </Radio.Button>
                   </Col>
                   <Col span={12}>
@@ -1400,7 +1418,7 @@ const EvaluationPage = () => {
                         color: selectedEvalStage === 3 ? '#1677ff' : '#000000'
                       }}
                     >
-                      75% 训练进度
+                      50% 训练进度
                     </Radio.Button>
                   </Col>
                   <Col span={12}>
@@ -1414,7 +1432,7 @@ const EvaluationPage = () => {
                         color: selectedEvalStage === 4 ? '#1677ff' : '#000000'
                       }}
                     >
-                      100% 训练进度
+                      25% 训练进度
                     </Radio.Button>
                   </Col>
                 </Row>
@@ -1432,3 +1450,4 @@ const EvaluationPage = () => {
 };
 
 export default EvaluationPage; 
+export { StatusDisplay }; 

@@ -190,6 +190,21 @@
   width: 100%;
 }
 
+/* 错误状态样式 */
+.stepContent .ant-form-item-has-error .ant-input-number {
+  border-color: #ff4d4f !important;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2) !important;
+}
+
+.stepContent .ant-form-item-has-error .ant-input-number:hover {
+  border-color: #ff7875 !important;
+}
+
+.stepContent .ant-form-item-has-error .ant-input-number:focus {
+  border-color: #ff4d4f !important;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2) !important;
+}
+
 /* 完成页面样式 */
 .stepContent .ant-result {
   padding: 40px 0;

@@ -203,9 +203,8 @@ const DataCenterPage = () => {
                 </div>
                 <div className={styles.cardContent}>
                   <Title level={5} className={styles.datasetName}>{dataset.dataset_name}</Title>
-                  <Text type="secondary">{dataset.description}</Text>
-                  <br />
-                  <Text type="secondary">上传于: {new Date(dataset.uploaded_at).toLocaleString('zh-CN')}</Text>
+                  <Text type="secondary" className={styles.datasetDescription}>{dataset.description}</Text>
+                  <Text type="secondary" className={styles.uploadTime}>上传于: {new Date(dataset.uploaded_at).toLocaleString('zh-CN')}</Text>
                 </div>
                 <div className={styles.cardActions} onClick={e => e.stopPropagation()}>
                   <Space>

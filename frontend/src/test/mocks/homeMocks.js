@@ -24,4 +24,18 @@ export const createMockNonZipFile = (name = 'test.txt', size = 1024) => {
   const file = new File(['test content'], name, { type: 'text/plain' });
   Object.defineProperty(file, 'size', { value: size });
   return file;
+};
+
+// 模拟超过500MB的文件
+export const createMockLargeFile = (name = 'large.zip', size = 501 * 1024 * 1024) => {
+  const file = new File(['test content'], name, { type: 'application/zip' });
+  Object.defineProperty(file, 'size', { value: size });
+  return file;
+};
+
+// 模拟刚好500MB的文件
+export const createMockMaxSizeFile = (name = 'max-size.zip', size = 500 * 1024 * 1024) => {
+  const file = new File(['test content'], name, { type: 'application/zip' });
+  Object.defineProperty(file, 'size', { value: size });
+  return file;
 }; 

@@ -69,17 +69,35 @@
 }
 
 .datasetName {
-  margin-bottom: 0 !important;
-  font-size: 26px !important;
+  margin-top: 12px !important;
+  margin-bottom: 8px !important;
+  font-size: 28px !important;
   font-weight: bold !important;
+}
+
+.datasetDescription {
+  display: block !important;
+  margin-bottom: 8px !important;
+  font-size: 16px !important;
+}
+
+.uploadTime {
+  font-size: 16px !important;
 }
 
 .cardActions {
   display: flex;
   justify-content: flex-end;
-  padding: 12px 24px;
+  padding: 9.6px 24px;
   background-color: #fafafa;
   border-top: 1px solid #f0f0f0;
+}
+
+/* 增大按钮直径约10% */
+.cardActions :global(.ant-btn) {
+  width: 33px !important;
+  height: 33px !important;
+  font-size: 16px !important;
 }
 
 /* 训练弹窗样式 */

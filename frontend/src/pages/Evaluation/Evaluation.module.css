@@ -400,3 +400,58 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* 评估弹窗按钮样式 */
+.evaluationModalButton {
+  min-width: 100px;
+  height: 36px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.evaluationModalButton:disabled {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  color: #6c757d;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.evaluationModalButton:disabled:hover {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  color: #6c757d;
+  transform: none;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.evaluationModalButton:not(:disabled) {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
+  border: 1px solid #1677ff;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);
+}
+
+.evaluationModalButton:not(:disabled):hover {
+  background: linear-gradient(135deg, #0958d9 0%, #1677ff 100%);
+  border: 1px solid #0958d9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(24, 144, 255, 0.3);
+}
+
+/* 取消按钮样式 */
+.evaluationModalButton[style*="background: linear-gradient(135deg, #ffffff"] {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+  border: 1px solid #d9d9d9 !important;
+  color: #595959 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.evaluationModalButton[style*="background: linear-gradient(135deg, #ffffff"]:hover {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+  border: 1px solid #bfbfbf !important;
+  color: #262626 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}

@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import styles from './ProjectProgress.module.css';
-import { trainTasksAPI, modelsAPI, deleteTrainTask } from '@/utils/api';
+import { trainTasksAPI, modelsAPI, deleteTrainTask, datasetsAPI } from '@/utils/api';
 import trainingLogWebSocket from '@/utils/websocket';
 
 const { Title, Paragraph, Text } = Typography;
@@ -298,6 +298,18 @@ const ProjectProgressPage = () => {
       const modelType = currentModelTypes.find(mt => mt.id === data.model_type_id);
       const modelTypeName = modelType ? modelType.type_name : '未知模型';
       
+      // 获取数据集名称
+      let datasetName = '未指定数据集';
+      if (data.dataset_id) {
+        try {
+          const datasetDetail = await datasetsAPI.getById(data.dataset_id);
+          datasetName = datasetDetail.dataset_name || `数据集 ${data.dataset_id}`;
+        } catch (err) {
+          console.error('获取数据集详情失败:', err);
+          datasetName = `数据集 ${data.dataset_id}`;
+        }
+      }
+      
       // 计算训练时长
       let duration = 'N/A';
       if (data.status === 'completed' && data.start_time && data.end_time) {
@@ -323,6 +335,7 @@ const ProjectProgressPage = () => {
       const formattedData = {
         ...data,
         modelTypeName,
+        datasetName,
         duration,
         totalEpochs: data.hyperparameter?.epochs || 0,
       };
@@ -787,7 +800,7 @@ const ProjectProgressPage = () => {
             <Descriptions column={2} size="small">
               <Descriptions.Item label="任务ID">{projectData?.id}</Descriptions.Item>
               <Descriptions.Item label="模型类型">{projectData?.modelTypeName}</Descriptions.Item>
-              <Descriptions.Item label="数据集">{projectData?.dataset_id ? `数据集 ${projectData.dataset_id}` : '未指定数据集'}</Descriptions.Item>
+              <Descriptions.Item label="数据集">{projectData?.datasetName}</Descriptions.Item>
               <Descriptions.Item label="创建时间">{projectData?.create_time ? new Date(projectData.create_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
               <Descriptions.Item label="开始时间">{projectData?.start_time ? new Date(projectData.start_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
               <Descriptions.Item label="结束时间">{projectData?.end_time ? new Date(projectData.end_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>
