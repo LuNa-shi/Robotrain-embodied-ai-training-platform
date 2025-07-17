@@ -51,6 +51,7 @@ const TrainingPage = () => {
   const [loading, setLoading] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState(null);
+  const [batchSizeError, setBatchSizeError] = useState(false);
 
   // 获取数据集列表
   const fetchDatasets = async () => {
@@ -117,6 +118,9 @@ const TrainingPage = () => {
     setSelectedModel(model);
     setCurrentStep(2);
     
+    // 重置batch_size错误状态
+    setBatchSizeError(false);
+    
     console.log('选择模型:', modelValue, '模型对象:', model);
     
     // 设置表单默认值
@@ -137,6 +141,11 @@ const TrainingPage = () => {
       // 验证model值
       if (!values.model || values.model === 'undefined' || values.model === 'null') {
         throw new Error('请先选择模型');
+      }
+
+      // 验证batch_size
+      if (values.batch_size && values.batch_size > 16) {
+        throw new Error('批次大小不能超过16');
       }
 
       // 使用用户选择的超参数
@@ -176,12 +185,22 @@ const TrainingPage = () => {
     }
   };
 
+  // 处理batch_size变化
+  const handleBatchSizeChange = (value) => {
+    if (value && value > 16) {
+      setBatchSizeError(true);
+    } else {
+      setBatchSizeError(false);
+    }
+  };
+
   // 重置训练流程
   const handleReset = () => {
     setCurrentStep(0);
     setSelectedDataset(null);
     setSelectedModel(null);
     setCreatedProjectId(null);
+    setBatchSizeError(false);
     trainingForm.resetFields();
   };
 
@@ -385,13 +404,25 @@ const TrainingPage = () => {
                 <Form.Item
                   label="批次大小 (Batch Size)"
                   name="batch_size"
-                  rules={[{ required: true, message: '请输入批次大小' }]}
+                  validateStatus={batchSizeError ? 'error' : ''}
+                  help={batchSizeError ? '批次大小不能超过16' : ''}
+                  rules={[
+                    { required: true, message: '请输入批次大小' },
+                    {
+                      validator: (_, value) => {
+                        if (value && value > 16) {
+                          return Promise.reject(new Error('批次大小不能超过16'));
+                        }
+                        return Promise.resolve();
+                      }
+                    }
+                  ]}
                 >
                   <InputNumber
                     min={1}
-                    max={16}
                     style={{ width: '100%' }}
                     placeholder="批次大小"
+                    onChange={handleBatchSizeChange}
                   />
                 </Form.Item>
               </Col>
@@ -417,6 +448,7 @@ const TrainingPage = () => {
               <Button onClick={() => {
                 setCurrentStep(1);
                 setSelectedModel(null);
+                setBatchSizeError(false);
               }} style={{ marginRight: 16 }}>
                 返回上一步
               </Button>

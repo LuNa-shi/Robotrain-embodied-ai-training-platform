@@ -246,5 +246,167 @@ describe('Training Page', () => {
           expect(screen.getByText('已选择数据集: 机械臂动作控制数据')).toBeInTheDocument();
       });
     });
+
+    it('应该验证batch_size不能超过16', async () => {
+      await renderTraining();
+      
+      // 快速进入第三步
+      await user.click((await screen.findByText('工业机器人视觉数据集')).closest('.ant-card'));
+      await user.click((await screen.findByText('GPT模型')).closest('.ant-card'));
+      
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: '配置机器人训练参数' })).toBeInTheDocument();
+      });
+
+      // 找到batch_size输入框并输入超过16的值
+      const batchSizeInput = screen.getByPlaceholderText('批次大小');
+      await user.clear(batchSizeInput);
+      await user.type(batchSizeInput, '20');
+
+      // 验证错误消息是否显示
+      await waitFor(() => {
+        expect(screen.getByText('批次大小不能超过16')).toBeInTheDocument();
+      });
+
+      // 尝试提交表单，应该失败
+      await user.click(screen.getByRole('button', { name: /开始训练/ }));
+      
+      // 验证没有调用API
+      expect(mockCreateTrainingAPI).not.toHaveBeenCalled();
+    });
+
+    it('应该允许batch_size等于16', async () => {
+      const mockCreateResponse = { id: 123 };
+      mockCreateTrainingAPI.mockResolvedValue(mockCreateResponse);
+      
+      await renderTraining();
+      
+      // 快速进入第三步
+      await user.click((await screen.findByText('工业机器人视觉数据集')).closest('.ant-card'));
+      await user.click((await screen.findByText('GPT模型')).closest('.ant-card'));
+      
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: '配置机器人训练参数' })).toBeInTheDocument();
+      });
+
+      // 找到batch_size输入框并输入16
+      const batchSizeInput = screen.getByPlaceholderText('批次大小');
+      await user.clear(batchSizeInput);
+      await user.type(batchSizeInput, '16');
+
+      // 验证没有错误消息
+      await waitFor(() => {
+        expect(screen.queryByText('批次大小不能超过16')).not.toBeInTheDocument();
+      });
+
+      // 提交表单，应该成功
+      await user.click(screen.getByRole('button', { name: /开始训练/ }));
+      
+      // 验证API被调用且batch_size为16
+      await waitFor(() => {
+        expect(mockCreateTrainingAPI).toHaveBeenCalledWith({
+          dataset_id: 1,
+          model_type_id: 1,
+          hyperparameter: {
+            policy: { type: 'gpt模型' },
+            env: { type: 'aloha' },
+            log_freq: 25,
+            steps: 100,
+            batch_size: 16,
+          }
+        });
+      });
+    });
+
+    it('返回上一步后重新进入应该清除batch_size错误状态', async () => {
+      await renderTraining();
+      
+      // 快速进入第三步
+      await user.click((await screen.findByText('工业机器人视觉数据集')).closest('.ant-card'));
+      await user.click((await screen.findByText('GPT模型')).closest('.ant-card'));
+      
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: '配置机器人训练参数' })).toBeInTheDocument();
+      });
+
+      // 输入超过16的值，产生错误
+      const batchSizeInput = screen.getByPlaceholderText('批次大小');
+      await user.clear(batchSizeInput);
+      await user.type(batchSizeInput, '20');
+
+      // 验证错误消息显示
+      await waitFor(() => {
+        expect(screen.getByText('批次大小不能超过16')).toBeInTheDocument();
+      });
+
+      // 点击返回上一步
+      await user.click(screen.getByRole('button', { name: /返回上一步/ }));
+      
+      // 等待回到第二步
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: '选择机器人训练模型' })).toBeInTheDocument();
+      });
+
+      // 重新选择模型进入第三步
+      await user.click((await screen.findByText('GPT模型')).closest('.ant-card'));
+      
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: '配置机器人训练参数' })).toBeInTheDocument();
+      });
+
+      // 验证错误消息已经清除
+      await waitFor(() => {
+        expect(screen.queryByText('批次大小不能超过16')).not.toBeInTheDocument();
+      });
+    });
+
+    it('输入超过16后修改为有效值应该清除错误状态', async () => {
+      await renderTraining();
+      
+      // 快速进入第三步
+      await user.click((await screen.findByText('工业机器人视觉数据集')).closest('.ant-card'));
+      await user.click((await screen.findByText('GPT模型')).closest('.ant-card'));
+      
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: '配置机器人训练参数' })).toBeInTheDocument();
+      });
+
+      // 输入超过16的值，产生错误
+      const batchSizeInput = screen.getByPlaceholderText('批次大小');
+      await user.clear(batchSizeInput);
+      await user.type(batchSizeInput, '20');
+
+      // 验证错误消息显示
+      await waitFor(() => {
+        expect(screen.getByText('批次大小不能超过16')).toBeInTheDocument();
+      });
+
+      // 修改为有效值
+      await user.clear(batchSizeInput);
+      await user.type(batchSizeInput, '8');
+
+      // 验证错误消息已经清除
+      await waitFor(() => {
+        expect(screen.queryByText('批次大小不能超过16')).not.toBeInTheDocument();
+      });
+
+      // 验证可以正常提交
+      await user.click(screen.getByRole('button', { name: /开始训练/ }));
+      
+      // 验证API被调用
+      await waitFor(() => {
+        expect(mockCreateTrainingAPI).toHaveBeenCalledWith({
+          dataset_id: 1,
+          model_type_id: 1,
+          hyperparameter: {
+            policy: { type: 'gpt模型' },
+            env: { type: 'aloha' },
+            log_freq: 25,
+            steps: 100,
+            batch_size: 8,
+          }
+        });
+      });
+    });
   });
 });
