@@ -99,7 +99,8 @@ class DatasetService:
             video_keys=video_keys,
             chunks_size=chunks_size,
             video_path=video_path,
-            data_path=data_path
+            data_path=data_path,
+            is_aloha=dataset_create.is_aloha,
         )
         # 3. 上传数据集文件到 MinIO
         if not minio_client:

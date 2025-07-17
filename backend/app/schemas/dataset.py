@@ -35,6 +35,7 @@ class DatasetPublic(SQLModel):
     chunks_size: int = Field(default=0, nullable=False)  # 每个分块的大小
     video_path: str = Field(default="", nullable=False)  # 视频文件的存储路径
     data_path: str = Field(default="", nullable=False)  # 数据文件的存储路径
+    is_aloha: bool = Field(default=False, nullable=False)  # 是否为Aloha数据集，默认为False
 
 class DatasetUpdate(SQLModel):
     dataset_name: Optional[str] = Field(default=None, max_length=100)

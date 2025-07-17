@@ -10,6 +10,7 @@ from sqlalchemy import Column
 class DatasetBase(SQLModel):
     dataset_name: str = Field(max_length=100, index=True)
     description: Optional[str] = Field(default=None)
+    is_aloha: bool = Field(default=False, nullable=False)  # 是否为Aloha数据集，默认为False
 
 class Dataset(DatasetBase, table=True):
     __tablename__ = "dataset"
