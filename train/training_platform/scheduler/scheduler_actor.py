@@ -256,8 +256,6 @@ class TrainingScheduler:
                     total_steps = self.running_task.config.get('steps', 10)
                     start_step = self.running_task.current_step
                     end_step = min(start_step + self.steps_per_timeslice, total_steps)
-                    print(f"[TrainingScheduler] Steps per timeslice: {self.steps_per_timeslice}")
-                    print(f"[TrainingScheduler] Start step: {start_step}, End step: {end_step}")
                     
                     await send_status_message(task_id=int(self.running_task.task_id), status="running")
                     

@@ -13,15 +13,19 @@ from typing import Dict, Any, Optional
 
 from training_platform.configs.settings import settings
 from training_platform.common.task_models import EvaluationTask
-from training_platform.common.rabbitmq_utils import init_rabbitmq
+from training_platform.common.rabbitmq_utils import (
+    init_rabbitmq, 
+    send_eval_status_message
+)
 from training_platform.common.minio_utils import (
     get_minio_client, 
     download_file_from_minio,
+    upload_file_to_minio,
     list_objects_with_prefix
 )
 
 # 导入评估逻辑
-from training_platform.evaluator.evaluator_logic import run_lerobot_evaluation
+from training_platform.evaluator.evaluator_logic import run_lerobot_evaluation_sync
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +61,31 @@ class EvaluatorActor:
         
         logger.info(f"[{self.task.eval_task_id}] Evaluator Actor initialized for model evaluation.")
         print(f"[{self.task.eval_task_id}] Evaluator Actor initialized for model evaluation.")
+
+    # async def _publish_status(self, status: str, message: str):
+        # """发布评估状态更新消息到 RabbitMQ 评估状态队列"""
+        # try:
+            # await send_eval_status_message(
+                # eval_task_id=self.task.eval_task_id,
+                # status=status,
+                # message=message
+            # )
+        # except Exception as e:
+            # logger.error(f"[{self.task.eval_task_id}] Failed to publish eval status: {e}")
+
+    # async def _publish_eval_results(self):
+    #     """发布评估结果消息到 RabbitMQ"""
+    #     try:
+    #         if self.eval_results:
+    #             await publish_eval_result_message(
+    #                 task_id=self.task.eval_task_id,
+    #                 user_id=self.task.user_id,
+    #                 train_task_id=self.task.train_task_id,
+    #                 eval_results=self.eval_results
+    #             )
+    #             logger.info(f"[{self.task.eval_task_id}] Evaluation results published to RabbitMQ")
+    #     except Exception as e:
+    #         logger.error(f"[{self.task.eval_task_id}] Failed to publish eval results: {e}")
 
     async def _find_checkpoint_by_stage(self, train_task_id: str, eval_stage: int) -> Optional[str]:
         """
@@ -138,6 +167,7 @@ class EvaluatorActor:
         train_task_id = str(self.task.train_task_id)
         
         logger.info(f"[{task_id}] Getting model path for training task: {train_task_id}")
+        # await self._publish_status("running", f"正在查找训练任务 {train_task_id} 的最新模型...")
         
         # 根据 eval_stage 查找对应的 checkpoint
         selected_checkpoint = await self._find_checkpoint_by_stage(train_task_id, self.task.eval_stage)
@@ -148,6 +178,7 @@ class EvaluatorActor:
         # 从 MinIO 下载模型
         try:
             logger.info(f"[{task_id}] Starting model download from MinIO...")
+            # await self._publish_status("running", "开始从 MinIO 下载模型...")
             
             minio_client = await get_minio_client()
             
@@ -233,6 +264,7 @@ class EvaluatorActor:
         except Exception as e:
             error_msg = f"Model download failed: {str(e)}"
             logger.error(f"[{task_id}] {error_msg}")
+            # await self._publish_status("failed", error_msg)
             raise
 
     async def _upload_eval_results(self) -> bool:
@@ -247,8 +279,27 @@ class EvaluatorActor:
         
         try:
             logger.info(f"[{task_id}] Starting result upload...")
+            # await self._publish_status("running", "开始上传评估结果...")
             
             minio_client = await get_minio_client()
+            
+            # 上传评估信息文件 (JSON)
+            eval_info_file = os.path.join(self.run_dir, "eval_output", "eval_info.json")
+            # if os.path.exists(eval_info_file):
+                # eval_info_object_name = f"eval_results/eval_info_train_{train_task_id}_eval_{task_id}.json"
+                # 
+                # success, message = await upload_file_to_minio(
+                    # client=minio_client,
+                    # upload_file_local_path=eval_info_file,
+                    # filename=eval_info_object_name,
+                    # bucket_name=settings.MINIO_BUCKET,
+                    # object_dir="eval_results"
+                # )
+                # 
+                # if success:
+                    # logger.info(f"[{task_id}] Evaluation info uploaded: {eval_info_object_name}")
+                # else:
+                    # logger.warning(f"[{task_id}] Failed to upload eval info: {message}")
             
             # 上传视频文件
             videos_dir = os.path.join(self.run_dir, "eval_output", "videos")
@@ -259,8 +310,18 @@ class EvaluatorActor:
                 for video_file in video_files:
                     video_object_name = f"{task_id}/{video_file.name}"
                     
-                    # 这里可以添加上传视频文件的逻辑，如果需要的话
-                    logger.info(f"[{task_id}] Would upload video: {video_object_name}")
+                    success, message = await upload_file_to_minio(
+                        client=minio_client,
+                        upload_file_local_path=str(video_file),
+                        filename=video_object_name,
+                        bucket_name=settings.MINIO_BUCKET,
+                        object_dir=settings.MINIO_EVAL_DIR 
+                    )
+                    
+                    if success:
+                        logger.info(f"[{task_id}] Video uploaded: {video_object_name}")
+                    else:
+                        logger.warning(f"[{task_id}] Failed to upload video {video_file.name}: {message}")
             
             logger.info(f"[{task_id}] All result files uploaded successfully")
             return True
@@ -268,6 +329,7 @@ class EvaluatorActor:
         except Exception as e:
             error_msg = f"Result upload failed: {str(e)}"
             logger.error(f"[{task_id}] {error_msg}")
+            # await self._publish_status("failed", error_msg)
             return False
 
     async def _run_evaluation(self, model_path: str) -> Dict[str, Any]:
@@ -284,6 +346,7 @@ class EvaluatorActor:
         
         try:
             logger.info(f"[{task_id}] Starting model evaluation...")
+            # await self._publish_status("running", "开始执行模型评估...")
             
             # 创建输出目录
             output_dir = os.path.join(self.run_dir, "eval_output")
@@ -313,8 +376,9 @@ class EvaluatorActor:
             print(f"  Output directory: {output_dir}")
             print(f"  Max episodes rendered: {self.task.max_episodes_rendered}")
             
-            # 运行评估 - 直接调用异步版本以减少线程切换开销
-            results = await run_lerobot_evaluation(
+            # 运行评估 - 在单独线程中执行以避免阻塞 Actor
+            results = await asyncio.to_thread(
+                run_lerobot_evaluation_sync,
                 model_path=model_path,
                 env_config=env_config,
                 eval_config=eval_config,
@@ -333,6 +397,7 @@ class EvaluatorActor:
         except Exception as e:
             error_msg = f"Evaluation execution failed: {str(e)}"
             logger.error(f"[{task_id}] {error_msg}")
+            # await self._publish_status("failed", error_msg)
             raise
 
     async def evaluate(self) -> Dict[str, Any]:
@@ -347,6 +412,8 @@ class EvaluatorActor:
         
         try:
             logger.info(f"[{task_id}] Starting evaluation pipeline...")
+            # 发送开始状态
+            # await self._publish_status("running", "评估任务开始")
             
             # 1. 获取模型路径
             model_path = await self._get_model_path()
@@ -358,9 +425,13 @@ class EvaluatorActor:
             upload_success = await self._upload_eval_results()
             
             if upload_success:
+                # 4. 发布评估结果
+                # await self._publish_eval_results()
+                
                 # 5. 更新任务状态为完成
                 elapsed_time = time.time() - start_time
                 completion_msg = f"评估任务完成，耗时 {elapsed_time:.2f} 秒"
+                # await self._publish_status("completed", completion_msg)
                 
                 logger.info(f"[{task_id}] Evaluation pipeline completed successfully")
                 print(f"[{task_id}] {completion_msg}")
@@ -373,6 +444,7 @@ class EvaluatorActor:
             elapsed_time = time.time() - start_time
             error_msg = f"评估任务失败: {str(e)} (耗时 {elapsed_time:.2f} 秒)"
             logger.error(f"[{task_id}] {error_msg}")
+            # await self._publish_status("failed", error_msg)
             raise
 
     async def cleanup(self):
@@ -455,3 +527,53 @@ async def run_evaluation_actor(
         ray.get(evaluator.cleanup.remote())  # type: ignore
 
 
+async def run_evaluation_actor_from_task_data(task_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    从任务数据字典直接创建并运行评估 Actor 的便捷函数。
+    
+    Args:
+        task_data: 包含评估任务信息的字典
+        
+    Returns:
+        评估结果字典
+    """
+    # 提取评估任务参数
+    eval_task_id = task_data.get("eval_task_id")
+    train_task_id = task_data.get("train_task_id")
+    eval_stage = task_data.get("eval_stage")
+    user_id = task_data.get("user_id")
+    env_config = task_data.get("env_config", None)  # 改为可选
+    eval_config = task_data.get("eval_config", None)  # 改为可选
+    seed = task_data.get("seed", 1000)
+    max_episodes_rendered = task_data.get("max_episodes_rendered", 10)
+    return_episode_data = task_data.get("return_episode_data", False)
+    
+    # 验证必需参数
+    if not all([eval_task_id, train_task_id, eval_stage, user_id]):
+        raise ValueError("Missing required parameters for evaluation task")
+    
+    # 确保类型正确
+    eval_task_id = int(eval_task_id) if eval_task_id is not None else 0
+    train_task_id = int(train_task_id) if train_task_id is not None else 0
+    eval_stage = int(eval_stage) if eval_stage is not None else 0
+    user_id = int(user_id) if user_id is not None else 0
+    
+    # 再次验证转换后的参数
+    if not all([eval_task_id, train_task_id, eval_stage, user_id]):
+        raise ValueError("Invalid parameters after type conversion")
+    
+    logger.info(f"[{eval_task_id}] Creating evaluation task from task data")
+    print(f"[{eval_task_id}] Creating evaluation task from task data")
+    
+    # 调用原有的便捷函数
+    return await run_evaluation_actor(
+        eval_task_id=eval_task_id,
+        train_task_id=train_task_id,
+        eval_stage=eval_stage,
+        user_id=user_id,
+        env_config=env_config,
+        eval_config=eval_config,
+        seed=seed,
+        max_episodes_rendered=max_episodes_rendered,
+        return_episode_data=return_episode_data
+    )
