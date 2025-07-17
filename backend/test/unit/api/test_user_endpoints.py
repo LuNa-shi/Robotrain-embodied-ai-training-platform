@@ -1,7 +1,7 @@
 from typing import List, Optional
 import unittest
 from fastapi.testclient import TestClient
-from fastapi import Response, Depends # 导入 Depends
+from fastapi import Response
 import pytest
 from app.main import app
 from app.schemas.user import UserPublic
