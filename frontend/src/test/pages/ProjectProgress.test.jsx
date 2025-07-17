@@ -18,6 +18,9 @@ vi.mock('@/utils/api', () => ({
   modelsAPI: {
     getAllModelTypes: vi.fn(),
   },
+  datasetsAPI: {
+    getById: vi.fn(),
+  },
   deleteTrainTask: vi.fn(),
 }));
 
@@ -102,6 +105,7 @@ describe('ProjectProgress Page', () => {
   let mockGetModelTypesAPI;
   let mockDownloadModelAPI;
   let mockDeleteTaskAPI;
+  let mockGetDatasetByIdAPI;
 
   beforeEach(async () => {
     Object.defineProperty(window, 'matchMedia', {
@@ -149,11 +153,13 @@ describe('ProjectProgress Page', () => {
     mockGetModelTypesAPI = api.modelsAPI.getAllModelTypes;
     mockDownloadModelAPI = api.trainTasksAPI.downloadModel;
     mockDeleteTaskAPI = api.deleteTrainTask;
+    mockGetDatasetByIdAPI = api.datasetsAPI.getById;
     
     mockGetByIdAPI.mockClear();
     mockGetModelTypesAPI.mockClear();
     mockDownloadModelAPI.mockClear();
     mockDeleteTaskAPI.mockClear();
+    mockGetDatasetByIdAPI.mockClear();
   });
 
   afterEach(() => {
@@ -203,10 +209,27 @@ describe('ProjectProgress Page', () => {
     model_uuid: null,
   };
 
+  // Mock 数据集数据
+  const mockDatasetData = {
+    id: 1,
+    dataset_name: '机器人视觉数据集',
+    description: '用于机器人视觉识别的数据集',
+    owner_id: 1,
+    dataset_uuid: 'uuid-001',
+    uploaded_at: '2024-01-15T10:00:00Z',
+    total_episodes: 100,
+    total_chunks: 10,
+    video_keys: ['front_view', 'side_view'],
+    chunks_size: 1024,
+    video_path: '/videos/dataset1',
+    data_path: '/data/dataset1'
+  };
+
   describe('页面渲染', () => {
     it('应该正确渲染项目详情页面的标题', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('训练项目 1')).toBeInTheDocument();
     });
@@ -214,6 +237,7 @@ describe('ProjectProgress Page', () => {
     it('应该在加载时显示加载状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(mockProjectData), 100)));
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('加载项目进度中...')).toBeInTheDocument();
     });
@@ -221,6 +245,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示不同状态的项目', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('已完成')).toBeInTheDocument();
     });
@@ -228,6 +253,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示运行中状态的项目', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockRunningProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('进行中')).toBeInTheDocument();
     });
@@ -235,6 +261,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示失败状态的项目', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockFailedProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('失败')).toBeInTheDocument();
     });
@@ -242,6 +269,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示基本信息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -255,9 +283,32 @@ describe('ProjectProgress Page', () => {
       });
     });
 
+    it('应该正确显示数据集名称而不是ID', async () => {
+      mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
+      mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
+      await renderProjectProgress();
+      
+      await waitFor(() => {
+        expect(screen.getByText('机器人视觉数据集')).toBeInTheDocument();
+      });
+    });
+
+    it('应该在数据集API调用失败时回退到显示ID', async () => {
+      mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
+      mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockRejectedValue(new Error('获取数据集失败'));
+      await renderProjectProgress();
+      
+      await waitFor(() => {
+        expect(screen.getByText('数据集 1')).toBeInTheDocument();
+      });
+    });
+
     it('应该正确显示超参数配置', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -273,6 +324,7 @@ describe('ProjectProgress Page', () => {
     it('点击返回按钮应该跳转回项目中心', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       const backButton = await screen.findByRole('button', { name: /arrowlefticon/i });
       await user.click(backButton);
@@ -284,6 +336,7 @@ describe('ProjectProgress Page', () => {
     it('应该在页面加载时建立WebSocket连接', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const websocket = await import('@/utils/websocket');
@@ -296,6 +349,7 @@ describe('ProjectProgress Page', () => {
     it('应该在页面卸载时断开WebSocket连接', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       const { unmount } = await renderProjectProgress();
       
       unmount();
@@ -307,6 +361,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket连接状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockRunningProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       
       await renderProjectProgress();
       
@@ -329,6 +384,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket断开状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       const websocket = await import('@/utils/websocket');
       websocket.default.isConnected.mockReturnValue(false);
       
@@ -342,6 +398,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理已完成项目的WebSocket连接状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       
       await renderProjectProgress();
       
@@ -366,6 +423,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析训练数据消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       // 等待组件完全加载
@@ -388,6 +446,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析状态完成消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       // 等待组件完全加载
@@ -409,6 +468,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析普通日志消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       // 等待组件完全加载
@@ -432,6 +492,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确渲染Loss图表', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -442,6 +503,7 @@ describe('ProjectProgress Page', () => {
     it('应该在没有训练数据时显示空图表', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -454,6 +516,7 @@ describe('ProjectProgress Page', () => {
     it('应该在有训练数据时正确更新图表', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       // 等待组件完全加载
@@ -477,6 +540,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示训练进度', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -487,6 +551,7 @@ describe('ProjectProgress Page', () => {
     it('应该在接收到训练数据时更新进度', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       // 等待组件完全加载
@@ -507,6 +572,7 @@ describe('ProjectProgress Page', () => {
     it('应该在完成状态时显示100%进度', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       // 等待组件完全加载
@@ -530,6 +596,7 @@ describe('ProjectProgress Page', () => {
     beforeEach(async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       await screen.findByText('训练项目 1');
     });
@@ -563,6 +630,7 @@ describe('ProjectProgress Page', () => {
     it('下载按钮应该在项目未完成时被禁用', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockRunningProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const downloadButton = await screen.findByRole('button', { name: /下载模型/ });
@@ -626,6 +694,7 @@ describe('ProjectProgress Page', () => {
     it('应该在获取项目详情失败时显示错误信息并跳转', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockRejectedValue(new Error('获取失败'));
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       await waitFor(() => {
         expect(mockMessage.error).toHaveBeenCalledWith('获取训练项目详情失败: 获取失败');
@@ -636,6 +705,7 @@ describe('ProjectProgress Page', () => {
     it('应该在获取模型类型失败时继续加载项目', async () => {
       mockGetModelTypesAPI.mockRejectedValue(new Error('获取模型类型失败'));
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       // 验证组件能够处理模型类型获取失败的情况
@@ -647,6 +717,7 @@ describe('ProjectProgress Page', () => {
     it('应该在下载失败时显示错误信息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       mockDownloadModelAPI.mockRejectedValue(new Error('下载失败'));
       await renderProjectProgress();
       const downloadButton = await screen.findByRole('button', { name: /下载模型/ });
@@ -659,6 +730,7 @@ describe('ProjectProgress Page', () => {
     it('应该在删除失败时显示错误信息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       mockDeleteTaskAPI.mockRejectedValue(new Error('删除失败'));
       
       // Mock modal.confirm 来模拟用户确认删除
@@ -677,6 +749,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket连接错误', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const websocket = await import('@/utils/websocket');
@@ -694,6 +767,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket关闭事件', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const websocket = await import('@/utils/websocket');
@@ -719,6 +793,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithDuration);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -729,6 +804,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理运行中项目的时长显示', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockRunningProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -741,6 +817,7 @@ describe('ProjectProgress Page', () => {
     it('应该在组件卸载时清理所有状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       const { unmount } = await renderProjectProgress();
       
       unmount();
@@ -753,6 +830,7 @@ describe('ProjectProgress Page', () => {
     it('应该在切换项目时重新获取数据', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       
       await renderProjectProgress();
       
@@ -767,6 +845,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析训练数据消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -786,6 +865,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析状态完成消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -805,6 +885,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析普通日志消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -824,6 +905,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析无时间戳的日志消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -843,6 +925,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析JSON格式错误的训练数据', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -864,6 +947,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确渲染Loss图表', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -874,6 +958,7 @@ describe('ProjectProgress Page', () => {
     it('应该在没有训练数据时显示空图表', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -886,6 +971,7 @@ describe('ProjectProgress Page', () => {
     it('应该在有训练数据时正确更新图表', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -905,6 +991,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示训练进度', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -915,6 +1002,7 @@ describe('ProjectProgress Page', () => {
     it('应该在接收到训练数据时更新进度', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -933,6 +1021,7 @@ describe('ProjectProgress Page', () => {
     it('应该在完成状态时显示100%进度', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -954,6 +1043,7 @@ describe('ProjectProgress Page', () => {
     it('应该处理模型类型获取失败的情况', async () => {
       mockGetModelTypesAPI.mockRejectedValue(new Error('获取模型类型失败'));
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -969,6 +1059,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithoutHyperparameter);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -985,6 +1076,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithoutTime);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -995,6 +1087,7 @@ describe('ProjectProgress Page', () => {
     it('应该处理WebSocket连接失败的情况', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const websocket = await import('@/utils/websocket');
@@ -1008,6 +1101,7 @@ describe('ProjectProgress Page', () => {
     it('应该处理WebSocket消息解析失败的情况', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1026,6 +1120,7 @@ describe('ProjectProgress Page', () => {
     it('应该处理下载过程中网络错误', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       mockDownloadModelAPI.mockRejectedValue(new Error('网络错误'));
       await renderProjectProgress();
       
@@ -1040,6 +1135,7 @@ describe('ProjectProgress Page', () => {
     it('应该处理删除过程中网络错误', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       mockDeleteTaskAPI.mockRejectedValue(new Error('网络错误'));
       
       mockModal.confirm.mockImplementation(config => {
@@ -1060,6 +1156,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示不同状态的项目', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('已完成')).toBeInTheDocument();
     });
@@ -1067,6 +1164,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示运行中状态的项目', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockRunningProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('进行中')).toBeInTheDocument();
     });
@@ -1074,6 +1172,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示失败状态的项目', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockFailedProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('失败')).toBeInTheDocument();
     });
@@ -1086,6 +1185,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(pendingProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('等待中')).toBeInTheDocument();
     });
@@ -1098,6 +1198,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(unknownProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       expect(await screen.findByText('未知')).toBeInTheDocument();
     });
@@ -1105,6 +1206,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示基本信息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1118,9 +1220,32 @@ describe('ProjectProgress Page', () => {
       });
     });
 
+    it('应该正确显示数据集名称而不是ID', async () => {
+      mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
+      mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
+      await renderProjectProgress();
+      
+      await waitFor(() => {
+        expect(screen.getByText('机器人视觉数据集')).toBeInTheDocument();
+      });
+    });
+
+    it('应该在数据集API调用失败时回退到显示ID', async () => {
+      mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
+      mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockRejectedValue(new Error('获取数据集失败'));
+      await renderProjectProgress();
+      
+      await waitFor(() => {
+        expect(screen.getByText('数据集 1')).toBeInTheDocument();
+      });
+    });
+
     it('应该正确显示超参数配置', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1142,6 +1267,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithDuration);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1152,6 +1278,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理运行中项目的时长显示', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockRunningProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1168,6 +1295,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithMinutes);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1184,6 +1312,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithSeconds);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1196,6 +1325,7 @@ describe('ProjectProgress Page', () => {
     it('应该在页面加载时建立WebSocket连接', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const websocket = await import('@/utils/websocket');
@@ -1208,6 +1338,7 @@ describe('ProjectProgress Page', () => {
     it('应该在页面卸载时断开WebSocket连接', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       const { unmount } = await renderProjectProgress();
       
       unmount();
@@ -1219,6 +1350,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket连接状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockRunningProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       
       await renderProjectProgress();
       
@@ -1239,6 +1371,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket断开状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       const websocket = await import('@/utils/websocket');
       websocket.default.isConnected.mockReturnValue(false);
       
@@ -1252,6 +1385,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理已完成项目的WebSocket连接状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       
       await renderProjectProgress();
       
@@ -1272,6 +1406,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket连接错误', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const websocket = await import('@/utils/websocket');
@@ -1289,6 +1424,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理WebSocket关闭事件', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const websocket = await import('@/utils/websocket');
@@ -1308,6 +1444,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析直接JSON格式的状态消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1327,6 +1464,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确解析直接JSON格式的训练数据', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1346,6 +1484,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理JSON解析失败的情况', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1365,6 +1504,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理重复日志消息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1385,6 +1525,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理训练数据更新逻辑', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1407,6 +1548,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理状态完成消息并重新获取项目数据', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1437,6 +1579,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(completedProjectWithSteps);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1463,6 +1606,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(runningProjectWithSteps);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1486,6 +1630,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithoutHyperparameter);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1511,6 +1656,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithZeroSteps);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1538,6 +1684,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(runningProjectWithEpoch);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1565,6 +1712,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(runningProjectWithSteps);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1589,6 +1737,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(pendingProject);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1599,6 +1748,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示下载按钮的加载状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const downloadButton = await screen.findByRole('button', { name: /下载模型/ });
@@ -1608,6 +1758,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示删除按钮的加载状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const deleteButton = await screen.findByRole('button', { name: /删除/ });
@@ -1617,6 +1768,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示日志数量徽章', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1634,6 +1786,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确显示空日志状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1661,6 +1814,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithComplexHyperparameter);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1685,6 +1839,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithPolicy);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1703,6 +1858,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithEmptyObject);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1723,6 +1879,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithBoolean);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1745,6 +1902,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithNullValues);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1762,6 +1920,7 @@ describe('ProjectProgress Page', () => {
       
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(projectWithoutHyperparameter);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await waitFor(() => {
@@ -1774,6 +1933,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理下载过程中的事件阻止', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       const downloadButton = await screen.findByRole('button', { name: /下载模型/ });
@@ -1791,6 +1951,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理下载过程中重复点击', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       mockDownloadModelAPI.mockImplementation(() => 
         new Promise(resolve => setTimeout(() => resolve({ blob: new Blob(['test']), filename: 'test.zip' }), 1000))
       );
@@ -1809,6 +1970,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理下载文件大小为0的情况', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       mockDownloadModelAPI.mockResolvedValue({ blob: new Blob([]), filename: 'empty.zip' });
       await renderProjectProgress();
       
@@ -1823,6 +1985,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理下载返回无效数据的情况', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       mockDownloadModelAPI.mockResolvedValue({ blob: null, filename: 'test.zip' });
       await renderProjectProgress();
       
@@ -1839,6 +2002,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理无效的时间字符串', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1857,6 +2021,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理时间格式化函数', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       await renderProjectProgress();
       
       await screen.findByText('训练项目 1');
@@ -1877,6 +2042,7 @@ describe('ProjectProgress Page', () => {
     it('应该在组件卸载时清理所有状态和引用', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       const { unmount } = await renderProjectProgress();
       
       unmount();
@@ -1889,6 +2055,7 @@ describe('ProjectProgress Page', () => {
     it('应该正确处理组件重新挂载的情况', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetByIdAPI.mockResolvedValue(mockProjectData);
+      mockGetDatasetByIdAPI.mockResolvedValue(mockDatasetData);
       
       const { unmount } = await renderProjectProgress();
       unmount();

@@ -9,7 +9,8 @@ import {
   mockTrainingTasksResponse,
   mockEmptyTrainingTasksResponse,
   mockDeleteTaskResponse,
-  mockDownloadBlob
+  mockDownloadBlob,
+  mockDatasetsResponse
 } from '../mocks/projectCenterMocks';
 
 // --- Mocks ---
@@ -20,6 +21,9 @@ vi.mock('@/utils/api', () => ({
   },
   modelsAPI: {
     getAllModelTypes: vi.fn(),
+  },
+  datasetsAPI: {
+    getById: vi.fn(),
   },
   deleteTrainTask: vi.fn(),
 }));
@@ -82,6 +86,7 @@ describe('ProjectCenter Page', () => {
   let mockGetModelTypesAPI;
   let mockDownloadModelAPI;
   let mockDeleteTaskAPI;
+  let mockGetDatasetByIdAPI;
 
   beforeEach(async () => {
     Object.defineProperty(window, 'matchMedia', {
@@ -125,11 +130,13 @@ describe('ProjectCenter Page', () => {
     mockGetModelTypesAPI = api.modelsAPI.getAllModelTypes;
     mockDownloadModelAPI = api.trainTasksAPI.downloadModel;
     mockDeleteTaskAPI = api.deleteTrainTask;
+    mockGetDatasetByIdAPI = api.datasetsAPI.getById;
     
     mockGetTasksAPI.mockClear();
     mockGetModelTypesAPI.mockClear();
     mockDownloadModelAPI.mockClear();
     mockDeleteTaskAPI.mockClear();
+    mockGetDatasetByIdAPI.mockClear();
   });
 
   afterEach(() => {
@@ -152,6 +159,11 @@ describe('ProjectCenter Page', () => {
     it('应该正确渲染项目中心页面的标题和描述', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
       await renderProjectCenter();
       expect(await screen.findByRole('heading', { name: '项目中心' })).toBeInTheDocument();
       expect(screen.getByText('查看和管理您的机器人模型训练历史')).toBeInTheDocument();
@@ -160,6 +172,11 @@ describe('ProjectCenter Page', () => {
     it('应该在加载时显示加载状态', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(mockTrainingTasksResponse), 100)));
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
       await renderProjectCenter();
       expect(await screen.findByText('加载中...')).toBeInTheDocument();
     });
@@ -167,8 +184,46 @@ describe('ProjectCenter Page', () => {
     it('应该正确显示训练项目列表', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
       await renderProjectCenter();
       expect(await screen.findByText('训练项目 1')).toBeInTheDocument();
+    });
+
+    it('应该正确显示数据集名称而不是ID', async () => {
+      mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
+      mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
+      await renderProjectCenter();
+      
+      // 等待数据集名称加载完成
+      await waitFor(() => {
+        expect(screen.getByText('机器人视觉数据集')).toBeInTheDocument();
+        expect(screen.getByText('机械臂控制数据集')).toBeInTheDocument();
+        expect(screen.getByText('无人机航拍数据集')).toBeInTheDocument();
+      });
+    });
+
+    it('应该在数据集API调用失败时回退到显示ID', async () => {
+      mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
+      mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用失败
+      mockGetDatasetByIdAPI.mockRejectedValue(new Error('获取数据集失败'));
+      await renderProjectCenter();
+      
+      // 等待回退显示
+      await waitFor(() => {
+        expect(screen.getByText('数据集 1')).toBeInTheDocument();
+        expect(screen.getByText('数据集 2')).toBeInTheDocument();
+        expect(screen.getByText('数据集 3')).toBeInTheDocument();
+      });
     });
 
     it('应该在训练项目为空时显示空状态', async () => {
@@ -192,6 +247,11 @@ describe('ProjectCenter Page', () => {
     it('点击训练项目卡片应该跳转到项目进度页面', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
       await renderProjectCenter();
       const projectCard = await screen.findByText('训练项目 1');
       await user.click(projectCard.closest('.ant-card'));
@@ -203,6 +263,11 @@ describe('ProjectCenter Page', () => {
     beforeEach(async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
       await renderProjectCenter();
       await screen.findByText('训练项目 1');
     });
@@ -290,6 +355,11 @@ describe('ProjectCenter Page', () => {
     it('应该在下载失败时显示错误信息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
       mockDownloadModelAPI.mockRejectedValue(new Error('下载失败'));
       await renderProjectCenter();
       const downloadButtons = await screen.findAllByRole('button', { name: "下载模型" });
@@ -303,6 +373,11 @@ describe('ProjectCenter Page', () => {
     it('应该在删除失败时显示错误信息', async () => {
       mockGetModelTypesAPI.mockResolvedValue(mockModelTypesResponse);
       mockGetTasksAPI.mockResolvedValue(mockTrainingTasksResponse);
+      // Mock数据集API调用
+      mockGetDatasetByIdAPI.mockImplementation((id) => {
+        const dataset = mockDatasetsResponse.find(ds => ds.id === id);
+        return Promise.resolve(dataset);
+      });
       mockDeleteTaskAPI.mockRejectedValue(new Error('删除失败'));
       
       // Mock modal.confirm 来模拟用户确认删除
