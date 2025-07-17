@@ -29,6 +29,9 @@ class ModelTypeService:
             model_type_create_db=model_type_create_db
         )
         
+        if not model_type:
+            return None
+        
         await self.db_session.commit()  # 提交事务
         # 刷新模型类型对象以获取最新数据
         await self.db_session.refresh(model_type)
@@ -39,14 +42,19 @@ class ModelTypeService:
         """
         获取所有模型类型的业务逻辑。
         """
-        model_types = await crud_model_type.get_all_model_types(db_session=self.db_session)
-        list_model_type_publics: list[ModelTypePublic] = []
-        for model_type in model_types:
-            model_type_public = ModelTypePublic(
-                id=model_type.id,
-                type_name=model_type.type_name,
-                description=model_type.description
-            )
-            list_model_type_publics.append(model_type_public)
-        return list_model_type_publics
+        try:
+            model_types = await crud_model_type.get_all_model_types(db_session=self.db_session)
+            list_model_type_publics: list[ModelTypePublic] = []
+            for model_type in model_types:
+                model_type_public = ModelTypePublic(
+                    id=model_type.id,
+                    type_name=model_type.type_name,
+                    description=model_type.description
+                )
+                list_model_type_publics.append(model_type_public)
+            return list_model_type_publics
+        except Exception as e:
+            # 处理异常，记录日志或其他操作
+            print(f"Error fetching model types: {e}")
+            return []
     
