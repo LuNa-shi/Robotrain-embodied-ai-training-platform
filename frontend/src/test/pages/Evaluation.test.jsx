@@ -372,7 +372,7 @@ describe('模型评估页面', () => {
         await waitFor(() => {
             expect(evalTasksAPI.create).toHaveBeenCalledWith({
                 train_task_id: 101,
-                eval_stage: 2,
+                eval_stage: 3,
             });
         });
         
@@ -936,10 +936,10 @@ describe('模型评估页面', () => {
       await user.click(projectItem);
       
       const modal = await screen.findByRole('dialog', { name: /选择评估阶段/ });
-      expect(within(modal).getByText('25% 训练进度')).toBeInTheDocument();
-      expect(within(modal).getByText('50% 训练进度')).toBeInTheDocument();
-      expect(within(modal).getByText('75% 训练进度')).toBeInTheDocument();
       expect(within(modal).getByText('100% 训练进度')).toBeInTheDocument();
+      expect(within(modal).getByText('75% 训练进度')).toBeInTheDocument();
+      expect(within(modal).getByText('50% 训练进度')).toBeInTheDocument();
+      expect(within(modal).getByText('25% 训练进度')).toBeInTheDocument();
     });
 
     it('选择不同评估阶段时应更新按钮状态', async () => {
@@ -1369,6 +1369,112 @@ describe('模型评估页面', () => {
     it('StatusDisplay组件应正确处理不同类型状态', () => {
       render(<StatusDisplay status={null} />);
       expect(screen.getByText(/未知状态/)).toBeInTheDocument();
+    });
+  });
+
+  // ================= 评估阶段显示功能 =================
+  describe('评估阶段显示功能', () => {
+    it('应正确显示评估阶段对应的百分比文本', async () => {
+      const api = await import('@/utils/api');
+      const evalTasksAPI = api.evalTasksAPI;
+      const trainTasksAPI = api.trainTasksAPI;
+      
+      // 创建一个包含不同评估阶段的任务
+      const tasksWithDifferentStages = [
+        { id: 1, status: 'completed', video_names: [], eval_stage: 1, train_task_id: 101, create_time: '2024-05-20T10:00:00Z', start_time: '2024-05-20T10:05:00Z', end_time: '2024-05-20T11:05:00Z' },
+        { id: 2, status: 'completed', video_names: [], eval_stage: 2, train_task_id: 102, create_time: '2024-05-21T11:00:00Z', start_time: '2024-05-21T11:05:00Z', end_time: '2024-05-21T12:05:00Z' },
+        { id: 3, status: 'completed', video_names: [], eval_stage: 3, train_task_id: 103, create_time: '2024-05-22T12:00:00Z', start_time: '2024-05-22T12:05:00Z', end_time: '2024-05-22T13:05:00Z' },
+        { id: 4, status: 'completed', video_names: [], eval_stage: 4, train_task_id: 104, create_time: '2024-05-23T13:00:00Z', start_time: '2024-05-23T13:05:00Z', end_time: '2024-05-23T14:05:00Z' },
+      ];
+      
+      evalTasksAPI.getMyTasks.mockResolvedValue(tasksWithDifferentStages);
+      trainTasksAPI.getCompletedTasks.mockResolvedValue([]);
+      
+      // Mock getById 来返回不同的任务详情
+      evalTasksAPI.getById.mockImplementation((id) => {
+        const task = tasksWithDifferentStages.find(t => t.id === parseInt(id));
+        return Promise.resolve(task);
+      });
+      
+      renderEvaluationPage();
+      
+      // 等待任务列表加载
+      await waitFor(() => {
+        expect(screen.getByText('评估任务 1')).toBeInTheDocument();
+        expect(screen.getByText('评估任务 2')).toBeInTheDocument();
+        expect(screen.getByText('评估任务 3')).toBeInTheDocument();
+        expect(screen.getByText('评估任务 4')).toBeInTheDocument();
+      });
+      
+      // 点击第一个任务（eval_stage: 1，应该显示100%）
+      const task1 = screen.getByText('评估任务 1');
+      await user.click(task1);
+      
+      await waitFor(() => {
+        expect(screen.getByText('100% 训练进度')).toBeInTheDocument();
+      });
+      
+      // 点击第二个任务（eval_stage: 2，应该显示75%）
+      const task2 = screen.getByText('评估任务 2');
+      await user.click(task2);
+      
+      await waitFor(() => {
+        expect(screen.getByText('75% 训练进度')).toBeInTheDocument();
+      });
+      
+      // 点击第三个任务（eval_stage: 3，应该显示50%）
+      const task3 = screen.getByText('评估任务 3');
+      await user.click(task3);
+      
+      await waitFor(() => {
+        expect(screen.getByText('50% 训练进度')).toBeInTheDocument();
+      });
+      
+      // 点击第四个任务（eval_stage: 4，应该显示25%）
+      const task4 = screen.getByText('评估任务 4');
+      await user.click(task4);
+      
+      await waitFor(() => {
+        expect(screen.getByText('25% 训练进度')).toBeInTheDocument();
+      });
+    });
+
+    it('应正确处理未知的评估阶段值', async () => {
+      const api = await import('@/utils/api');
+      const evalTasksAPI = api.evalTasksAPI;
+      const trainTasksAPI = api.trainTasksAPI;
+      
+      // 创建一个包含未知评估阶段的任务
+      const taskWithUnknownStage = {
+        id: 1, 
+        status: 'completed', 
+        video_names: [], 
+        eval_stage: 99, // 未知的评估阶段值
+        train_task_id: 101, 
+        create_time: '2024-05-20T10:00:00Z', 
+        start_time: '2024-05-20T10:05:00Z', 
+        end_time: '2024-05-20T11:05:00Z' 
+      };
+      
+      evalTasksAPI.getMyTasks.mockResolvedValue([taskWithUnknownStage]);
+      trainTasksAPI.getCompletedTasks.mockResolvedValue([]);
+      evalTasksAPI.getById.mockResolvedValue(taskWithUnknownStage);
+      
+      renderEvaluationPage();
+      
+      // 等待任务列表加载
+      await waitFor(() => {
+        expect(screen.getByText('评估任务 1')).toBeInTheDocument();
+      });
+      
+      // 点击任务
+      const task = screen.getByText('评估任务 1');
+      await user.click(task);
+      
+      // 应该显示未知阶段的提示
+      await waitFor(() => {
+        expect(screen.getByText('未知阶段(99)')).toBeInTheDocument();
+      });
     });
   });
 });

@@ -152,3 +152,6 @@ outputs/
 conversion_project/
 datasets/
 coverage/
+frontend/覆盖率报告.zip
+
+frontend/coverage-report.zip
