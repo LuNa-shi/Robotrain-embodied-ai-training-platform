@@ -22,6 +22,9 @@
 /* --- 主要信息卡片 --- */
 .profileCard {
   padding: 24px;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
 }
 
 /* 信息展示状态下的样式 */
@@ -82,7 +85,9 @@
 
 /* --- 使用统计卡片 --- */
 .statsCard {
-  /* 样式可以保持或根据需要调整 */
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
 }
 
 .infoRow {

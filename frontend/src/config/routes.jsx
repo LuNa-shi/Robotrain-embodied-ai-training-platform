@@ -13,7 +13,7 @@ import HomePage from '@/pages/Home/index.jsx'; // 这是新的上传数据页
 import Login from '@/pages/User/Login.jsx';
 import Register from '@/pages/User/Register.jsx';
 import Profile from '@/pages/Profile/index.jsx';
-import Settings from '@/pages/Settings/index.jsx';
+// import Settings from '@/pages/Settings/index.jsx';
 import Help from '@/pages/Help/index.jsx'; // 引入帮助文档页面
 import NotFound from '@/pages/NotFound/index.jsx';
 import DataCenter from '@/pages/DataCenter/index.jsx'; // 数据中心页
@@ -21,8 +21,8 @@ import ProjectCenter from '@/pages/ProjectCenter/index.jsx'; // 项目中心页
 import ProjectProgressPage from '@/pages/ProjectProgress/index.jsx'; // 项目进度页
 import DatasetDetailPage from '@/pages/DatasetDetail/index.jsx'; // 数据集详情页
 import DatasetVisualizationPage from '@/pages/DatasetVisualization/index.jsx'; // 数据集可视化页
-import DataManagement from '@/pages/DataManagement/index.jsx'; // 数据管理页
-import ProjectManagement from '@/pages/ProjectManagement/index.jsx'; // 项目管理页
+// import DataManagement from '@/pages/DataManagement/index.jsx'; // 数据管理页
+// import ProjectManagement from '@/pages/ProjectManagement/index.jsx'; // 项目管理页
 import Evaluation from '@/pages/Evaluation/index.jsx'; // 模型评估测试页
 import Training from '@/pages/Training/index.jsx'; // 发起训练页
 
@@ -100,15 +100,15 @@ const routes = [
       { path: '/evaluation', element: <Evaluation /> },
       { path: '/project-center/:trainingId/progress', element: <ProjectProgressPage /> },
       { path: '/profile', element: <Profile /> },
-      { path: '/settings', element: <Settings /> },
-      { 
-        path: '/data-management', 
-        element: <AdminRoute><DataManagement /></AdminRoute> 
-      },
-      { 
-        path: '/project-management', 
-        element: <AdminRoute><ProjectManagement /></AdminRoute> 
-      },
+      // { path: '/settings', element: <Settings /> },
+      // { 
+      //   path: '/data-management', 
+      //   element: <AdminRoute><DataManagement /></AdminRoute> 
+      // },
+      // { 
+      //   path: '/project-management', 
+      //   element: <AdminRoute><ProjectManagement /></AdminRoute> 
+      // },
     ],
   },
 

@@ -104,11 +104,18 @@ export const getApiConfig = () => {
   const envWithCredentials = import.meta.env.VITE_API_WITH_CREDENTIALS;
   
   const config = API_CONFIG[env] || API_CONFIG.development;
-  
+
+  // 新增timeout健壮性处理
+  let timeout = config.timeout;
+  if (envTimeout !== undefined && envTimeout !== null) {
+    const parsedTimeout = parseInt(envTimeout);
+    timeout = isNaN(parsedTimeout) ? config.timeout : parsedTimeout;
+  }
+
   return {
     ...config,
     baseURL: envBaseURL || config.baseURL,
-    timeout: envTimeout ? parseInt(envTimeout) : config.timeout,
+    timeout,
     withCredentials: envWithCredentials ? envWithCredentials === 'true' : config.withCredentials,
   };
 };
