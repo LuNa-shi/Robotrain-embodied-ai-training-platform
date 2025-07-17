@@ -62,6 +62,10 @@ export default defineConfig({
         '**/*.config.ts',
         'coverage/',
         'dist/',
+        // 排除未使用的页面
+        'src/pages/DataManagement/**',
+        'src/pages/ProjectManagement/**',
+        'src/pages/Settings/**',
       ],
     },
   },
