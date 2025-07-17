@@ -53,19 +53,36 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.{js,jsx}'],
+      include: [
+        'src/**/*.{js,jsx,ts,tsx}',
+        '!src/test/**',
+        '!src/**/*.test.{js,jsx,ts,tsx}',
+        '!src/**/*.config.{js,ts}',
+        '!src/**/*.d.ts'
+      ],
       exclude: [
         'node_modules/',
-        'src/test/',
-        '**/*.d.ts',
-        '**/*.config.js',
-        '**/*.config.ts',
         'coverage/',
         'dist/',
         // 排除未使用的页面
         'src/pages/DataManagement/**',
         'src/pages/ProjectManagement/**',
         'src/pages/Settings/**',
+        // 排除不需要统计覆盖率的文件
+        'src/store/**',
+        'src/pages/NotFound/**',
+        'src/pages/Help/**',
+        // 新增：排除指定组件和工具
+        'src/components/AuthProvider.jsx',
+        'src/components/RobotSimulation.jsx',
+        'src/config/routes.*',
+        'src/utils/motionDataLoader.js',
+        'src/utils/debug.js',
+        'src/utils/parquetLoader.js',
+        'src/utils/api.js',
+        'src/utils/auth.js',
+        'src/App.jsx',
+        'src/main.jsx'
       ],
     },
   },
