@@ -1,18 +1,30 @@
 /* 整体页面容器 */
 .helpContainer {
   padding: 24px;
-  background-color: #f0f2f5;
+  background: transparent !important;
   min-height: 100%;
+  position: relative;
+}
+
+/* 添加全局背景样式，与其他页面保持一致 */
+body, #root, .helpContainer {
+  background: url('../../assets/images/bg.png') no-repeat center center fixed !important;
+  background-size: cover !important;
 }
 
 .backButton {
-  margin-bottom: 24px;
+  position: absolute;
+  top: 40px;
+  left: 40px;
+  z-index: 10;
+  margin-bottom: 0;
 }
 
 /* 页面头部 */
 .pageHeader {
   text-align: center;
   margin-bottom: 24px;
+  padding-top: 20px;
 }
 
 .pageHeader :global(.ant-typography) {
@@ -42,6 +54,8 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid #f0f0f0;
   height: 100%;
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
 .contentCard :global(.ant-card-body) {
@@ -83,12 +97,12 @@
 .faqCollapse :global(.ant-collapse-item) {
   margin-bottom: 12px;
   border: none;
-  background-color: #fafafa;
+  background-color: rgba(250, 250, 250, 0.8);
   border-radius: 6px;
 }
 
 .faqCollapse :global(.ant-collapse-content) {
-  background-color: #fff;
+  background-color: rgba(255, 255, 255, 0.9);
 }
 
 .faqCollapse :global(.ant-collapse-content-box) {
@@ -132,32 +146,41 @@
   flex-shrink: 0;
 }
 
-/* 底部统计信息 */
-.statsCard {
-  max-width: 1200px;
-  margin: 24px auto 0 auto;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .helpContainer {
+    padding: 16px;
+  }
+  
+  .backButton {
+    top: 20px;
+    left: 20px;
+  }
+  
+  .pageHeader {
+    padding-top: 60px;
+  }
+  
+  .mainContent {
+    max-width: 100%;
+  }
+  
+  .searchInput {
+    max-width: 100%;
+  }
+  
+  .contentCard :global(.ant-card-body) {
+    padding: 16px;
+  }
+  
+  .guideItem,
+  .contactItem {
+    padding: 12px 0 12px 16px !important;
+  }
+  
+  .guideIcon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
 }
-
-:global(.ant-statistic-title) {
-  font-size: 14px !important;
-}
-
-.statTitle {
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
-  letter-spacing: 1px;
-}
-
-.statValue {
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.helpPage {
-  background: transparent !important;
-}
- 

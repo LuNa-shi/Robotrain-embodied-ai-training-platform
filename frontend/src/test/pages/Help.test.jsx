@@ -99,19 +99,6 @@ describe('Help 页面', () => {
     expect(screen.getByText('www.robotrain.com')).toBeInTheDocument();
   });
 
-  it('应渲染底部统计信息', () => {
-    renderHelp();
-    expect(screen.getByText('活跃用户')).toBeInTheDocument();
-    expect(screen.getByText('成功训练')).toBeInTheDocument();
-    expect(screen.getByText('系统可用性')).toBeInTheDocument();
-    // 技术支持在底部统计和联系方式都出现
-    expect(screen.getAllByText('技术支持').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('1000+')).toBeInTheDocument();
-    expect(screen.getByText('5000+')).toBeInTheDocument();
-    expect(screen.getByText('99.9%')).toBeInTheDocument();
-    expect(screen.getByText('24/7')).toBeInTheDocument();
-  });
-
   it('使用指南“查看”按钮可点击', () => {
     renderHelp();
     const viewBtns = screen.getAllByText('查看');
