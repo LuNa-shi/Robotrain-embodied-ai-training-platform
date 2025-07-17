@@ -156,8 +156,7 @@ const HomePage = () => {
                       点击或拖拽文件到此区域上传
                     </p>
                     <p style={{ fontSize: '14px', color: '#666', margin: '0 0 8px 0' }}>
-                      支持ZIP格式，文件大小不能超过500MB<br/>
-                      仅支持lerobot dataset数据集
+                      支持ZIP格式，文件大小不能超过500MB
                     </p>
                   </div>
                 </div>
@@ -185,8 +184,7 @@ const HomePage = () => {
                       点击或拖拽模型文件到此区域上传
                     </p>
                     <p style={{ fontSize: '12px', color: '#666', margin: '0 0 4px 0' }}>
-                      支持ZIP格式，文件大小不能超过500MB（可选）<br/>
-                      仅支持URDF+STL格式模型文件
+                      支持ZIP格式，文件大小不能超过500MB（可选）
                     </p>
                   </div>
                 </div>
