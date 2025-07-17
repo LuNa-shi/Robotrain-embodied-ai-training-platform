@@ -132,8 +132,8 @@ class EvalTaskService:
         await self.db_session.commit()
         await self.db_session.refresh(updated_eval_task)
 
-        if not updated_eval_task:
-            print(f"更新评估任务 ID {eval_task_id} 失败")
-            return None
+        # if not updated_eval_task:
+            # print(f"更新评估任务 ID {eval_task_id} 失败")
+            # return None
     
         return updated_eval_task
