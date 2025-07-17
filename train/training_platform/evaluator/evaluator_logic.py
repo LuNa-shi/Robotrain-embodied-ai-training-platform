@@ -196,44 +196,44 @@ def auto_detect_model_config(model_path: str) -> Tuple[Dict[str, Any], Dict[str,
     env_config = load_env_config_from_model(model_path)
     
     # 2. 尝试从模型目录中查找评估配置文件
-    # eval_config_path = model_path_obj / "eval_config.json"
-    # if eval_config_path.exists():
-        # eval_config = load_eval_config_from_json(str(eval_config_path))
-    # else:
-        # 3. 尝试从训练配置中提取评估配置
-        # train_config_path = model_path_obj / "train_config.json"
-        # if train_config_path.exists():
-            # with open(train_config_path, 'r', encoding='utf-8') as f:
-                # train_config = json.load(f)
-            
-            # if 'eval' in train_config:
-                # eval_config = train_config['eval'].copy()
-                # logger.info(f"从训练配置中提取的评估配置: {eval_config}")
-            # else:
-                # logger.warning("训练配置中未找到 'eval' 字段，使用默认评估配置")
-                # eval_config = {
-                    # "n_episodes": 10,
-                    # "batch_size": 4,
-                    # "use_async_envs": False
-                # }
-        # else:
-            # logger.warning("未找到评估配置，使用默认配置")
-            # 从eval_config_example.json中加载默认配置
-            # eval_config_path = model_path_obj / "eval_config_example.json"
-            # if eval_config_path.exists():
-                # with open(eval_config_path, 'r', encoding='utf-8') as f:
-                    # eval_config = json.load(f)
-            # else:
-                # eval_config = {
-                    # "n_episodes": 10,
-                    # "batch_size": 4,
-                    # "use_async_envs": False
-                # }
+   # eval_config_path = model_path_obj / "eval_config.json"
+   # if eval_config_path.exists():
+   #     eval_config = load_eval_config_from_json(str(eval_config_path))
+   # else:
+   #     # 3. 尝试从训练配置中提取评估配置
+   #     train_config_path = model_path_obj / "train_config.json"
+   #     if train_config_path.exists():
+   #         with open(train_config_path, 'r', encoding='utf-8') as f:
+   #             train_config = json.load(f)
+   #         # 
+   #         if 'eval' in train_config:
+   #             eval_config = train_config['eval'].copy()
+   #             logger.info(f"从训练配置中提取的评估配置: {eval_config}")
+   #         else:
+   #             logger.warning("训练配置中未找到 'eval' 字段，使用默认评估配置")
+   #             eval_config = {
+   #                 "n_episodes": 10,
+   #                 "batch_size": 4,
+   #                 "use_async_envs": False
+   #             }
+   #     else:
+   #         logger.warning("未找到评估配置，使用默认配置")
+   #         # 从eval_config_example.json中加载默认配置
+   #         eval_config_path = model_path_obj / "eval_config_example.json"
+   #         if eval_config_path.exists():
+   #             with open(eval_config_path, 'r', encoding='utf-8') as f:
+   #                 eval_config = json.load(f)
+   #         else:
+   #             eval_config = {
+   #                 "n_episodes": 10,
+   #                 "batch_size": 4,
+   #                 "use_async_envs": False
+   #             }
         
     
     eval_config = {
-        "n_episodes": 1,
-        "batch_size": 1,
+        "n_episodes": 10,
+        "batch_size": 2,
         "use_async_envs": False
     }
     
