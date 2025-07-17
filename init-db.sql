@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS dataset (
     chunks_size INTEGER DEFAULT 0  NOT NULL,   -- 分块大小
     video_path TEXT DEFAULT '' NOT NULL, -- 视频文件路径
     data_path TEXT DEFAULT '' NOT NULL -- 数据文件路径
+    is_aloha BOOLEAN NOT NULL DEFAULT FALSE, -- 是否为aloha数据集，默认为FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_datasets_owner_id ON dataset (owner_id);
 

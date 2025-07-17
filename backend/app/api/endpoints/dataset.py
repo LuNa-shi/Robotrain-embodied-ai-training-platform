@@ -155,6 +155,7 @@ async def upload_dataset(
     name: str = Form(..., description="数据集名称"),
     description: str = Form(..., description="数据集描述"),
     file: UploadFile = File(..., description="上传的数据集文件"),
+    is_aloha: bool = Form(False, description="是否为 Aloha 数据集"),
 ) -> DatasetPublic:
     """
     **创建新数据集**
@@ -181,6 +182,7 @@ async def upload_dataset(
     dataset_create: DatasetCreate = DatasetCreate(
         dataset_name=name,
         description=description,
+        is_aloha=is_aloha,
     )
     # service层
     dataset = await dataset_service.upload_dataset_for_user(
