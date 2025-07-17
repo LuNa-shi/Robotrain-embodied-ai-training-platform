@@ -41,6 +41,7 @@ from lerobot.common.utils.logging_utils import AverageMeter, MetricsTracker
 from lerobot.common.utils.train_utils import (
     get_step_checkpoint_dir,
     load_training_state,
+    save_training_state,
     save_checkpoint,
     async_save_checkpoint,
     update_last_checkpoint,
@@ -179,6 +180,9 @@ def initialize_training_objects(
     logging.info("Creating dataset...")
     dataset = make_dataset(cfg)
 
+    if cfg.policy.pretrained_path:
+        logging.info(f"Loading pretrained policy from: {cfg.policy.pretrained_path}")
+
     logging.info("Creating policy...")
     policy = make_policy(cfg=cfg.policy, ds_meta=dataset.meta)
     policy.to(device)
@@ -201,7 +205,7 @@ def initialize_training_objects(
             # HIGHLIGHT: 加载模型状态时，需要加载到 DDP 包装的模型内部的 `module`
             model_to_load = policy.module if is_distributed else policy
             loaded_step, optimizer, lr_scheduler = load_training_state(
-                checkpoint_path, model_to_load, optimizer, lr_scheduler
+                checkpoint_path, optimizer, lr_scheduler
             )
             
             logging.info(f"Checkpoint loaded, was at step {loaded_step}. Starting from {start_step}.")
@@ -345,10 +349,13 @@ async def execute_training_loop(
                     checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, current_step)
                     logging.info(f"Saving checkpoint to: {checkpoint_dir}")
                     
-                    # 获取内部模型进行保存
+                    # HIGHLIGHT: 修复5: 在分布式训练中，需要获取DDP包装的模型内部的module进行保存
+                    # 但在恢复训练时，我们需要确保保存的是正确的模型状态
                     model_to_save = policy.module if is_distributed else policy
                     await async_save_checkpoint(checkpoint_dir, current_step, cfg, model_to_save, optimizer, lr_scheduler)
                     update_last_checkpoint(checkpoint_dir)
+                    
+                    logging.info(f"✅ Checkpoint saved successfully at step {current_step}")
                     
             except Exception as e:
                 logging.error(f"CRITICAL: `save_checkpoint` failed at step {current_step} with error: {e}", exc_info=True)
@@ -369,6 +376,8 @@ async def execute_training_loop(
                 model_to_save = policy.module if is_distributed else policy
                 await save_checkpoint(checkpoint_dir, end_step, cfg, model_to_save, optimizer, lr_scheduler)
                 update_last_checkpoint(checkpoint_dir)
+                
+                logging.info(f"✅ Final checkpoint saved successfully at step {end_step}")
             elif last_step_already_saved:
                 logging.info(f"Step {end_step} was already saved as a periodic checkpoint. Skipping duplicate save.")
         except Exception as e:

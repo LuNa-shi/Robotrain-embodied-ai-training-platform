@@ -222,14 +222,57 @@ class TrainerActor:
                     )
                     if not success: raise RuntimeError(f"Failed to download checkpoint for step {prev_save_step}.")
                     
-                    # 解压到 lerobot 期望的 checkpoints 目录结构
-                    checkpoint_extract_dir = os.path.join(self.run_dir, "checkpoints", f"{prev_save_step:06d}")
-                    os.makedirs(os.path.dirname(checkpoint_extract_dir), exist_ok=True)
+                    # HIGHLIGHT: 修复10: 使用与上传MinIO相同的路径确定逻辑
+                    # 首先尝试从training_config_info.json读取正确的checkpoint路径
+                    config_info_path = Path(self.run_dir) / "training_config_info.json"
+                    checkpoint_base_dir = None
+                    
+                    if config_info_path.exists():
+                        try:
+                            with open(config_info_path, 'r') as f:
+                                config_info = json.load(f)
+                            
+                            output_dir = config_info.get("output_dir")
+                            if output_dir:
+                                checkpoint_base_dir = Path(output_dir) / "checkpoints"
+                                print(f"[{task_id}] Using checkpoint path from config: {checkpoint_base_dir}")
+                            else:
+                                print(f"[{task_id}] Warning: 'output_dir' not found in config_info.json")
+                        except (json.JSONDecodeError, ValueError) as e:
+                            print(f"[{task_id}] Warning: Failed to read config_info.json: {e}")
+                    
+                    # 如果无法从配置文件获取，则使用默认路径
+                    if checkpoint_base_dir is None:
+                        checkpoint_base_dir = Path(self.run_dir) / "checkpoints"
+                        print(f"[{task_id}] Using default checkpoint path: {checkpoint_base_dir}")
+                    
+                    # 确保checkpoint目录存在
+                    os.makedirs(checkpoint_base_dir, exist_ok=True)
+                    
+                    # 解压到正确的checkpoint目录
+                    checkpoint_extract_dir = checkpoint_base_dir / f"{prev_save_step:06d}"
+                    print(f"[{task_id}] Extracting checkpoint to: {checkpoint_extract_dir}")
                     shutil.unpack_archive(checkpoint_zip_path, checkpoint_extract_dir)
                     os.remove(checkpoint_zip_path)
+                    
+                    # HIGHLIGHT: 修复9: 验证解压后的目录结构
+                    checkpoint_path = Path(checkpoint_extract_dir)
+                    training_state_path = checkpoint_path / "training_state"
+                    pretrained_model_path = checkpoint_path / "pretrained_model"
+                    
+                    # 验证必需的目录
+                    if not training_state_path.exists():
+                        print(f"❌ [{task_id}] ERROR: Training state directory not found after extraction: {training_state_path}")
+                        raise RuntimeError(f"Invalid checkpoint structure: missing training_state directory")
+                    
+                    if not pretrained_model_path.exists():
+                        print(f"❌ [{task_id}] ERROR: Pretrained model directory not found after extraction: {pretrained_model_path}")
+                        raise RuntimeError(f"Invalid checkpoint structure: missing pretrained_model directory")
+                    
+                    print(f"✅ [{task_id}] Checkpoint extracted successfully with valid structure")
 
                     # 创建 last symlink
-                    last_link = Path(self.run_dir) / "checkpoints" / "last"
+                    last_link = checkpoint_base_dir / "last"
                     if last_link.exists(): last_link.unlink()
                     last_link.symlink_to(f"{prev_save_step:06d}")
 
@@ -240,7 +283,7 @@ class TrainerActor:
                 
                 # 从checkpoint获取train_config.json作为基础配置文件
                 try:
-                    base_config_path = self._get_checkpoint_config_path(checkpoint_extract_dir)
+                    base_config_path = self._get_checkpoint_config_path(str(checkpoint_extract_dir))
                     print(f"[{task_id}] Using checkpoint train_config.json as base config: {base_config_path}")
                 except Exception as e:
                     print(f"[{task_id}] Warning: Failed to get train_config.json from checkpoint: {e}")
@@ -254,6 +297,9 @@ class TrainerActor:
                     "save_freq": self.task.config.get("save_freq", 25000),  # 保持保存频率
                     "log_freq": self.task.config.get("log_freq", 100),  # 保持日志频率
                     "batch_size": self.task.config.get("batch_size", 8),  # 保持batch size
+                    # HIGHLIGHT: 修复7: 确保恢复训练时传递正确的策略和环境配置
+                    "policy": self.task.config.get("policy", {}),
+                    "env": self.task.config.get("env", {}),
                 }
             else:
                 # 初始训练：使用用户提供的配置
