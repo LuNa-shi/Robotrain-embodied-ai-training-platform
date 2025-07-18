@@ -58,6 +58,7 @@ async def get_eval_task(
     
     eval_task_public = EvalTaskPublic(
         id=eval_task.id,
+        task_name=eval_task.task_name,
         owner_id=eval_task.owner_id,
         train_task_id=eval_task.train_task_id,
         eval_stage=eval_task.eval_stage,

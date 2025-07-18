@@ -15,6 +15,7 @@ class EvalTaskStatus(str, Enum):
 class EvalTaskBase(SQLModel):
     train_task_id: Optional[int] = Field(default=None, foreign_key="train_task.id", nullable=False)
     eval_stage: int = Field(default=1, ge=1, le=4, nullable=False)
+    task_name: str = Field(nullable=False)
 
 class EvalTask(EvalTaskBase, table=True):
     __tablename__ = "eval_task"

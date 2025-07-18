@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS train_task(
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, 
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, -- 结束时间，可为空
     logs_uuid UUID, -- 训练日志的UUID，可为空
+    task_name TEXT NOT NULL,
 
     CONSTRAINT chk_status CHECK (status IN ('pending', 'running', 'completed', 'failed'))
 
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS eval_task(
     create_time TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', NOW()) NOT NULL, -- 创建时间，默认为当前时间
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, 
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, -- 结束时间，可为空
+    task_name TEXT NOT NULL,
 
     CONSTRAINT chk_eval_status CHECK (status IN ('pending', 'running', 'completed', 'failed')),
     CONSTRAINT chk_eval_stage CHECK (eval_stage IN (1, 2, 3, 4))

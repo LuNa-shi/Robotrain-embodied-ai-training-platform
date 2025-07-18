@@ -37,7 +37,8 @@ class TrainTaskService:
             dataset_id=train_task_create.dataset_id,
             model_type_id=train_task_create.model_type_id,
             hyperparameter=train_task_create.hyperparameter,
-            owner_id=user.id
+            owner_id=user.id,
+            task_name=train_task_create.task_name
         )
         # 3. 调用 CRUD 层创建训练任务
         train_task = await crud_train_task.create_train_task(

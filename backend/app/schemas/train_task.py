@@ -13,6 +13,7 @@ class TrainTaskCreateDB(TrainTaskBase):
 
 class TrainTaskPublic(SQLModel):
     id: int
+    task_name: str
     owner_id: int
     dataset_id: Optional[int] = None
     model_type_id: Optional[int] = None
@@ -24,6 +25,7 @@ class TrainTaskPublic(SQLModel):
     logs_uuid: Optional[UUID] = None
     
 class TrainTaskUpdate(SQLModel):
+    task_name: Optional[str] = Field(default=None)
     status: Optional[TrainTaskStatus] = Field(default=None, max_length=20)
     start_time: Optional[datetime] = Field(default=None)
     end_time: Optional[datetime] = Field(default=None)

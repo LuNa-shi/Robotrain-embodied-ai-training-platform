@@ -12,6 +12,7 @@ class EvalTaskCreateDB(EvalTaskBase):
     
 class EvalTaskPublic(SQLModel):
     id: int
+    task_name: str
     owner_id: int
     train_task_id: int
     eval_stage: int
@@ -22,6 +23,7 @@ class EvalTaskPublic(SQLModel):
     video_names: Optional[List[str]] = None
 
 class EvalTaskUpdate(SQLModel):
+    task_name: Optional[str] = Field(default=None)
     status: Optional[EvalTaskStatus] = Field(default=None, max_length=20)
     start_time: Optional[datetime] = Field(default=None)
     end_time: Optional[datetime] = Field(default=None)
