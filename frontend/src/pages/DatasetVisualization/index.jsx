@@ -682,21 +682,7 @@ const DatasetVisualizationPage = () => {
                     </>
                 )}
 
-                {/* 非Aloha数据集显示提示信息 */}
-                {!isAlohaDataset && (
-                    <div style={{ marginTop: 32, textAlign: 'center' }}>
-                        <Card style={{ background: 'transparent', borderRadius: '12px', border: 'none', boxShadow: 'none' }}>
-                            <div style={{ padding: '24px' }}>
-                                <div style={{ fontSize: '16px', color: '#666', marginBottom: '8px' }}>
-                                    ℹ️ 当前数据集为非Aloha数据集
-                                </div>
-                                <div style={{ fontSize: '14px', color: '#999' }}>
-                                    仅支持视频展示功能，图表分析和机械臂仿真功能仅适用于Aloha数据集
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-                )}
+
             </div>
         </div>
     );

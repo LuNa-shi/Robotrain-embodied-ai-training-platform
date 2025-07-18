@@ -47,7 +47,7 @@ const HomePage = () => {
     try {
       setUploading(true);
       // 根据是否上传模型文件设置is_aloha参数
-      const isAloha = !hasModelFile;
+      const isAloha = hasModelFile; // 默认false，只有上传模型文件时才设置为true
       const result = await datasetsAPI.upload(values.name, values.description, file, isAloha);
       
       // 如果上传了模型文件，额外保持2秒加载状态
