@@ -957,7 +957,7 @@ const EvaluationPage = () => {
                   <List
                     dataSource={trainingProjects}
                     renderItem={renderTrainingProjectItem}
-                    className={styles.projectList}
+                    className={styles.trainingProjectsList}
                   />
                 </div>
               )}
