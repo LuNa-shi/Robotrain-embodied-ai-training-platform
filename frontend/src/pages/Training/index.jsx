@@ -143,6 +143,11 @@ const TrainingPage = () => {
         throw new Error('请先选择模型');
       }
 
+      // 验证任务名称
+      if (!values.task_name || values.task_name.trim() === '') {
+        throw new Error('请输入任务名称');
+      }
+
       // 验证batch_size
       if (values.batch_size && values.batch_size > 16) {
         throw new Error('批次大小不能超过16');
@@ -161,6 +166,7 @@ const TrainingPage = () => {
       const trainTaskData = {
         dataset_id: parseInt(selectedDataset.id),
         model_type_id: parseInt(values.model),
+        task_name: values.task_name.trim(),
         hyperparameter: hyperparameter
       };
 
@@ -350,12 +356,44 @@ const TrainingPage = () => {
             className={styles.formContainer}
             initialValues={{
               model: selectedModel?.value || undefined,
+              task_name: '',
               env: 'aloha',
               log_freq: 25,
               steps: 100,
               batch_size: 8,
             }}
           >
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  label="任务名称 (Task Name)"
+                  name="task_name"
+                  rules={[
+                    { required: true, message: '请输入任务名称' },
+                    { min: 1, message: '任务名称不能为空' },
+                    {
+                      validator: (_, value) => {
+                        if (value && value.trim() === '') {
+                          return Promise.reject(new Error('任务名称不能只包含空格'));
+                        }
+                        if (value && value.trim().length < 1) {
+                          return Promise.reject(new Error('任务名称至少需要1个字符'));
+                        }
+                        return Promise.resolve();
+                      }
+                    }
+                  ]}
+                >
+                  <Input
+                    placeholder="请输入训练任务名称"
+                    maxLength={100}
+                    showCount
+                    allowClear
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item

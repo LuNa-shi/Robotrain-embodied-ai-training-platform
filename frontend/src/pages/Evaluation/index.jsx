@@ -21,7 +21,8 @@ import {
   Badge,
   Spin,
   Radio,
-  Select
+  Select,
+  Input
 } from 'antd';
 import {
   DownloadOutlined,
@@ -111,6 +112,7 @@ const EvaluationPage = () => {
   // 评估任务相关状态
   const [loadingEvaluationTasks, setLoadingEvaluationTasks] = useState(false);
   const [selectedEvalStage, setSelectedEvalStage] = useState(null);
+  const [evaluationTaskName, setEvaluationTaskName] = useState('');
   const [creatingEvaluation, setCreatingEvaluation] = useState(false);
   const [evaluationModalVisible, setEvaluationModalVisible] = useState(false);
   const [selectedTrainTask, setSelectedTrainTask] = useState(null);
@@ -400,7 +402,7 @@ const EvaluationPage = () => {
       const evaluationRecords = data.map(task => {
         return {
           id: `eval-${task.id}`,
-          name: `评估任务 ${task.id}`,
+          name: task.task_name || `评估任务 ${task.id}`,
           status: task.status,
           videoNames: task.video_names || [],
           evalStage: task.eval_stage,
@@ -482,7 +484,7 @@ const EvaluationPage = () => {
       const evaluationRecords = data.map(task => {
         return {
           id: `eval-${task.id}`,
-          name: `评估任务 ${task.id}`,
+          name: task.task_name || `评估任务 ${task.id}`,
           status: task.status,
           videoNames: task.video_names || [],
           evalStage: task.eval_stage,
@@ -567,7 +569,7 @@ const EvaluationPage = () => {
       // 直接使用后端返回的已完成训练项目数据
       const completedProjects = data.map(task => ({
         id: task.id.toString(),
-        name: `训练项目 ${task.id}`,
+        name: task.task_name || `训练项目 ${task.id}`,
         modelType: task.model_type_id ? getModelTypeName(task.model_type_id) : '未指定模型类型',
         startTime: new Date(task.create_time).toLocaleString('zh-CN'),
         endTime: task.end_time ? new Date(task.end_time).toLocaleString('zh-CN') : '未完成',
@@ -722,13 +724,19 @@ const EvaluationPage = () => {
       return;
     }
 
+    if (!evaluationTaskName || evaluationTaskName.trim() === '') {
+      message.warning('请输入评估项目名称');
+      return;
+    }
+
     try {
       setCreatingEvaluation(true);
       
       // 构建评估任务创建请求
       const evalTaskData = {
         train_task_id: parseInt(selectedTrainingProject.id),
-        eval_stage: selectedEvalStage
+        eval_stage: selectedEvalStage,
+        task_name: evaluationTaskName.trim()
       };
       
       console.log('创建评估任务:', evalTaskData);
@@ -745,6 +753,7 @@ const EvaluationPage = () => {
     setEvaluationModalVisible(false);
     setSelectedTrainingProject(null);
     setSelectedEvalStage(null);
+    setEvaluationTaskName('');
       
     } catch (error) {
       console.error('创建评估任务失败:', error);
@@ -980,7 +989,7 @@ const EvaluationPage = () => {
                       <div style={{ textAlign: 'center', width: '100%' }}>
                         <Text type="secondary" style={{ fontSize: '12px' }}>训练项目</Text>
                         <div style={{ marginTop: 2 }}>
-                          <Text strong style={{ fontSize: '13px' }}>{selectedTrainTask ? `训练项目 ${selectedTrainTask.id}` : '加载中...'}</Text>
+                          <Text strong style={{ fontSize: '13px' }}>{selectedTrainTask ? (selectedTrainTask.task_name || `训练项目 ${selectedTrainTask.id}`) : '加载中...'}</Text>
                         </div>
                       </div>
                     </Col>
@@ -1326,6 +1335,7 @@ const EvaluationPage = () => {
           setEvaluationModalVisible(false);
           setSelectedTrainingProject(null);
           setSelectedEvalStage(null);
+          setEvaluationTaskName('');
         }}
         footer={[
           <Button 
@@ -1334,6 +1344,7 @@ const EvaluationPage = () => {
               setEvaluationModalVisible(false);
               setSelectedTrainingProject(null);
               setSelectedEvalStage(null);
+              setEvaluationTaskName('');
             }}
             className={styles.evaluationModalButton}
             style={{ 
@@ -1348,7 +1359,7 @@ const EvaluationPage = () => {
             key="start" 
             type="primary" 
             loading={creatingEvaluation}
-            disabled={!selectedEvalStage || creatingEvaluation}
+            disabled={!selectedEvalStage || !evaluationTaskName.trim() || creatingEvaluation}
             onClick={handleStartEvaluation}
             className={styles.evaluationModalButton}
           >
@@ -1367,6 +1378,20 @@ const EvaluationPage = () => {
                 <br />
                 <Text type="secondary">{selectedTrainingProject.modelType}</Text>
               </div>
+            </div>
+            
+            <div style={{ marginBottom: 24 }}>
+              <Text strong style={{ display: 'block', marginBottom: 16 }}>
+                评估项目名称：
+              </Text>
+              <Input
+                placeholder="请输入评估项目名称"
+                value={evaluationTaskName}
+                onChange={(e) => setEvaluationTaskName(e.target.value)}
+                maxLength={100}
+                showCount
+                allowClear
+              />
             </div>
             
             <div>

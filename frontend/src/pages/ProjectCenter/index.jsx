@@ -104,7 +104,7 @@ const ProjectCenterPage = () => {
         
         return {
           id: task.id.toString(),
-          name: `训练项目 ${task.id}`,
+          name: task.task_name || `训练项目 ${task.id}`,
           modelType: modelTypeName,
           dataset: datasetName,
           startTime: new Date(task.create_time).toLocaleString('zh-CN'),

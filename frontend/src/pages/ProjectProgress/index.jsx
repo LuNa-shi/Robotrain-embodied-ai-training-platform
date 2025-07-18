@@ -688,7 +688,7 @@ const ProjectProgressPage = () => {
           <div className={styles.headerInfo}>
             <Space align="center">
               <Title level={4} className={styles.headerTitle}>
-                训练项目 {projectData?.id}
+                {projectData?.task_name || `训练项目 ${projectData?.id}`}
               </Title>
               <StatusDisplay status={projectData?.status} />
             </Space>
@@ -798,6 +798,7 @@ const ProjectProgressPage = () => {
         <div className={styles.rightInfoColumn}>
           <Card title="基本信息" className={styles.infoCard}>
             <Descriptions column={2} size="small">
+              <Descriptions.Item label="任务名称">{projectData?.task_name || '未设置'}</Descriptions.Item>
               <Descriptions.Item label="任务ID">{projectData?.id}</Descriptions.Item>
               <Descriptions.Item label="模型类型">{projectData?.modelTypeName}</Descriptions.Item>
               <Descriptions.Item label="数据集">{projectData?.datasetName}</Descriptions.Item>
