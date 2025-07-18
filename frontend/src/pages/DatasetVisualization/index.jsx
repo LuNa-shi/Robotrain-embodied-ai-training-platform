@@ -105,6 +105,7 @@ const DatasetVisualizationPage = () => {
     const [viewPoint, setViewPoint] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState('');
+    const [isAlohaDataset, setIsAlohaDataset] = useState(false);
 
     useEffect(() => {
         motionDataRef.current = motionData;
@@ -118,31 +119,41 @@ const DatasetVisualizationPage = () => {
             try {
                 const detail = await datasetsAPI.getById(datasetId);
                 setDatasetDetail(detail);
+                setIsAlohaDataset(detail.is_aloha || false);
+                
                 if (!detail || !detail.video_keys || detail.video_keys.length === 0) {
                     setLoadError('该数据集无可用视角点');
                     setLoading(false);
                     return;
                 }
+                
                 const defaultChunk = 0;
                 const defaultEpisode = 0;
                 const defaultView = detail.video_keys[0];
                 setChunkId(defaultChunk);
                 setEpisodeId(defaultEpisode);
                 setViewPoint(defaultView);
+                
                 // 请求视频
                 const videoBlob = await datasetsAPI.getVideo(datasetId, defaultChunk, defaultEpisode, defaultView);
                 setVideoUrl(URL.createObjectURL(videoBlob));
-                // 请求parquet
-                const parquetData = await datasetsAPI.getParquet(datasetId, defaultChunk, defaultEpisode);
-                const groupedData = await loadMotionDataFromApiParquet(parquetData);
-                if (Object.keys(groupedData).length > 0) {
-                    const keys = Object.keys(groupedData).map(Number).sort((a, b) => a - b);
-                    setEpisodeData(groupedData);
-                    setEpisodeKeys(keys);
-                    setCurrentEpisode(keys[0]);
-                    setIsMotionDataLoaded(true);
+                
+                // 只有Aloha数据集才请求parquet数据和显示图表仿真
+                if (detail.is_aloha) {
+                    const parquetData = await datasetsAPI.getParquet(datasetId, defaultChunk, defaultEpisode);
+                    const groupedData = await loadMotionDataFromApiParquet(parquetData);
+                    if (Object.keys(groupedData).length > 0) {
+                        const keys = Object.keys(groupedData).map(Number).sort((a, b) => a - b);
+                        setEpisodeData(groupedData);
+                        setEpisodeKeys(keys);
+                        setCurrentEpisode(keys[0]);
+                        setIsMotionDataLoaded(true);
+                    } else {
+                        setLoadError('未能获取到可用的数据');
+                    }
                 } else {
-                    setLoadError('未能获取到可用的数据');
+                    // 非Aloha数据集只显示视频，不需要加载motion data
+                    setIsMotionDataLoaded(true);
                 }
             } catch (err) {
                 console.error('获取默认数据失败:', err);
@@ -386,7 +397,33 @@ const DatasetVisualizationPage = () => {
         setCheckedLines(defaultChecked);
     }, []);
 
-    const handleBack = () => navigate('/data-center');
+    // 组件卸载时清理资源
+    useEffect(() => {
+        return () => {
+            // 停止视频播放
+            if (videoRef.current) {
+                videoRef.current.pause();
+            }
+            // 停止动画循环
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current);
+            }
+        };
+    }, []);
+
+    const handleBack = () => {
+        // 停止视频播放和动画
+        if (videoRef.current) {
+            videoRef.current.pause();
+        }
+        if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
+        }
+        setIsGlobalPlaying(false);
+        
+        // 导航到数据中心
+        navigate('/data-center');
+    };
 
     // 用户切换参数时重新获取
     const handleParamChange = async (newChunk, newEpisode, newView) => {
@@ -398,16 +435,23 @@ const DatasetVisualizationPage = () => {
         setViewPoint(newView);
         const videoBlob = await datasetsAPI.getVideo(datasetId, newChunk, newEpisode, newView);
         setVideoUrl(URL.createObjectURL(videoBlob));
-        const parquetData = await datasetsAPI.getParquet(datasetId, newChunk, newEpisode);
-        const groupedData = await loadMotionDataFromApiParquet(parquetData);
-        if (Object.keys(groupedData).length > 0) {
-          const keys = Object.keys(groupedData).map(Number).sort((a, b) => a - b);
-          setEpisodeData(groupedData);
-          setEpisodeKeys(keys);
-          setCurrentEpisode(keys[0]);
-          setIsMotionDataLoaded(true);
+        
+        // 只有Aloha数据集才请求parquet数据
+        if (isAlohaDataset) {
+          const parquetData = await datasetsAPI.getParquet(datasetId, newChunk, newEpisode);
+          const groupedData = await loadMotionDataFromApiParquet(parquetData);
+          if (Object.keys(groupedData).length > 0) {
+            const keys = Object.keys(groupedData).map(Number).sort((a, b) => a - b);
+            setEpisodeData(groupedData);
+            setEpisodeKeys(keys);
+            setCurrentEpisode(keys[0]);
+            setIsMotionDataLoaded(true);
+          } else {
+            setLoadError('未能获取到可用的数据');
+          }
         } else {
-          setLoadError('未能获取到可用的数据');
+          // 非Aloha数据集不需要加载motion data
+          setIsMotionDataLoaded(true);
         }
       } catch (err) {
         console.error('获取数据失败:', err);
@@ -443,7 +487,9 @@ const DatasetVisualizationPage = () => {
             <div className={styles.visualizationPage}>
                 <div className={styles.contentWrapper} style={{ textAlign: 'center', paddingTop: '100px' }}>
                     <Spin size="large" />
-                    <div style={{ marginTop: '20px', fontSize: '16px' }}>正在加载和解析 Parquet 数据...</div>
+                    <div style={{ marginTop: '20px', fontSize: '16px' }}>
+                        {isAlohaDataset ? '正在加载和解析 Parquet 数据...' : '正在加载视频数据...'}
+                    </div>
                 </div>
             </div>
         );
@@ -567,69 +613,90 @@ const DatasetVisualizationPage = () => {
                     )}
                 </div>
 
-                <div style={{ marginTop: 32 }}>
-                    <Row gutter={[32, 32]} justify="center">
-                        {chartGroups.map((group, idx) => {
-                            const currentGroupChecks = checkedLines[idx] || {};
-                            const isAllChecked = group.joints.every(joint => currentGroupChecks[joint.key]);
+                {/* 只有Aloha数据集才显示图表和仿真 */}
+                {isAlohaDataset && (
+                    <>
+                        <div style={{ marginTop: 32 }}>
+                            <Row gutter={[32, 32]} justify="center">
+                                {chartGroups.map((group, idx) => {
+                                    const currentGroupChecks = checkedLines[idx] || {};
+                                    const isAllChecked = group.joints.every(joint => currentGroupChecks[joint.key]);
 
-                            return (
-                                <Col xs={24} lg={12} key={group.title} style={{ display: 'flex' }}>
-                                    <Card
-                                        style={{ width: '100%', padding: '16px 24px', border: 'none', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.8)', boxShadow: 'none' }}
-                                        styles={{ body: { padding: 0, background: 'transparent' } }} // [FIXED] Used `styles.body` instead of `bodyStyle`
-                                    >
-                                        <div style={{ textAlign: 'center', marginBottom: 12, fontWeight: 600, fontSize: 18 }}>{group.title}</div>
-                                        <div style={{ marginBottom: 8 }}>
-                                            <Button
-                                                type="link"
-                                                style={{ padding: 0, marginBottom: 8 }}
-                                                onClick={() => {
-                                                    const newGroupChecks = { ...currentGroupChecks };
-                                                    group.joints.forEach(joint => { newGroupChecks[joint.key] = !isAllChecked; });
-                                                    setCheckedLines(prev => ({ ...prev, [idx]: newGroupChecks }));
-                                                }}
+                                    return (
+                                        <Col xs={24} lg={12} key={group.title} style={{ display: 'flex' }}>
+                                            <Card
+                                                style={{ width: '100%', padding: '16px 24px', border: 'none', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.8)', boxShadow: 'none' }}
+                                                styles={{ body: { padding: 0, background: 'transparent' } }} // [FIXED] Used `styles.body` instead of `bodyStyle`
                                             >
-                                                {isAllChecked ? '全部取消' : '全部选择'}
-                                            </Button>
-                                            <Row gutter={[16, 8]}>
-                                                {group.joints.map(joint => (
-                                                    <Col xs={12} sm={8} key={joint.key}>
-                                                        <Checkbox checked={!!currentGroupChecks[joint.key]} onChange={e => handleLineCheck(idx, joint.key, e.target.checked)} style={{ color: joint.color }}>
-                                                            {joint.label}
-                                                        </Checkbox>
-                                                    </Col>
-                                                ))}
-                                            </Row>
-                                        </div>
-                                        <div style={{ background: '#fff', borderRadius: 8, padding: '8px 0' }}>
-                                            <ReactECharts ref={el => (chartRefs.current[idx] = el)} option={getChartOption(group, idx)} style={{ height: 340 }} notMerge={true} lazyUpdate={true} />
-                                        </div>
-                                    </Card>
-                                </Col>
-                            );
-                        })}
-                    </Row>
-                </div>
-
-                <div style={{ marginTop: 32 }}>
-                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                        <Title level={3} style={{ color: '#333', fontWeight: 600 }}>仿真动画演示</Title>
-                    </div>
-                    <Card style={{ padding: 0 }} styles={{ body: { padding: 0 } }}>
-                        <div style={{ background: '#eaf2fb', minHeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                            {/* 帧数显示 - 左上角 */}
-                            <div className={styles.frameCounter}>
-                                <span className={styles.frameText}>
-                                    帧数: {motionData.length > 0 ? `${currentFrame + 1} / ${motionData.length}` : 'N/A'}
-                                </span>
-                            </div>
-                            <div style={{ width: '100%', height: 600 }}>
-                                <RobotSimulation ref={robotRef} urdfUrl={urdfUrl} />
-                            </div>
+                                                <div style={{ textAlign: 'center', marginBottom: 12, fontWeight: 600, fontSize: 18 }}>{group.title}</div>
+                                                <div style={{ marginBottom: 8 }}>
+                                                    <Button
+                                                        type="link"
+                                                        style={{ padding: 0, marginBottom: 8 }}
+                                                        onClick={() => {
+                                                            const newGroupChecks = { ...currentGroupChecks };
+                                                            group.joints.forEach(joint => { newGroupChecks[joint.key] = !isAllChecked; });
+                                                            setCheckedLines(prev => ({ ...prev, [idx]: newGroupChecks }));
+                                                        }}
+                                                    >
+                                                        {isAllChecked ? '全部取消' : '全部选择'}
+                                                    </Button>
+                                                    <Row gutter={[16, 8]}>
+                                                        {group.joints.map(joint => (
+                                                            <Col xs={12} sm={8} key={joint.key}>
+                                                                <Checkbox checked={!!currentGroupChecks[joint.key]} onChange={e => handleLineCheck(idx, joint.key, e.target.checked)} style={{ color: joint.color }}>
+                                                                    {joint.label}
+                                                                </Checkbox>
+                                                            </Col>
+                                                        ))}
+                                                    </Row>
+                                                </div>
+                                                <div style={{ background: '#fff', borderRadius: 8, padding: '8px 0' }}>
+                                                    <ReactECharts ref={el => (chartRefs.current[idx] = el)} option={getChartOption(group, idx)} style={{ height: 340 }} notMerge={true} lazyUpdate={true} />
+                                                </div>
+                                            </Card>
+                                        </Col>
+                                    );
+                                })}
+                            </Row>
                         </div>
-                    </Card>
-                </div>
+
+                        <div style={{ marginTop: 32 }}>
+                            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                                <Title level={3} style={{ color: '#333', fontWeight: 600 }}>仿真动画演示</Title>
+                            </div>
+                            <Card style={{ padding: 0 }} styles={{ body: { padding: 0 } }}>
+                                <div style={{ background: '#eaf2fb', minHeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                                    {/* 帧数显示 - 左上角 */}
+                                    <div className={styles.frameCounter}>
+                                        <span className={styles.frameText}>
+                                            帧数: {motionData.length > 0 ? `${currentFrame + 1} / ${motionData.length}` : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div style={{ width: '100%', height: 600 }}>
+                                        <RobotSimulation ref={robotRef} urdfUrl={urdfUrl} />
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+                    </>
+                )}
+
+                {/* 非Aloha数据集显示提示信息 */}
+                {!isAlohaDataset && (
+                    <div style={{ marginTop: 32, textAlign: 'center' }}>
+                        <Card style={{ background: 'transparent', borderRadius: '12px', border: 'none', boxShadow: 'none' }}>
+                            <div style={{ padding: '24px' }}>
+                                <div style={{ fontSize: '16px', color: '#666', marginBottom: '8px' }}>
+                                    ℹ️ 当前数据集为非Aloha数据集
+                                </div>
+                                <div style={{ fontSize: '14px', color: '#999' }}>
+                                    仅支持视频展示功能，图表分析和机械臂仿真功能仅适用于Aloha数据集
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                )}
             </div>
         </div>
     );

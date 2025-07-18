@@ -234,15 +234,17 @@ export const datasetsAPI = {
    * @param {string} name 数据集名称
    * @param {string} description 数据集描述
    * @param {File} file 上传的数据集文件（zip格式）
+   * @param {boolean} isAloha 是否为Aloha数据集
    * @returns {Promise<Object>} 上传成功的数据集信息
    */
-  upload: async (name, description, file) => {
+  upload: async (name, description, file, isAloha) => {
     try {
       // 创建FormData对象
       const formData = new FormData();
       formData.append('name', name);
       formData.append('description', description);
       formData.append('file', file);
+      formData.append('is_aloha', isAloha);
 
       // 创建专门用于文件上传的axios实例，不设置Content-Type让浏览器自动设置
       const uploadApi = axios.create({
