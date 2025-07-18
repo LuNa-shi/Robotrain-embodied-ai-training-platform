@@ -798,8 +798,8 @@ const ProjectProgressPage = () => {
         <div className={styles.rightInfoColumn}>
           <Card title="基本信息" className={styles.infoCard}>
             <Descriptions column={2} size="small">
-              <Descriptions.Item label="任务名称">{projectData?.task_name || '未设置'}</Descriptions.Item>
-              <Descriptions.Item label="任务ID">{projectData?.id}</Descriptions.Item>
+              <Descriptions.Item label="项目名称">{projectData?.task_name || '未设置'}</Descriptions.Item>
+              <Descriptions.Item label="项目ID">{projectData?.id}</Descriptions.Item>
               <Descriptions.Item label="模型类型">{projectData?.modelTypeName}</Descriptions.Item>
               <Descriptions.Item label="数据集">{projectData?.datasetName}</Descriptions.Item>
               <Descriptions.Item label="创建时间">{projectData?.create_time ? new Date(projectData.create_time).toLocaleString('zh-CN') : 'N/A'}</Descriptions.Item>

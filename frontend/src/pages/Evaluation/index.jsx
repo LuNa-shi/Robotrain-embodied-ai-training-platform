@@ -109,7 +109,7 @@ const EvaluationPage = () => {
   const [selectedTrainingProject, setSelectedTrainingProject] = useState(null);
   const [loadingTrainingProjects, setLoadingTrainingProjects] = useState(false);
   
-  // 评估任务相关状态
+  // 评估项目相关状态
   const [loadingEvaluationTasks, setLoadingEvaluationTasks] = useState(false);
   const [selectedEvalStage, setSelectedEvalStage] = useState(null);
   const [evaluationTaskName, setEvaluationTaskName] = useState('');
@@ -126,7 +126,7 @@ const EvaluationPage = () => {
   const [downloadingVideo, setDownloadingVideo] = useState(false); // 下载状态
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null); // 当前视频的Blob URL
   
-  // 删除评估任务相关状态
+  // 删除评估项目相关状态
   const [deletingEvaluation, setDeletingEvaluation] = useState(false); // 删除状态
 
   // WebSocket状态管理
@@ -151,7 +151,7 @@ const EvaluationPage = () => {
     if (activeWebSockets.size > 0) {
       console.log('🔌 [DEBUG] 活跃连接详情:');
       activeWebSockets.forEach((ws, taskId) => {
-        console.log(`  - 评估任务 ${taskId}:`, {
+        console.log(`  - 评估项目 ${taskId}:`, {
           连接状态: ws.getStatus(),
           是否连接: ws.isConnected(),
           WebSocket实例: ws
@@ -162,7 +162,7 @@ const EvaluationPage = () => {
     }
     
     // 输出records中的状态信息
-    console.log('🔌 [DEBUG] 当前评估任务状态:');
+    console.log('🔌 [DEBUG] 当前评估项目状态:');
     records.forEach(record => {
       const evalTaskId = record.id.replace('eval-', '');
       const hasWebSocket = activeWebSockets.has(parseInt(evalTaskId));
@@ -192,7 +192,7 @@ const EvaluationPage = () => {
       }
     };
     
-    // 获取评估任务列表并建立WebSocket连接
+    // 获取评估项目列表并建立WebSocket连接
     fetchEvaluationTasksAndSetupWebSockets();
     
     // 默认选择"发起评估"项
@@ -272,19 +272,19 @@ const EvaluationPage = () => {
   const disconnectAllWebSockets = () => {
     const activeWebSockets = activeWebSocketsRef.current;
     activeWebSockets.forEach((ws, evalTaskId) => {
-      console.log(`断开评估任务 ${evalTaskId} 的WebSocket连接`);
+      console.log(`断开评估项目 ${evalTaskId} 的WebSocket连接`);
       ws.disconnect();
     });
     activeWebSockets.clear();
   };
 
-  // 为单个评估任务建立WebSocket连接
+  // 为单个评估项目建立WebSocket连接
   const setupWebSocketForTask = (evalTaskId) => {
     const activeWebSockets = activeWebSocketsRef.current;
     
     // 如果已经存在连接，先断开
     if (activeWebSockets.has(evalTaskId)) {
-      console.log(`评估任务 ${evalTaskId} 的WebSocket连接已存在，先断开`);
+      console.log(`评估项目 ${evalTaskId} 的WebSocket连接已存在，先断开`);
       activeWebSockets.get(evalTaskId).disconnect();
       activeWebSockets.delete(evalTaskId);
     }
@@ -297,12 +297,12 @@ const EvaluationPage = () => {
     ws.onMessage(async (wsMessage) => {
       try {
         const data = JSON.parse(wsMessage);
-        console.log(`收到评估任务 ${evalTaskId} 的WebSocket消息:`, data);
+        console.log(`收到评估项目 ${evalTaskId} 的WebSocket消息:`, data);
         
         // 直接获取最新详情，不比较状态
         try {
           const updatedEvalTaskDetail = await evalTasksAPI.getById(evalTaskId);
-          console.log(`评估任务 ${evalTaskId} 获取最新详情:`, updatedEvalTaskDetail);
+          console.log(`评估项目 ${evalTaskId} 获取最新详情:`, updatedEvalTaskDetail);
           
           // 更新records中的状态
           setRecords(prevRecords => {
@@ -342,56 +342,56 @@ const EvaluationPage = () => {
           
           // 如果状态已完成或失败，断开WebSocket连接
           if (updatedEvalTaskDetail.status === 'completed' || updatedEvalTaskDetail.status === 'failed') {
-            console.log(`评估任务 ${evalTaskId} 状态为 ${updatedEvalTaskDetail.status}，断开WebSocket连接`);
+            console.log(`评估项目 ${evalTaskId} 状态为 ${updatedEvalTaskDetail.status}，断开WebSocket连接`);
             ws.disconnect();
             activeWebSockets.delete(evalTaskId);
             
             if (updatedEvalTaskDetail.status === 'completed') {
-              message.success(`评估任务 ${evalTaskId} 已完成！`);
+              message.success(`评估项目 ${evalTaskId} 已完成！`);
             } else {
-              message.error(`评估任务 ${evalTaskId} 失败！`);
+              message.error(`评估项目 ${evalTaskId} 失败！`);
             }
           } else {
-            console.log(`评估任务 ${evalTaskId} 状态为 ${updatedEvalTaskDetail.status}，继续保持WebSocket连接`);
+            console.log(`评估项目 ${evalTaskId} 状态为 ${updatedEvalTaskDetail.status}，继续保持WebSocket连接`);
           }
         } catch (error) {
-          console.error(`获取评估任务 ${evalTaskId} 详情失败:`, error);
-          message.error(`获取评估任务详情失败: ${error.message}`);
+          console.error(`获取评估项目 ${evalTaskId} 详情失败:`, error);
+          message.error(`获取评估项目详情失败: ${error.message}`);
         }
       } catch (e) {
-        console.error(`解析评估任务 ${evalTaskId} 的WebSocket消息失败:`, e);
+        console.error(`解析评估项目 ${evalTaskId} 的WebSocket消息失败:`, e);
         message.error('WebSocket消息解析失败');
       }
     });
     
     ws.onOpen(() => {
-      console.log(`评估任务 ${evalTaskId} 的WebSocket连接成功`);
+      console.log(`评估项目 ${evalTaskId} 的WebSocket连接成功`);
     });
     
     ws.onClose(() => {
-      console.log(`🔌 [DEBUG] 评估任务 ${evalTaskId} 的WebSocket连接关闭`);
+      console.log(`🔌 [DEBUG] 评估项目 ${evalTaskId} 的WebSocket连接关闭`);
       activeWebSockets.delete(evalTaskId);
       console.log(`🔌 [DEBUG] 连接关闭后，当前活跃连接数: ${activeWebSockets.size}`);
     });
     
     ws.onError((error) => {
-      console.error(`评估任务 ${evalTaskId} 的WebSocket连接错误:`, error);
+      console.error(`评估项目 ${evalTaskId} 的WebSocket连接错误:`, error);
       activeWebSockets.delete(evalTaskId);
     });
     
     // 保存连接
     activeWebSockets.set(evalTaskId, ws);
-    console.log(`🔌 [DEBUG] 为评估任务 ${evalTaskId} 建立WebSocket连接`);
+    console.log(`🔌 [DEBUG] 为评估项目 ${evalTaskId} 建立WebSocket连接`);
     console.log(`🔌 [DEBUG] 当前活跃连接数: ${activeWebSockets.size}`);
     
     // 输出当前所有活跃连接
     console.log('🔌 [DEBUG] 当前所有活跃WebSocket连接:');
     activeWebSockets.forEach((ws, taskId) => {
-      console.log(`  - 评估任务 ${taskId}: ${ws.getStatus()}`);
+      console.log(`  - 评估项目 ${taskId}: ${ws.getStatus()}`);
     });
   };
 
-  // 获取评估任务列表并建立WebSocket连接
+  // 获取评估项目列表并建立WebSocket连接
   const fetchEvaluationTasksAndSetupWebSockets = async () => {
     try {
       setLoadingEvaluationTasks(true);
@@ -402,7 +402,7 @@ const EvaluationPage = () => {
       const evaluationRecords = data.map(task => {
         return {
           id: `eval-${task.id}`,
-          name: task.task_name || `评估任务 ${task.id}`,
+          name: task.task_name || `评估项目 ${task.id}`,
           status: task.status,
           videoNames: task.video_names || [],
           evalStage: task.eval_stage,
@@ -413,12 +413,12 @@ const EvaluationPage = () => {
 
       setRecords(evaluationRecords);
       previousRecordsRef.current = evaluationRecords;
-      console.log('首次加载评估任务:', evaluationRecords.length, '个任务');
+      console.log('首次加载评估项目:', evaluationRecords.length, '个项目');
       
-      // 记录需要建立WebSocket连接的任务
+      // 记录需要建立WebSocket连接的项目
       const tasksToConnect = [];
       
-      // 为pending和running状态的任务建立WebSocket连接
+      // 为pending和running状态的项目建立WebSocket连接
       evaluationRecords.forEach(record => {
         const evalTaskId = record.id.replace('eval-', '');
         if (record.status === 'pending' || record.status === 'running') {
@@ -435,13 +435,13 @@ const EvaluationPage = () => {
       setTimeout(() => {
         const activeWebSockets = activeWebSocketsRef.current;
         console.log('🔌 [DEBUG] WebSocket连接状态报告:');
-        console.log('🔌 [DEBUG] 需要建立连接的任务:', tasksToConnect);
+        console.log('🔌 [DEBUG] 需要建立连接的项目:', tasksToConnect);
         console.log('🔌 [DEBUG] 当前活跃的WebSocket连接数量:', activeWebSockets.size);
         
         if (activeWebSockets.size > 0) {
           console.log('🔌 [DEBUG] 已建立的WebSocket连接详情:');
           activeWebSockets.forEach((ws, taskId) => {
-            console.log(`  - 评估任务 ${taskId}:`, {
+            console.log(`  - 评估项目 ${taskId}:`, {
               连接状态: ws.getStatus(),
               是否连接: ws.isConnected(),
               WebSocket实例: ws
@@ -451,26 +451,26 @@ const EvaluationPage = () => {
           console.log('🔌 [DEBUG] 当前没有活跃的WebSocket连接');
         }
         
-        // 输出所有评估任务的状态分布
+        // 输出所有评估项目的状态分布
         const statusDistribution = {};
         evaluationRecords.forEach(record => {
           const status = record.status;
           statusDistribution[status] = (statusDistribution[status] || 0) + 1;
         });
-        console.log('🔌 [DEBUG] 评估任务状态分布:', statusDistribution);
+        console.log('🔌 [DEBUG] 评估项目状态分布:', statusDistribution);
         
       }, 2000); // 延迟2秒，确保WebSocket连接建立完成
       
     } catch (err) {
-      console.error('获取评估任务失败:', err);
-      message.error('获取评估任务失败: ' + err.message);
+      console.error('获取评估项目失败:', err);
+      message.error('获取评估项目失败: ' + err.message);
       setRecords([]);
     } finally {
       setLoadingEvaluationTasks(false);
     }
   };
 
-  // 获取评估任务列表（智能更新版本）
+  // 获取评估项目列表（智能更新版本）
   const fetchEvaluationTasks = async (showLoading = true) => {
     try {
       // 只有在需要显示加载状态时才设置loading
@@ -484,7 +484,7 @@ const EvaluationPage = () => {
       const evaluationRecords = data.map(task => {
         return {
           id: `eval-${task.id}`,
-          name: task.task_name || `评估任务 ${task.id}`,
+          name: task.task_name || `评估项目 ${task.id}`,
           status: task.status,
           videoNames: task.video_names || [],
           evalStage: task.eval_stage,
@@ -500,7 +500,7 @@ const EvaluationPage = () => {
       if (previousRecords.length === 0) {
         setRecords(evaluationRecords);
         previousRecordsRef.current = evaluationRecords;
-        console.log('首次加载评估任务:', evaluationRecords.length, '个任务');
+        console.log('首次加载评估项目:', evaluationRecords.length, '个项目');
         return;
       }
 
@@ -528,7 +528,7 @@ const EvaluationPage = () => {
         
         if (statusChanges.length > 0) {
           statusChanges.forEach(change => {
-            console.log(`评估任务 ${change.new.name} 状态从 ${change.old.status} 变为 ${change.new.status}`);
+            console.log(`评估项目 ${change.new.name} 状态从 ${change.old.status} 变为 ${change.new.status}`);
           });
         }
       } else {
@@ -536,8 +536,8 @@ const EvaluationPage = () => {
       }
       
     } catch (err) {
-      console.error('获取评估任务失败:', err);
-      message.error('获取评估任务失败: ' + err.message);
+      console.error('获取评估项目失败:', err);
+      message.error('获取评估项目失败: ' + err.message);
       setRecords([]);
     } finally {
       // 只有在之前设置了loading时才清除loading
@@ -547,15 +547,15 @@ const EvaluationPage = () => {
     }
   };
 
-  // 获取训练任务详情
+  // 获取训练项目详情
   const fetchTrainTaskDetail = async (trainTaskId) => {
     try {
       const trainTaskDetail = await trainTasksAPI.getById(trainTaskId);
       setSelectedTrainTask(trainTaskDetail);
       return trainTaskDetail;
     } catch (error) {
-      console.error('获取训练任务详情失败:', error);
-      message.error('获取训练任务详情失败: ' + error.message);
+      console.error('获取训练项目详情失败:', error);
+      message.error('获取训练项目详情失败: ' + error.message);
       return null;
     }
   };
@@ -593,7 +593,7 @@ const EvaluationPage = () => {
   // 处理视频播放
   const handlePlayVideo = async (videoName) => {
     if (!selectedRecordDetails) {
-      message.error('评估任务详情未加载');
+      message.error('评估项目详情未加载');
       return;
     }
 
@@ -662,16 +662,16 @@ const EvaluationPage = () => {
     }
   };
 
-  // 处理删除评估任务
+  // 处理删除评估项目
   const handleDeleteEvaluation = () => {
     if (!selectedRecordDetails) {
-      message.error('评估任务详情未加载');
+      message.error('评估项目详情未加载');
       return;
     }
 
     modal.confirm({
       title: '确认删除',
-      content: '删除后数据无法恢复，确定要删除该评估任务吗？',
+      content: '删除后数据无法恢复，确定要删除该评估项目吗？',
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
@@ -681,13 +681,13 @@ const EvaluationPage = () => {
           setDeletingEvaluation(true);
           
           const evalTaskId = selectedRecordDetails.id;
-          console.log('正在删除评估任务:', evalTaskId);
+          console.log('正在删除评估项目:', evalTaskId);
           
           await evalTasksAPI.delete(evalTaskId);
           
-          message.success('评估任务删除成功！');
+          message.success('评估项目删除成功！');
           
-          // 重新获取评估任务列表并建立WebSocket连接
+          // 重新获取评估项目列表并建立WebSocket连接
           await fetchEvaluationTasksAndSetupWebSockets();
           
           // 重置选中状态
@@ -703,8 +703,8 @@ const EvaluationPage = () => {
           fetchCompletedTrainingProjects();
           
         } catch (error) {
-          console.error('删除评估任务失败:', error);
-          message.error('删除评估任务失败: ' + error.message);
+          console.error('删除评估项目失败:', error);
+          message.error('删除评估项目失败: ' + error.message);
         } finally {
           setDeletingEvaluation(false);
         }
@@ -732,21 +732,21 @@ const EvaluationPage = () => {
     try {
       setCreatingEvaluation(true);
       
-      // 构建评估任务创建请求
+      // 构建评估项目创建请求
       const evalTaskData = {
         train_task_id: parseInt(selectedTrainingProject.id),
         eval_stage: selectedEvalStage,
         task_name: evaluationTaskName.trim()
       };
       
-      console.log('创建评估任务:', evalTaskData);
+      console.log('创建评估项目:', evalTaskData);
       
-      // 调用后端API创建评估任务
+      // 调用后端API创建评估项目
       const createdTask = await evalTasksAPI.create(evalTaskData);
       
-      message.success(`评估任务 ${createdTask.id} 创建成功！`);
+      message.success(`评估项目 ${createdTask.id} 创建成功！`);
       
-          // 重新获取评估任务列表并建立WebSocket连接
+          // 重新获取评估项目列表并建立WebSocket连接
     await fetchEvaluationTasksAndSetupWebSockets();
     
     // 关闭弹窗并重置状态
@@ -756,8 +756,8 @@ const EvaluationPage = () => {
     setEvaluationTaskName('');
       
     } catch (error) {
-      console.error('创建评估任务失败:', error);
-      message.error('创建评估任务失败: ' + error.message);
+      console.error('创建评估项目失败:', error);
+      message.error('创建评估项目失败: ' + error.message);
     } finally {
       setCreatingEvaluation(false);
     }
@@ -801,13 +801,13 @@ const EvaluationPage = () => {
           setSelectedTrainingProject(null);
         }
         
-        // 获取评估任务详情
+        // 获取评估项目详情
         try {
           const evalTaskId = record.id.replace('eval-', '');
           const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
           setSelectedRecordDetails(evalTaskDetail);
           
-          // 获取训练任务详情
+          // 获取训练项目详情
           if (evalTaskDetail.train_task_id) {
             await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
           }
@@ -818,8 +818,8 @@ const EvaluationPage = () => {
           setCurrentVideoBlob(null);
           setCurrentVideoUrl(null);
         } catch (error) {
-          console.error('获取评估任务详情失败:', error);
-          message.error('获取评估任务详情失败: ' + error.message);
+          console.error('获取评估项目详情失败:', error);
+          message.error('获取评估项目详情失败: ' + error.message);
         }
       }}
     >
@@ -848,13 +848,13 @@ const EvaluationPage = () => {
           setSelectedTrainingProject(null);
         }
         
-        // 获取评估任务详情
+        // 获取评估项目详情
         try {
           const evalTaskId = record.id.replace('eval-', '');
           const evalTaskDetail = await evalTasksAPI.getById(evalTaskId);
           setSelectedRecordDetails(evalTaskDetail);
           
-          // 获取训练任务详情
+          // 获取训练项目详情
           if (evalTaskDetail.train_task_id) {
             await fetchTrainTaskDetail(evalTaskDetail.train_task_id);
           }
@@ -865,8 +865,8 @@ const EvaluationPage = () => {
           setCurrentVideoBlob(null);
           setCurrentVideoUrl(null);
         } catch (error) {
-          console.error('获取评估任务详情失败:', error);
-          message.error('获取评估任务详情失败: ' + error.message);
+          console.error('获取评估项目详情失败:', error);
+          message.error('获取评估项目详情失败: ' + error.message);
         }
       }}
     >
@@ -1089,7 +1089,7 @@ const EvaluationPage = () => {
                                   icon={<DeleteOutlined />}
                                   onClick={handleDeleteEvaluation}
                                   loading={deletingEvaluation}
-                                  title="删除评估任务"
+                                  title="删除评估项目"
                                   size="middle"
                                   style={{ minWidth: '100px' }}
                                 >
@@ -1169,7 +1169,7 @@ const EvaluationPage = () => {
                                   icon={<DeleteOutlined />}
                                   onClick={handleDeleteEvaluation}
                                   loading={deletingEvaluation}
-                                  title="删除评估任务"
+                                  title="删除评估项目"
                                   size="middle"
                                   style={{ minWidth: '100px' }}
                                 >
@@ -1186,7 +1186,7 @@ const EvaluationPage = () => {
                               <div>
                                 <Text type="secondary">暂无评估视频</Text>
                                 <br />
-                                <Text type="secondary">该评估任务暂未生成视频文件</Text>
+                                <Text type="secondary">该评估项目暂未生成视频文件</Text>
                               </div>
                             </div>
                           </div>
@@ -1208,7 +1208,7 @@ const EvaluationPage = () => {
                               icon={<DeleteOutlined />}
                               onClick={handleDeleteEvaluation}
                               loading={deletingEvaluation}
-                              title="删除评估任务"
+                              title="删除评估项目"
                               size="middle"
                               style={{ minWidth: '100px' }}
                             >
@@ -1225,7 +1225,7 @@ const EvaluationPage = () => {
                           <div>
                             <Text type="secondary">当前状态（{selectedRecordDetails.status}）暂不支持显示仿真和视频。</Text>
                             <br />
-                            <Text type="secondary">请等待评估任务完成后查看视频结果</Text>
+                            <Text type="secondary">请等待评估项目完成后查看视频结果</Text>
                           </div>
                         </div>
                       </div>
@@ -1275,7 +1275,7 @@ const EvaluationPage = () => {
               {loadingEvaluationTasks ? (
                 <div className={styles.loadingContainer}>
                   <Spin size="large" />
-                  <Text>加载评估任务中...</Text>
+                  <Text>加载评估项目中...</Text>
                 </div>
               ) : (
                 <div className={styles.projectListHorizontal}>
@@ -1303,7 +1303,7 @@ const EvaluationPage = () => {
               {loadingEvaluationTasks ? (
                 <div className={styles.loadingContainer}>
                   <Spin size="large" />
-                  <Text>加载评估任务中...</Text>
+                  <Text>加载评估项目中...</Text>
                 </div>
               ) : (
                 <List
