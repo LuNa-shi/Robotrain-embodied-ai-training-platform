@@ -24,6 +24,7 @@ class EvalTaskService:
             return None
 
         eval_task_create_db = EvalTaskCreateDB(
+            task_name=eval_task_create.task_name,
             train_task_id=eval_task_create.train_task_id,
             eval_stage=eval_task_create.eval_stage,
             owner_id=user.id

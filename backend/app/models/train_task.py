@@ -17,6 +17,7 @@ class TrainTaskBase(SQLModel):
     dataset_id: Optional[int] = Field(default=None, foreign_key="dataset.id")
     model_type_id: Optional[int] = Field(default=None, foreign_key="model_type.id")
     hyperparameter: Dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    task_name: str = Field(nullable=False)
 
 class TrainTask(TrainTaskBase, table=True):
     __tablename__ = "train_task"
