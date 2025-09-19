@@ -1,4 +1,4 @@
-FROM python:3.10-slim-buster
+FROM python:3.10-slim-bookworm
 
 # 设置工作目录
 WORKDIR /app
@@ -9,8 +9,11 @@ COPY requirements.txt .
 ENV PYTHONUNBUFFERED=1 
 
 # 替换为阿里云 APT 镜像源
-RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list && \
-    sed -i 's|security.debian.org|mirrors.aliyun.com/debian-security|g' /etc/apt/sources.list
+# RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list && \
+    # sed -i 's|security.debian.org|mirrors.aliyun.com/debian-security|g' /etc/apt/sources.list
+
+RUN echo "deb http://mirrors.aliyun.com/debian/ bookworm main" > /etc/apt/sources.list && \
+    echo "deb-src http://mirrors.aliyun.com/debian/ bookworm main" >> /etc/apt/sources.list
 
 # 安装系统依赖和编译工具
 RUN apt-get update
