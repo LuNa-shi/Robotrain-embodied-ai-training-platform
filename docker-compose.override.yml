@@ -1,0 +1,7 @@
+services:
+  frontend:
+    image: swr.cn-north-4.myhuaweicloud.com/robotrain/robotrain-embodied-ai-training-platform-frontend:latest
+    build: null
+  backend:
+    image: swr.cn-north-4.myhuaweicloud.com/robotrain/robotrain-embodied-ai-training-platform-backend:latest
+    build: null
